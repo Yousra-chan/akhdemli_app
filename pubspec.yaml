@@ -1,0 +1,119 @@
+name: service_app
+description: "A service booking application."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & icons
+  cupertino_icons: ^1.0.8
+  font_awesome_flutter: ^10.7.0
+  google_fonts: ^6.1.0
+  smooth_page_indicator: ^1.1.0
+
+  # Maps & GPS
+  google_maps_flutter: ^2.5.0
+  geolocator: ^11.0.1
+  geocoding: ^2.2.0
+
+  # HTTP
+  http: ^1.5.0
+
+  # Storage
+  shared_preferences: ^2.5.4
+
+  # UI components
+  drop_down_list: ^2.0.0
+
+  # State management
+  provider: ^6.1.1
+
+  # Auth
+  google_sign_in: ^6.1.5
+  sign_in_with_apple: ^7.0.1
+
+  # Notifications
+  flutter_local_notifications: ^17.2.3
+  firebase_messaging: ^14.7.10
+
+
+
+
+  # Permissions
+  permission_handler: ^12.0.1
+
+  # Firebase
+  firebase_core: ^2.27.0
+  cloud_firestore: ^4.16.0
+  firebase_auth: ^4.17.2
+  
+
+  # Geospatial Firestore queries
+  geoflutterfire_plus: ^0.0.21
+  wilaya_commune: ^0.0.1
+  dzair_data_usage: ^1.0.1
+
+  # url launcher
+  url_launcher: ^6.1.11 
+
+  # image picker
+  image_picker: ^1.0.4
+  pull_to_refresh: ^2.0.0
+  intl: ^0.20.2
+  overlay_support: ^2.1.0
+  cached_network_image: ^3.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  intl_utils: ^2.8.6
+  flutter_launcher_icons: ^0.14.4
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo_image/logo.png"
+  web:
+    generate: true
+    image_path: "assets/logo_image/logo.png"
+    background_color: "#ffffff"
+    theme_color: "#000000"
+  windows:
+    generate: true
+    image_path: "assets/logo_image/logo.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/logo_image/logo.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/logo.png
+    - assets/images/1.png
+    - assets/images/2.png
+    - assets/images/3.png
+    - assets/logo_image/logo.png
+
+  fonts:
+    - family: Exo2
+      fonts:
+        - asset: assets/fonts/Exo2-VariableFont_wght.ttf
+          weight: 400
+        - asset: assets/fonts/Exo2-VariableFont_wght.ttf
+          weight: 700
+        - asset: assets/fonts/Exo2-Italic-VariableFont_wght.ttf
+          weight: 400
+          style: italic
+
+flutter_intl:
+  enabled: true
+  use_deferred_loading: false
