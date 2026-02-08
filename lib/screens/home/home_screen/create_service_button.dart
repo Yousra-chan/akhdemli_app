@@ -21,10 +21,10 @@ class CreateServiceButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF667EEA).withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-              spreadRadius: 1,
+              color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+              spreadRadius: 2,
             ),
           ],
         ),
@@ -35,42 +35,47 @@ class CreateServiceButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 14,
+                horizontal: 24,
+                vertical: 16,
               ),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF667EEA), Color(0xFF5A67D8)],
+                  colors: [
+                    Color.fromARGB(255, 12, 94, 153),
+                    Color(0xFF4A6FDC),
+                    Color(0xFF667EEA),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: Colors.white.withOpacity(0.3),
-                  width: 1,
+                  width: 1.5,
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(5),
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
-                      Icons.add_rounded,
+                      Icons.add,
                       color: Colors.white,
-                      size: 16,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   const Text(
                     'Create Service',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'Exo2',
                     ),

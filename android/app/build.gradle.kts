@@ -51,7 +51,6 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
 
     implementation("com.google.firebase:firebase-messaging")
-
     // ✅ Dépendance nécessaire pour le desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 

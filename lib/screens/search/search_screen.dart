@@ -1549,27 +1549,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: kBackgroundColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              onPressed: () {
-                _clearResources();
-                Navigator.of(context).pop();
-              },
-              icon: Icon(
-                Icons.arrow_back_ios_new,
-                color: kPrimaryColor,
-                size: 20,
-              ),
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          const SizedBox(width: 12),
+          // Removed the back button container
           Expanded(
             child: GestureDetector(
               onTap: _showFilterDialog,

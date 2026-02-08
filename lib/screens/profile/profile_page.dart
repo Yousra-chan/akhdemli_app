@@ -70,13 +70,13 @@ class _ProfilePageState extends State<ProfilePage> {
         final bool isProvider = currentUser.isProvider;
 
         return Scaffold(
-          backgroundColor: kLightBackgroundColor,
+          backgroundColor: Colors.white, // Changed to white
           body: Stack(
             children: [
               SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Simple App Bar
+                    // Simple App Bar (back button removed)
                     _buildAppBar(context),
 
                     // Profile Header
@@ -121,7 +121,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   color: Colors.black54,
                   child: const Center(
-                    child: CircularProgressIndicator(color: kPrimaryBlue),
+                    child: CircularProgressIndicator(
+                      color: Color.fromARGB(
+                          255, 12, 94, 153), // Changed to ChatScreen blue
+                    ),
                   ),
                 ),
             ],
@@ -137,11 +140,11 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: kCardBackgroundColor,
+          color: Colors.white, // Changed to white
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: kSoftShadowColor.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.1), // Changed shadow
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -166,12 +169,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1), // Different color
+                      color: const Color.fromARGB(255, 12, 94, 153)
+                          .withOpacity(0.1), // Changed to ChatScreen blue
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       CupertinoIcons.calendar_today,
-                      color: Colors.purple,
+                      color: const Color.fromARGB(
+                          255, 12, 94, 153), // Changed to ChatScreen blue
                       size: 24,
                     ),
                   ),
@@ -183,7 +188,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           "My Bookings",
                           style: TextStyle(
-                            color: kDarkTextColor,
+                            color: Colors.grey.shade800, // Changed to dark gray
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Exo2',
@@ -193,7 +198,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           "View and manage all service requests",
                           style: TextStyle(
-                            color: kMutedTextColor,
+                            color:
+                                Colors.grey.shade600, // Changed to medium gray
                             fontSize: 12,
                           ),
                         ),
@@ -202,7 +208,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Icon(
                     CupertinoIcons.chevron_right,
-                    color: kMutedTextColor,
+                    color: Colors.grey.shade500, // Changed to gray
                     size: 20,
                   ),
                 ],
@@ -226,25 +232,12 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: kLightBackgroundColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: kDarkTextColor,
-                size: 24,
-              ),
-            ),
-          ),
+          // Removed back button - only empty space
+          const SizedBox(width: 40), // Keep space for alignment
           const Text(
             'Profile',
             style: TextStyle(
-              color: kDarkTextColor,
+              color: Colors.black87, // Changed to black
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -260,12 +253,20 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kLightBackgroundColor,
+                color: Colors.white, // Changed to white
                 borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.settings_outlined,
-                color: kDarkTextColor,
+                color: const Color.fromARGB(
+                    255, 12, 94, 153), // Changed to ChatScreen blue
                 size: 24,
               ),
             ),
@@ -285,14 +286,15 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               CircleAvatar(
                 radius: 50,
-                backgroundColor: kLightBackgroundColor,
+                backgroundColor: Colors.white, // Changed to white
                 backgroundImage: ImageUtils.getImageProvider(user.photoUrl),
                 child: _buildImageLoadingFallback(user),
               ),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: kPrimaryBlue,
+                  color: const Color.fromARGB(
+                      255, 12, 94, 153), // Changed to ChatScreen blue
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
@@ -308,7 +310,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Text(
             user.name,
             style: const TextStyle(
-              color: kDarkTextColor,
+              color: Colors.black87, // Changed to black
               fontSize: 24,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -319,16 +321,16 @@ class _ProfilePageState extends State<ProfilePage> {
           if (user.profession != null && user.profession!.isNotEmpty)
             Text(
               user.profession!,
-              style: const TextStyle(
-                color: kMutedTextColor,
+              style: TextStyle(
+                color: Colors.grey.shade600, // Changed to medium gray
                 fontSize: 16,
               ),
             )
           else if (user.phone.isNotEmpty)
             Text(
               user.phone,
-              style: const TextStyle(
-                color: kMutedTextColor,
+              style: TextStyle(
+                color: Colors.grey.shade600, // Changed to medium gray
                 fontSize: 16,
               ),
             ),
@@ -336,13 +338,15 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: kPrimaryBlue.withOpacity(0.1),
+              color: const Color.fromARGB(255, 12, 94, 153)
+                  .withOpacity(0.1), // Changed to ChatScreen blue
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               user.role.toUpperCase(),
               style: TextStyle(
-                color: kPrimaryBlue,
+                color: const Color.fromARGB(
+                    255, 12, 94, 153), // Changed to ChatScreen blue
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -357,11 +361,11 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: kCardBackgroundColor,
+        color: Colors.white, // Changed to white
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: kSoftShadowColor.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.1), // Changed shadow
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -413,7 +417,8 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Icon(
             icon,
-            color: kPrimaryBlue,
+            color: const Color.fromARGB(
+                255, 12, 94, 153), // Changed to ChatScreen blue
             size: 24,
           ),
           const SizedBox(width: 16),
@@ -423,8 +428,8 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: kMutedTextColor,
+                  style: TextStyle(
+                    color: Colors.grey.shade600, // Changed to medium gray
                     fontSize: 14,
                   ),
                 ),
@@ -432,7 +437,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   value,
                   style: const TextStyle(
-                    color: kDarkTextColor,
+                    color: Colors.black87, // Changed to black
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -449,52 +454,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         decoration: BoxDecoration(
-          color: kCardBackgroundColor,
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(15),
         ));
-  }
-
-  Widget _buildSettingsItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: kPrimaryBlue,
-                size: 24,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: kDarkTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: kMutedTextColor,
-                size: 24,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildLogoutButton(BuildContext context) {
@@ -549,7 +511,10 @@ class _ProfilePageState extends State<ProfilePage> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              const Color.fromARGB(
+                  255, 12, 94, 153), // Changed to ChatScreen blue
+            ),
           );
         }
 
@@ -581,20 +546,22 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildFallbackAvatar(UserModel user) {
     return CircleAvatar(
       radius: 50,
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: Colors.white, // Changed to white
       child: user.name.isNotEmpty
           ? Text(
               user.name[0].toUpperCase(),
               style: TextStyle(
                 fontSize: 36,
-                color: kPrimaryBlue,
+                color: const Color.fromARGB(
+                    255, 12, 94, 153), // Changed to ChatScreen blue
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Exo2',
               ),
             )
           : Icon(
               CupertinoIcons.person_fill,
-              color: kPrimaryBlue,
+              color: const Color.fromARGB(
+                  255, 12, 94, 153), // Changed to ChatScreen blue
               size: 60,
             ),
     );
@@ -605,11 +572,11 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: kCardBackgroundColor,
+          color: Colors.white, // Changed to white
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: kSoftShadowColor.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.1), // Changed shadow
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -632,12 +599,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: kAccentColor.withOpacity(0.1),
+                      color: const Color.fromARGB(255, 12, 94, 153)
+                          .withOpacity(0.1), // Changed to ChatScreen blue
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       CupertinoIcons.wrench_fill,
-                      color: kAccentColor,
+                      color: const Color.fromARGB(
+                          255, 12, 94, 153), // Changed to ChatScreen blue
                       size: 24,
                     ),
                   ),
@@ -649,7 +618,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           "My Services",
                           style: TextStyle(
-                            color: kDarkTextColor,
+                            color: Colors.grey.shade800, // Changed to dark gray
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Exo2',
@@ -659,7 +628,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           "Manage your offered services and prices",
                           style: TextStyle(
-                            color: kMutedTextColor,
+                            color:
+                                Colors.grey.shade600, // Changed to medium gray
                             fontSize: 12,
                           ),
                         ),
@@ -668,7 +638,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Icon(
                     CupertinoIcons.chevron_right,
-                    color: kMutedTextColor,
+                    color: Colors.grey.shade500, // Changed to gray
                     size: 20,
                   ),
                 ],
@@ -697,14 +667,17 @@ class _ProfilePageState extends State<ProfilePage> {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            kPrimaryBlue.withOpacity(0.9),
-            Color(0xFF4A6FDC).withOpacity(0.9),
+            const Color.fromARGB(255, 12, 94, 153)
+                .withOpacity(0.9), // Changed to ChatScreen blue
+            const Color(0xFF4A6FDC)
+                .withOpacity(0.9), // Gradient matches ChatScreen
           ],
         ),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: kPrimaryBlue.withOpacity(0.3),
+            color: const Color.fromARGB(255, 12, 94, 153)
+                .withOpacity(0.3), // Changed to ChatScreen blue
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -802,7 +775,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Container(
             padding: const EdgeInsets.all(25),
             decoration: BoxDecoration(
-              color: kCardBackgroundColor,
+              color: Colors.white, // Changed to white
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -819,14 +792,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: kPrimaryBlue.withOpacity(0.1),
+                    color: const Color.fromARGB(255, 12, 94, 153)
+                        .withOpacity(0.1), // Changed to ChatScreen blue
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     user.isProvider
                         ? CupertinoIcons.person_fill
                         : CupertinoIcons.briefcase_fill,
-                    color: kPrimaryBlue,
+                    color: const Color.fromARGB(
+                        255, 12, 94, 153), // Changed to ChatScreen blue
                     size: 32,
                   ),
                 ),
@@ -836,7 +811,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   'Switch Role?',
                   style: TextStyle(
-                    color: kDarkTextColor,
+                    color: Colors.black87, // Changed to black
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Exo2',
@@ -849,7 +824,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   'You are about to switch from $currentRole to $targetRole mode.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: kMutedTextColor,
+                    color: Colors.grey.shade600, // Changed to medium gray
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -860,17 +835,20 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: kPrimaryBlue.withOpacity(0.05),
+                    color: const Color.fromARGB(255, 12, 94, 153)
+                        .withOpacity(0.05), // Changed to ChatScreen blue
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: kPrimaryBlue.withOpacity(0.2),
+                      color: const Color.fromARGB(255, 12, 94, 153)
+                          .withOpacity(0.2), // Changed to ChatScreen blue
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         CupertinoIcons.info_circle_fill,
-                        color: kPrimaryBlue,
+                        color: const Color.fromARGB(
+                            255, 12, 94, 153), // Changed to ChatScreen blue
                         size: 18,
                       ),
                       const SizedBox(width: 8),
@@ -880,7 +858,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ? 'As a Client, you can request services from providers.'
                               : 'As a Provider, you can offer services and get hired.',
                           style: TextStyle(
-                            color: kDarkTextColor,
+                            color: Colors.black87, // Changed to black
                             fontSize: 12,
                             height: 1.3,
                           ),
@@ -899,9 +877,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kMutedTextColor,
+                          foregroundColor:
+                              Colors.grey.shade600, // Changed to medium gray
                           side: BorderSide(
-                              color: kMutedTextColor.withOpacity(0.3)),
+                              color: Colors
+                                  .grey.shade300), // Changed to light gray
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -926,7 +906,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               context, user, newRole, authViewModel);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryBlue,
+                          backgroundColor: const Color.fromARGB(
+                              255, 12, 94, 153), // Changed to ChatScreen blue
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -986,7 +967,7 @@ class _ProfilePageState extends State<ProfilePage> {
           SnackBar(
             content:
                 Text('Role switched to ${newRole.toUpperCase()} successfully!'),
-            backgroundColor: kOnlineStatusGreen,
+            backgroundColor: Colors.green, // Changed to green
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1003,7 +984,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to switch role: $e'),
-            backgroundColor: kDangerColor,
+            backgroundColor: Colors.red, // Changed to red
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1021,11 +1002,11 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: kCardBackgroundColor,
+            color: Colors.white, // Changed to white
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: kSoftShadowColor.withOpacity(0.1),
+                color: Colors.black.withOpacity(0.1), // Changed shadow
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1033,21 +1014,25 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           child: Column(
             children: [
-              Icon(icon, color: kPrimaryBlue, size: 24),
+              Icon(icon,
+                  color: const Color.fromARGB(255, 12, 94, 153),
+                  size: 24), // Changed to ChatScreen blue
               const SizedBox(height: 8),
               Text(
                 value.toString(),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: kPrimaryBlue,
+                  color: Color.fromARGB(
+                      255, 12, 94, 153), // Changed to ChatScreen blue
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: kDarkTextColor),
+                style: const TextStyle(
+                    fontSize: 12, color: Colors.black87), // Changed to black
               ),
             ],
           ),
@@ -1107,11 +1092,11 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: kCardBackgroundColor,
+          color: Colors.white, // Changed to white
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: kSoftShadowColor.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.1), // Changed shadow
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -1122,12 +1107,15 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Row(
               children: [
-                Icon(icon, color: kPrimaryBlue, size: 20),
+                Icon(icon,
+                    color: const Color.fromARGB(255, 12, 94, 153),
+                    size: 20), // Changed to ChatScreen blue
                 const SizedBox(width: 8),
                 Text(
                   title,
                   style: const TextStyle(
-                    color: kPrimaryBlue,
+                    color: Color.fromARGB(
+                        255, 12, 94, 153), // Changed to ChatScreen blue
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1141,7 +1129,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Text(
               content,
               style: const TextStyle(
-                color: kDarkTextColor,
+                color: Colors.black87, // Changed to black
                 fontSize: 14,
                 height: 1.5,
               ),

@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:service_app/Services/notification_service.dart';
+import 'package:service_app/Services/http_polling_service.dart';
 import '../models/ChatModel.dart';
 import '../models/MessageModel.dart';
 
@@ -14,6 +15,7 @@ String getCanonicalChatId(String id1, String id2) {
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final HttpPollingService _pollingService = HttpPollingService();
 
   final CollectionReference<Map<String, dynamic>> _chatsRef;
   final CollectionReference<Map<String, dynamic>> _usersRef;
@@ -22,7 +24,7 @@ class ChatService {
       : _chatsRef = FirebaseFirestore.instance.collection('chats'),
         _usersRef = FirebaseFirestore.instance.collection('users');
 
-  // === CRÉATION ET RÉCUPÉRATION DES CHATS ===
+  // ==================== CHAT MANAGEMENT ====================
 
   Future<String?> createChat({
     required String clientId,
@@ -78,8 +80,11 @@ class ChatService {
         'chatIds': FieldValue.arrayUnion([chatId]),
       });
 
+      developer.log('✅ Chat created: $chatId', name: 'ChatService');
       return chatId;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log('❌ Error creating chat: $e',
+          name: 'ChatService', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -99,18 +104,30 @@ class ChatService {
       final doc = await _chatsRef.doc(chatId).get();
       if (doc.exists) return ChatModel.fromDoc(doc);
       return null;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log('❌ Error getting chat: $e',
+          name: 'ChatService', error: e, stackTrace: stackTrace);
       return null;
     }
   }
 
-  // === GESTION DES MESSAGES ===
+  Future<Map<String, dynamic>?> getChatData(String chatId) async {
+    try {
+      final doc = await _chatsRef.doc(chatId).get();
+      if (doc.exists) return doc.data();
+      return null;
+    } catch (e) {
+      developer.log('❌ Error getting chat data: $e', name: 'ChatService');
+      return null;
+    }
+  }
 
+  // ==================== MESSAGE MANAGEMENT ====================
   Future<void> sendMessage(String chatId, MessageModel message) async {
-    debugPrint('\n🚀 [ChatService] SENDING MESSAGE');
-    debugPrint('  Chat ID: $chatId');
-    debugPrint('  Sender ID: ${message.senderId}');
-    debugPrint('  Message: ${message.text}');
+    developer.log('\n🚀 [ChatService] SENDING MESSAGE', name: 'ChatService');
+    developer.log('  Chat ID: $chatId', name: 'ChatService');
+    developer.log('  Sender ID: ${message.senderId}', name: 'ChatService');
+    developer.log('  Message: ${message.text}', name: 'ChatService');
 
     final chatDocRef = _chatsRef.doc(chatId);
     final messagesRef = chatDocRef.collection('messages');
@@ -132,8 +149,8 @@ class ChatService {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    debugPrint('  Receiver ID: $otherUserId');
-    debugPrint('  Sender Name: $senderName');
+    developer.log('  Receiver ID: $otherUserId', name: 'ChatService');
+    developer.log('  Sender Name: $senderName', name: 'ChatService');
 
     await _firestore.runTransaction((transaction) async {
       transaction.set(messageDoc, messageData);
@@ -146,17 +163,91 @@ class ChatService {
       });
     });
 
-    debugPrint('✅ Message saved to Firestore.');
+    developer.log('✅ Message saved to Firestore.', name: 'ChatService');
 
-    // IMPORTANT: NE PAS appeler NotificationService.showLocalNotification ici!
-    // La notification sera gérée AUTOMATIQUEMENT par NotificationService
-    // qui écoute les changements dans Firestore
+    // 🚨 CRITICAL: Send notification via HTTP polling
+    await _sendNotificationViaHttpPolling(
+      chatId: chatId,
+      receiverId: otherUserId,
+      message: message.text,
+      senderId: message.senderId,
+      senderName: senderName,
+      messageId: messageDoc.id, // Include messageId for deduplication
+    );
 
-    // Seulement un log de confirmation
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null && message.senderId == currentUser.uid) {
-      debugPrint('📤 Message sent successfully.');
-      debugPrint('   Notification will be sent to RECEIVER only.');
+    developer.log('📤 Message sent via HTTP polling.', name: 'ChatService');
+  }
+
+  /// Send notification via HTTP polling service
+  Future<void> _sendNotificationViaHttpPolling({
+    required String chatId,
+    required String receiverId,
+    required String message,
+    required String senderId,
+    required String senderName,
+    required String messageId,
+  }) async {
+    try {
+      final result = await _pollingService.sendMessage(
+        receiverId: receiverId,
+        message: message,
+        chatId: chatId,
+        senderName: senderName,
+        messageId: messageId,
+      );
+
+      if (result['success'] == true) {
+        if (result['delivered'] == true) {
+          developer.log('📡 Notification delivered in real-time to $receiverId',
+              name: 'ChatService');
+        } else {
+          developer.log('💾 Notification stored for $receiverId (offline)',
+              name: 'ChatService');
+        }
+      } else {
+        developer.log('⚠️ HTTP polling notification failed: ${result['error']}',
+            name: 'ChatService');
+      }
+    } catch (e, stackTrace) {
+      developer.log('❌ Error sending HTTP polling notification: $e',
+          name: 'ChatService', error: e, stackTrace: stackTrace);
+      // Don't throw - notification failure shouldn't block message sending
+    }
+  }
+
+  /// Send message with immediate notification
+  Future<void> sendMessageWithNotification(
+    String chatId,
+    MessageModel message,
+  ) async {
+    try {
+      // 1. Save to Firestore
+      await sendMessage(chatId, message);
+
+      // 2. Additional logging
+      final chatData = await getChatData(chatId);
+      if (chatData != null) {
+        final participants = List<String>.from(chatData['participants'] ?? []);
+        final receiverId = participants.firstWhere(
+          (id) => id != message.senderId,
+          orElse: () => '',
+        );
+
+        if (receiverId.isNotEmpty) {
+          // Check if receiver is online
+          final onlineStatus =
+              await _pollingService.checkUserOnline(receiverId);
+          final isOnline = onlineStatus['isOnline'] == true;
+
+          developer.log(
+              '📊 Receiver status: ${isOnline ? "Online" : "Offline"}',
+              name: 'ChatService');
+        }
+      }
+    } catch (e, stackTrace) {
+      developer.log('❌ Error in sendMessageWithNotification: $e',
+          name: 'ChatService', error: e, stackTrace: stackTrace);
+      rethrow;
     }
   }
 
@@ -209,9 +300,65 @@ class ChatService {
 
         batch.update(chatRef, {'unreadCount.$userId': 0});
         await batch.commit();
+
+        developer.log('✅ Marked ${unreadMessages.length} messages as read',
+            name: 'ChatService');
       }
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      developer.log('❌ Error marking messages as read: $e',
+          name: 'ChatService', error: e, stackTrace: stackTrace);
+    }
   }
+
+  // ==================== NOTIFICATION METHODS ====================
+
+  /// Check if a user is online via HTTP polling
+  Future<bool> isUserOnline(String userId) async {
+    try {
+      final result = await _pollingService.checkUserOnline(userId);
+      return result['isOnline'] == true;
+    } catch (e) {
+      developer.log('❌ Error checking online status: $e', name: 'ChatService');
+      return false;
+    }
+  }
+
+  /// Get pending messages count for current user
+  Future<int> getPendingMessagesCount(String userId) async {
+    try {
+      return await _pollingService.getPendingMessagesCount();
+    } catch (e) {
+      developer.log('❌ Error getting pending count: $e', name: 'ChatService');
+      return 0;
+    }
+  }
+
+  /// Send typing indicator
+  Future<void> sendTypingIndicator({
+    required String chatId,
+    required String receiverId,
+    required bool isTyping,
+  }) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      await _pollingService.sendTypingIndicator(
+        receiverId: receiverId,
+        chatId: chatId,
+        isTyping: isTyping,
+      );
+
+      if (isTyping) {
+        developer.log('✍️ Typing indicator sent to $receiverId',
+            name: 'ChatService');
+      }
+    } catch (e) {
+      developer.log('⚠️ Typing indicator error: $e', name: 'ChatService');
+    }
+  }
+
+  // ==================== UNREAD COUNT MANAGEMENT ====================
 
   Stream<int> getUnreadCount(String chatId, String userId) {
     return _chatsRef.doc(chatId).snapshots().map((snapshot) {
@@ -240,6 +387,8 @@ class ChatService {
     });
   }
 
+  // ==================== CHAT CLEANUP ====================
+
   Future<void> deleteChat(String chatId, String userId) async {
     try {
       await _chatsRef.doc(chatId).update({
@@ -249,8 +398,80 @@ class ChatService {
       await _usersRef.doc(userId).update({
         'chatIds': FieldValue.arrayRemove([chatId]),
       });
-    } catch (e) {
+
+      developer.log('🗑️ Chat $chatId removed for user $userId',
+          name: 'ChatService');
+    } catch (e, stackTrace) {
+      developer.log('❌ Error deleting chat: $e',
+          name: 'ChatService', error: e, stackTrace: stackTrace);
       rethrow;
+    }
+  }
+
+  // ==================== UTILITY METHODS ====================
+
+  Future<Map<String, dynamic>?> getUserData(String userId) async {
+    try {
+      final userDoc = await _usersRef.doc(userId).get();
+      return userDoc.data();
+    } catch (e) {
+      developer.log('❌ Error fetching user data: $e', name: 'ChatService');
+      return null;
+    }
+  }
+
+  Future<String?> getUserProfileImageUrl(String userId) async {
+    try {
+      final userDoc = await _usersRef.doc(userId).get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        return data['photoUrl'] ??
+            data['profileImage'] ??
+            data['imageUrl'] ??
+            data['avatar'] ??
+            '';
+      }
+      return '';
+    } catch (e) {
+      developer.log('❌ Error fetching user profile image: $e',
+          name: 'ChatService');
+      return '';
+    }
+  }
+
+  /// Get the other participant in a chat
+  Future<String?> getOtherParticipant(
+      String chatId, String currentUserId) async {
+    try {
+      final chatData = await getChatData(chatId);
+      if (chatData != null) {
+        final participants = List<String>.from(chatData['participants'] ?? []);
+        return participants.firstWhere(
+          (id) => id != currentUserId,
+          orElse: () => '',
+        );
+      }
+      return null;
+    } catch (e) {
+      developer.log('❌ Error getting other participant: $e',
+          name: 'ChatService');
+      return null;
+    }
+  }
+
+  /// Get chat participant names
+  Future<Map<String, String>> getParticipantNames(String chatId) async {
+    try {
+      final chatData = await getChatData(chatId);
+      if (chatData != null) {
+        final names = chatData['participantNames'] as Map<String, dynamic>?;
+        return names?.cast<String, String>() ?? {};
+      }
+      return {};
+    } catch (e) {
+      developer.log('❌ Error getting participant names: $e',
+          name: 'ChatService');
+      return {};
     }
   }
 }

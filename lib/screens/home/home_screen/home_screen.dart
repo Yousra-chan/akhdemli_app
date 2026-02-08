@@ -241,10 +241,15 @@ class _HomePageState extends State<HomePage>
       width: double.infinity,
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF667EEA), Color(0xFF764BA2)], // Purple gradient
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          colors: [
+            Color.fromARGB(255, 12, 94, 153),
+            Color(0xFF4A6FDC),
+            Color(0xFF667EEA),
+            Color(0xFF764BA2),
+          ],
         ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(30),
@@ -274,7 +279,7 @@ class _HomePageState extends State<HomePage>
                     Text(
                       'Hello, ${_currentUser?.name?.split(' ').first ?? 'Guest'}!',
                       style: const TextStyle(
-                        color: Colors.white, // Changed to white for contrast
+                        color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         fontFamily: 'Exo2',
@@ -284,7 +289,7 @@ class _HomePageState extends State<HomePage>
                     Text(
                       'Find the best service providers near you',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9), // Lighter white
+                        color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
                         fontFamily: 'Exo2',
                       ),
@@ -312,14 +317,14 @@ class _HomePageState extends State<HomePage>
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2), // Semi-transparent white
+            color: Colors.white.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
           child: IconButton(
             onPressed: _showNotifications,
             icon: Icon(
               Icons.notifications_outlined,
-              color: Colors.white, // White icon
+              color: Colors.white,
               size: 22,
             ),
             padding: EdgeInsets.zero,

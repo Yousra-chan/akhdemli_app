@@ -13,25 +13,62 @@ class MyServicesPage extends StatefulWidget {
   State<MyServicesPage> createState() => _MyServicesPageState();
 }
 
-class _MyServicesPageState extends State<MyServicesPage> {
+class _MyServicesPageState extends State<MyServicesPage>
+    with SingleTickerProviderStateMixin {
   late FirestoreService _firestoreService;
   List<Map<String, dynamic>> _services = [];
   bool _isLoading = true;
   String? _error;
+  late ScrollController _scrollController;
+  bool _showScrollToTop = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     _firestoreService = FirestoreService();
-    _loadServices();
+
+    // Initialize animations
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _scrollController = ScrollController()
+      ..addListener(() {
+        setState(() {
+          _showScrollToTop = _scrollController.offset > 400;
+        });
+      });
+
+    _loadServices().then((_) {
+      _animationController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadServices() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+      if (!_isRefreshing) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
 
       final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
       final UserModel? currentUser = authViewModel.currentUser;
@@ -42,161 +79,262 @@ class _MyServicesPageState extends State<MyServicesPage> {
         setState(() {
           _services = services;
         });
+      } else {
+        setState(() {
+          _error = 'Please sign in to view services';
+        });
       }
     } catch (e) {
       setState(() {
-        _error = 'Failed to load services: $e';
+        _error = 'Unable to load services. Please check your connection.';
       });
+      print('Error loading services: $e');
     } finally {
       setState(() {
         _isLoading = false;
+        _isRefreshing = false;
       });
     }
+  }
+
+  Future<void> _refreshServices() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+    await _loadServices();
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
-      body: Column(
-        children: [
-          // Custom Header matching home page style
-          _buildCustomHeader(context),
-
-          // Content
-          Expanded(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _error != null
-                    ? _buildErrorState()
-                    : _services.isEmpty
-                        ? _buildEmptyState()
-                        : _buildServicesList(),
-          ),
-        ],
+      backgroundColor: Colors.white,
+      body: AnimatedBuilder(
+        animation: _fadeAnimation,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _fadeAnimation.value,
+            child: child,
+          );
+        },
+        child: _buildMainContent(),
       ),
-
-      // Floating Action Button matching home page style
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 20, right: 20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF667EEA).withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: _showAddServiceDialog,
-          backgroundColor: kPrimaryBlue,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(CupertinoIcons.plus, size: 24),
-        ),
-      ),
+      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
-  Widget _buildCustomHeader(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 20,
-        left: 25,
-        right: 25,
-        bottom: 25,
-      ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            kPrimaryBlue,
-            Color(0xFF4A6FDC),
-            Color(0xFF667EEA),
-            Color(0xFF764BA2),
-          ],
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Back button and title row
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    CupertinoIcons.back,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
+  Widget _buildMainContent() {
+    return Stack(
+      children: [
+        CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Fixed Header
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _HeaderDelegate(
+                maxHeight: 180,
+                minHeight: 80,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'My Services',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    fontFamily: 'Exo2',
+            ),
+
+            // Stats Overview
+            SliverToBoxAdapter(
+              child: _buildStatsOverview(),
+            ),
+
+            // Services Title
+            SliverToBoxAdapter(
+              child: _buildServicesTitle(),
+            ),
+
+            // Services List or States
+            if (_isLoading && !_isRefreshing) ...[
+              SliverFillRemaining(
+                child: _buildLoadingState(),
+              )
+            ] else if (_error != null) ...[
+              SliverFillRemaining(
+                child: _buildErrorState(),
+              )
+            ] else if (_services.isEmpty) ...[
+              SliverFillRemaining(
+                child: _buildEmptyState(),
+              )
+            ] else ...[
+              SliverPadding(
+                padding: const EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  bottom: 100,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Padding(
+                      padding: EdgeInsets.only(
+                        top: index == 0 ? 0 : 12,
+                        bottom: index == _services.length - 1 ? 20 : 0,
+                      ),
+                      child: _buildServiceCard(_services[index], index),
+                    ),
+                    childCount: _services.length,
                   ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 20),
+          ],
+        ),
 
-          // Stats card matching home page style
+        // Scroll to Top Button
+        if (_showScrollToTop)
+          Positioned(
+            bottom: 120,
+            right: 20,
+            child: _buildScrollToTopButton(),
+          ),
+
+        // Loading Overlay for Refresh
+        if (_isRefreshing)
+          Positioned(
+            top: 180,
+            left: 0,
+            right: 0,
+            child: _buildRefreshIndicator(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20, right: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: FloatingActionButton(
+        onPressed: _showAddServiceDialog,
+        backgroundColor: const Color.fromARGB(255, 12, 94, 153),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(CupertinoIcons.plus, size: 24),
+      ),
+    );
+  }
+
+  Widget _buildStatsOverview() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildStatItem(
+            icon: CupertinoIcons.briefcase_fill,
+            value: _services.length.toString(),
+            label: 'Services',
+            color: const Color.fromARGB(255, 12, 94, 153),
+          ),
+          _buildDivider(),
+          _buildStatItem(
+            icon: CupertinoIcons.star_fill,
+            value: _calculateAverageRating().toStringAsFixed(1),
+            label: 'Avg Rating',
+            color: const Color(0xFFF59E0B),
+          ),
+          _buildDivider(),
+          _buildStatItem(
+            icon: CupertinoIcons.money_dollar_circle_fill,
+            value: '\$${_calculateTotalEarnings().toStringAsFixed(0)}',
+            label: 'Earnings',
+            color: const Color(0xFF10B981),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Column(
+        children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withOpacity(0.2), width: 1),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(_services.length.toString(), 'Services',
-                    const Color(0xFF667EEA)),
-                _buildStatItem(
-                  _calculateAverageRating().toStringAsFixed(1),
-                  'Avg Rating',
-                  const Color(0xFF4FACFE),
-                ),
-                _buildStatItem(
-                  _calculateTotalEarnings().toStringAsFixed(0),
-                  'Total \$',
-                  const Color(0xFF43E97B),
-                ),
-              ],
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    color: color,
+                    size: 20,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'Exo2',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Exo2',
             ),
           ),
         ],
@@ -204,68 +342,369 @@ class _MyServicesPageState extends State<MyServicesPage> {
     );
   }
 
-  Widget _buildStatItem(String value, String label, Color color) {
-    return Column(
-      children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(color: color.withOpacity(0.3), width: 2),
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: Colors.grey.shade200,
+    );
+  }
+
+  Widget _buildServicesTitle() {
+    if (_isLoading || _error != null || _services.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: 8,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Your Services',
+            style: TextStyle(
+              color: Colors.grey.shade800,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Exo2',
+            ),
           ),
-          child: Center(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Text(
-              value,
+              '${_services.length} ${_services.length == 1 ? 'item' : 'items'}',
               style: TextStyle(
-                color: color,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+                color: const Color.fromARGB(255, 12, 94, 153),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 fontFamily: 'Exo2',
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: kDarkTextColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Exo2',
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  double _calculateAverageRating() {
-    if (_services.isEmpty) return 0.0;
-    final totalRating =
-        _services.fold(0.0, (sum, service) => sum + (service['rating'] ?? 0.0));
-    return totalRating / _services.length;
+  Widget _buildServiceCard(Map<String, dynamic> service, int index) {
+    final colorScheme = [
+      const Color.fromARGB(255, 12, 94, 153),
+      const Color(0xFF667EEA),
+      const Color(0xFF764BA2),
+      const Color(0xFFF59E0B),
+      const Color(0xFF10B981),
+      const Color(0xFFEF4444),
+    ];
+    final color = colorScheme[index % colorScheme.length];
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _viewServiceDetails(service),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: Colors.grey.shade100, width: 1),
+          ),
+          child: Column(
+            children: [
+              // Service Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Service Icon
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withOpacity(0.2),
+                            color.withOpacity(0.1)
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          _getServiceIcon(service['category']),
+                          color: color,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Service Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            service['title'] ?? 'Untitled Service',
+                            style: TextStyle(
+                              color: Colors.grey.shade800,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Exo2',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            service['description'] ?? 'No description',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                              fontFamily: 'Exo2',
+                              height: 1.4,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Service Footer
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Price Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            '\$${service['price']?.toStringAsFixed(0) ?? '0'}',
+                            style: const TextStyle(
+                              color: Color(0xFF10B981),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Exo2',
+                            ),
+                          ),
+                          Text(
+                            '/hr',
+                            style: TextStyle(
+                              color: const Color(0xFF10B981).withOpacity(0.8),
+                              fontSize: 12,
+                              fontFamily: 'Exo2',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Spacer(),
+
+                    // Rating
+                    Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.star_fill,
+                          color: const Color(0xFFF59E0B),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          (service['rating'] ?? 0.0).toStringAsFixed(1),
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    // Actions Menu
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        CupertinoIcons.ellipsis_vertical,
+                        color: Colors.grey.shade500,
+                        size: 20,
+                      ),
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editService(service);
+                        } else if (value == 'delete') {
+                          _deleteService(service);
+                        } else if (value == 'view') {
+                          _viewServiceDetails(service);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'view',
+                          child: Row(
+                            children: [
+                              Icon(CupertinoIcons.eye,
+                                  color: Colors.grey.shade600, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'View Details',
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontFamily: 'Exo2',
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(CupertinoIcons.pencil,
+                                  color: const Color.fromARGB(255, 12, 94, 153),
+                                  size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Edit Service',
+                                style: TextStyle(
+                                  color: const Color.fromARGB(255, 12, 94, 153),
+                                  fontFamily: 'Exo2',
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(CupertinoIcons.trash,
+                                  color: Colors.red, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Delete',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontFamily: 'Exo2',
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  double _calculateTotalEarnings() {
-    return _services.fold(
-        0.0, (sum, service) => sum + (service['price'] ?? 0.0));
+  IconData _getServiceIcon(String? category) {
+    if (category == null) return CupertinoIcons.wrench_fill;
+
+    final lowerCategory = category.toLowerCase();
+    if (lowerCategory.contains('electr')) {
+      return CupertinoIcons.bolt_fill;
+    } else if (lowerCategory.contains('plumb')) {
+      return CupertinoIcons.drop_fill;
+    } else if (lowerCategory.contains('clean')) {
+      return CupertinoIcons.house_fill;
+    } else if (lowerCategory.contains('tutor')) {
+      return CupertinoIcons.book_fill;
+    } else if (lowerCategory.contains('garden')) {
+      return CupertinoIcons.clear_fill;
+    }
+    return CupertinoIcons.wrench_fill;
   }
 
   Widget _buildLoadingState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: kPrimaryBlue),
+          Container(
+            width: 60,
+            height: 60,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                ),
+              ],
+            ),
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: const Color.fromARGB(255, 12, 94, 153),
+            ),
+          ),
           const SizedBox(height: 20),
           Text(
-            'Loading your services...',
+            'Loading services...',
             style: TextStyle(
-              color: kMutedTextColor,
+              color: Colors.grey.shade600,
               fontSize: 16,
+              fontFamily: 'Exo2',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please wait a moment',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 14,
               fontFamily: 'Exo2',
             ),
           ),
@@ -281,52 +720,71 @@ class _MyServicesPageState extends State<MyServicesPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              CupertinoIcons.exclamationmark_triangle,
-              color: kMutedTextColor,
-              size: 50,
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                CupertinoIcons.exclamationmark_triangle,
+                color: Colors.red,
+                size: 40,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              'Error Loading Services',
+              'Unable to Load Services',
               style: TextStyle(
-                color: kDarkTextColor,
-                fontSize: 18,
+                color: Colors.grey.shade800,
+                fontSize: 22,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'Exo2',
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
                 _error!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  fontSize: 15,
+                  height: 1.5,
                   fontFamily: 'Exo2',
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: kPrimaryBlue,
-                borderRadius: BorderRadius.circular(kDefaultBorderRadius),
-              ),
-              child: GestureDetector(
-                onTap: _loadServices,
-                child: Text(
-                  'Try Again',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Exo2',
-                  ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _refreshServices,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 12, 94, 153),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
                 ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CupertinoIcons.refresh, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Try Again',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Exo2',
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -338,492 +796,422 @@ class _MyServicesPageState extends State<MyServicesPage> {
   Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.all(25.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: kPrimaryBlue.withOpacity(0.1),
-              shape: BoxShape.circle,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color.fromARGB(255, 12, 94, 153).withOpacity(0.1),
+                    const Color.fromARGB(255, 12, 94, 153).withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                CupertinoIcons.wrench_fill,
+                color: Color.fromARGB(255, 12, 94, 153),
+                size: 60,
+              ),
             ),
-            child: Icon(
-              CupertinoIcons.wrench_fill,
-              color: kPrimaryBlue,
-              size: 50,
+            const SizedBox(height: 32),
+            Text(
+              'No Services Yet',
+              style: TextStyle(
+                color: Colors.grey.shade800,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                fontFamily: 'Exo2',
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No Services Yet',
-            style: TextStyle(
-              color: kDarkTextColor,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Exo2',
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Start offering your services to clients.\nTap the + button to create your first service.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: kMutedTextColor,
-              fontSize: 14,
-              height: 1.5,
-              fontFamily: 'Exo2',
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              color: kPrimaryBlue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: GestureDetector(
-              onTap: _showAddServiceDialog,
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                'Create First Service',
+                'Start offering your professional services to clients and grow your business. Create your first service to get started.',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.grey.shade600,
                   fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  height: 1.5,
                   fontFamily: 'Exo2',
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServicesList() {
-    return Padding(
-      padding: const EdgeInsets.all(25.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Your Services (${_services.length})',
-            style: const TextStyle(
-              color: kDarkTextColor,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Exo2',
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: RefreshIndicator(
-              color: kPrimaryBlue,
-              onRefresh: _loadServices,
-              child: ListView.builder(
-                itemCount: _services.length,
-                itemBuilder: (context, index) {
-                  return _buildServiceCard(_services[index], index);
-                },
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: _showAddServiceDialog,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 12, 94, 153),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 36,
+                  vertical: 18,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceCard(Map<String, dynamic> service, int index) {
-    final colors = [
-      const Color(0xFF667EEA),
-      const Color(0xFF764BA2),
-      const Color(0xFFF093FB),
-      const Color(0xFFF5576C),
-      const Color(0xFF4FACFE),
-      const Color(0xFF00F2FE),
-    ];
-    final color = colors[index % colors.length];
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kCardBackgroundColor,
-        borderRadius: BorderRadius.circular(kDefaultBorderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: kSoftShadowColor.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Service Icon
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.3)),
-            ),
-            child: Icon(
-              CupertinoIcons.wrench_fill,
-              color: color,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // Service Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  service['title'] ?? 'Untitled Service',
-                  style: const TextStyle(
-                    color: kDarkTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Exo2',
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  service['description'] ?? 'No description',
-                  style: TextStyle(
-                    color: kMutedTextColor,
-                    fontSize: 13,
-                    fontFamily: 'Exo2',
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    // Price
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF43E97B).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: const Color(0xFF43E97B).withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        '\$${service['price']?.toStringAsFixed(0) ?? '0'}/hr',
-                        style: const TextStyle(
-                          color: Color(0xFF43E97B),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'Exo2',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Category
-                    if (service['category'] != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: kPrimaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: kPrimaryBlue.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          service['category'],
-                          style: TextStyle(
-                            color: kPrimaryBlue,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Rating and Menu
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Rating
-              Row(
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(CupertinoIcons.star_fill,
-                      color: kRatingYellow, size: 14),
-                  const SizedBox(width: 4),
+                  Icon(CupertinoIcons.plus, size: 20),
+                  SizedBox(width: 12),
                   Text(
-                    (service['rating'] ?? 0.0).toStringAsFixed(1),
-                    style: const TextStyle(
-                      color: kDarkTextColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                    'Create Your First Service',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       fontFamily: 'Exo2',
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-
-              // Menu Button
-              PopupMenuButton<String>(
-                icon: Icon(
-                  CupertinoIcons.ellipsis_vertical,
-                  color: kMutedTextColor,
-                  size: 18,
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                // Show tutorial or help
+              },
+              child: Text(
+                'Learn how to create great service listings →',
+                style: TextStyle(
+                  color: const Color.fromARGB(255, 12, 94, 153),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Exo2',
                 ),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _editService(service);
-                  } else if (value == 'delete') {
-                    _deleteService(service);
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(CupertinoIcons.pencil,
-                            color: kPrimaryBlue, size: 16),
-                        const SizedBox(width: 8),
-                        Text('Edit',
-                            style: TextStyle(
-                                color: kDarkTextColor, fontFamily: 'Exo2')),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(CupertinoIcons.trash, color: kErrorRed, size: 16),
-                        const SizedBox(width: 8),
-                        Text('Delete',
-                            style: TextStyle(
-                                color: kErrorRed, fontFamily: 'Exo2')),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScrollToTopButton() {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 12, 94, 153),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: IconButton(
+        icon: const Icon(
+          Icons.arrow_upward,
+          color: Colors.white,
+          size: 20,
+        ),
+        onPressed: _scrollToTop,
+      ),
+    );
+  }
+
+  Widget _buildRefreshIndicator() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: const Color.fromARGB(255, 12, 94, 153),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Refreshing...',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 14,
+                fontFamily: 'Exo2',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _showAddServiceDialog() {
-    showDialog(
+    // Show beautiful add service dialog
+    showModalBottomSheet(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(kDefaultBorderRadius),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Add New Service',
-                style: TextStyle(
-                  color: kDarkTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Service creation form will go here',
-                style: TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Text(
-                          'Cancel',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: kMutedTextColor,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Exo2',
-                          ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      // Drag handle
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: kPrimaryBlue,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          // Add service logic
-                          Navigator.pop(context);
-                        },
-                        child: Text(
-                          'Add Service',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Exo2',
-                          ),
+                      Text(
+                        'Add New Service',
+                        style: TextStyle(
+                          color: Colors.grey.shade800,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'Exo2',
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Create a new service offering for your clients',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                          fontFamily: 'Exo2',
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+                // Add form content here...
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  void _viewServiceDetails(Map<String, dynamic> service) {
+    // Navigate to service details page
+    print('Viewing service: ${service['id']}');
   }
 
   void _editService(Map<String, dynamic> service) {
+    // Navigate to edit service page
     print('Editing service: ${service['id']}');
-    // Implement edit service navigation
   }
 
   void _deleteService(Map<String, dynamic> service) {
+    // Show delete confirmation dialog
     showDialog(
       context: context,
-      builder: (context) => Dialog(
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+        title: Text(
+          'Delete Service?',
+          style: TextStyle(
+            color: Colors.grey.shade800,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Exo2',
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${service['title']}"?',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 15,
+                height: 1.5,
+                fontFamily: 'Exo2',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Exo2',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Exo2',
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Implement delete logic
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Exo2',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double maxHeight;
+  final double minHeight;
+
+  _HeaderDelegate({
+    required this.maxHeight,
+    required this.minHeight,
+  });
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final shrinkRatio = shrinkOffset / (maxHeight - minHeight);
+    final opacity = 1.0 - shrinkRatio.clamp(0.0, 1.0);
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color.fromARGB(255, 12, 94, 153),
+            const Color(0xFF4A6FDC),
+            const Color(0xFF667EEA),
+            const Color(0xFF764BA2),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                CupertinoIcons.exclamationmark_triangle,
-                color: kErrorRed,
-                size: 40,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Delete Service',
-                style: TextStyle(
-                  color: kDarkTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Exo2',
+              // Back Button
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: const Icon(
+                    CupertinoIcons.back,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Are you sure you want to delete "${service['title']}"?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
-                  fontFamily: 'Exo2',
+
+              // Title (fades out as header shrinks)
+              Opacity(
+                opacity: opacity,
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'My Services',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Exo2',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage your offerings',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Text(
-                          'Cancel',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: kMutedTextColor,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: kErrorRed,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: GestureDetector(
-                        onTap: () async {
-                          try {
-                            await _firestoreService
-                                .deleteService(service['id']);
-                            _loadServices(); // Refresh the list
-                            Navigator.pop(context);
-                          } catch (e) {
-                            print('Error deleting service: $e');
-                          }
-                        },
-                        child: Text(
-                          'Delete',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+
+              // Right side placeholder for balance
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  CupertinoIcons.line_horizontal_3,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ],
           ),
@@ -831,4 +1219,26 @@ class _MyServicesPageState extends State<MyServicesPage> {
       ),
     );
   }
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return true;
+  }
+}
+
+// Helper functions
+double _calculateAverageRating() {
+  // Implementation
+  return 0.0;
+}
+
+double _calculateTotalEarnings() {
+  // Implementation
+  return 0.0;
 }

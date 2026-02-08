@@ -10,16 +10,18 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/services/chat_service.dart';
 import 'package:service_app/services/booking_service.dart';
 
-const kPrimaryBlue = Color(0xFF007BFF);
-const kDarkTextColor = Color(0xFF1A1A1A);
-const kMutedTextColor = Color(0xFF666666);
-const kLightBackgroundColor = Color(0xFFF8F9FA);
-const kCardBackground = Color(0xFFFFFFFF);
-const kGradientStart = Color(0xFF667EEA);
-const kGradientEnd = Color(0xFF764BA2);
-const kSuccessGreen = Color(0xFF28A745);
-const kWarningYellow = Color(0xFFFFC107);
-const kErrorRed = Color(0xFFDC3545);
+// Modern Color Palette
+const kPrimaryColor = Color(0xFF667EEA);
+const kSecondaryColor = Color(0xFF764BA2);
+const kAccentColor = Color(0xFFFF6B6B);
+const kSuccessColor = Color(0xFF4ECDC4);
+const kWarningColor = Color(0xFFFFD166);
+const kCardBg = Color(0xFFF8FAFF);
+const kTextPrimary = Color(0xFF2D3748);
+const kTextSecondary = Color(0xFF718096);
+const kBorderColor = Color(0xFFE2E8F0);
+const kShadowColor = Color(0x1A000000);
+const kLightBg = Color(0xFFF7FAFC);
 
 class ProviderProfileScreen extends StatefulWidget {
   final ProviderModel provider;
@@ -48,6 +50,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   String _notes = '';
   bool _loadingServices = true;
   bool _showBookingForm = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -96,22 +99,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final authViewModel = context.read<AuthViewModel>();
 
     if (authViewModel.currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please sign in to rate this provider'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackbar('Please sign in to rate this provider', kAccentColor);
       return;
     }
 
     if (_provider.uid == null || _provider.uid!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Provider information is incomplete'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackbar('Provider information is incomplete', kAccentColor);
       return;
     }
 
@@ -168,22 +161,11 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         _currentRating = newAverageRating;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Thank you! You rated ${_provider.name} with $_currentRating stars'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      _showSnackbar(
+          'Thank you! You rated ${_provider.name} with $_currentRating stars',
+          kSuccessColor);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to submit rating: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackbar('Failed to submit rating: ${e.toString()}', kAccentColor);
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -198,42 +180,22 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please sign in to book a service'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackbar('Please sign in to book a service', kAccentColor);
       return;
     }
 
     if (_selectedService == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a service'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackbar('Please select a service', kAccentColor);
       return;
     }
 
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a date'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackbar('Please select a date', kAccentColor);
       return;
     }
 
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a time'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackbar('Please select a time', kAccentColor);
       return;
     }
 
@@ -249,12 +211,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
       // Check if appointment is in the future
       if (appointmentDateTime.isBefore(DateTime.now())) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a future date and time'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        _showSnackbar('Please select a future date and time', kAccentColor);
         return;
       }
 
@@ -288,37 +245,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           bookingId: booking.id,
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking request sent successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        // Reset form
-        setState(() {
-          _selectedService = null;
-          _selectedDate = null;
-          _selectedTime = null;
-          _notes = '';
-          _showBookingForm = false;
-        });
+        _showSuccessDialog(appointmentDateTime);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create booking. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackbar(
+            'Failed to create booking. Please try again.', kAccentColor);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackbar('Error: ${e.toString()}', kAccentColor);
     }
   }
 
@@ -328,6 +261,20 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: kPrimaryColor,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: kTextPrimary,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -340,6 +287,20 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: kPrimaryColor,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: kTextPrimary,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _selectedTime) {
       setState(() {
@@ -353,56 +314,76 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: kLightBg,
       body: Stack(
         children: [
           CustomScrollView(
+            controller: _scrollController,
             slivers: [
-              // Collapsing Header
+              // Modern Header with Parallax Effect
               SliverAppBar(
-                backgroundColor: kPrimaryBlue,
-                expandedHeight: 320.0,
+                backgroundColor: Colors.white,
+                expandedHeight: 280.0,
                 pinned: true,
                 elevation: 0,
                 leading: Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: Colors.white,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
+                  margin: EdgeInsets.only(left: 8, top: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: kShadowColor,
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.arrow_back, color: kPrimaryColor),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
                 actions: [
                   Container(
-                    margin: const EdgeInsets.only(right: 8),
+                    margin: EdgeInsets.only(right: 8, top: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: kShadowColor,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.more_vert, size: 22),
-                      color: Colors.white,
+                      icon: Icon(Icons.more_vert, color: kPrimaryColor),
                       onPressed: () => _showMoreOptions(context),
                     ),
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  background: _buildHeaderBackground(context),
+                  background: _buildHeaderBackground(),
                   centerTitle: false,
-                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                  titlePadding: EdgeInsets.only(left: 16, bottom: 16),
                   title: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: Text(
                       _provider.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
@@ -416,30 +397,35 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    // Enhanced Profile Info Card with ALL provider information
-                    _buildEnhancedProfileCard(),
+                    // Profile Info Card
+                    _buildProfileCard(),
+                    SizedBox(height: 16),
 
-                    // Rating Section
-                    _buildRatingSection(),
-
-                    // Services Section with Booking Option
+                    // Services Section with Booking
                     _buildServicesSection(),
+                    SizedBox(height: 16),
 
                     // Booking Form (if a service is selected)
                     if (_showBookingForm) _buildBookingForm(),
 
                     // Stats Section
                     _buildStatsSection(),
+                    SizedBox(height: 16),
+
+                    // Rating Section
+                    _buildRatingSection(),
+                    SizedBox(height: 16),
 
                     // About Section
                     if (_provider.description.isNotEmpty)
                       _buildSectionCard(
                         title: 'About',
+                        icon: Icons.info_outline,
                         child: Text(
                           _provider.description,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
-                            color: kMutedTextColor,
+                            color: kTextSecondary,
                             height: 1.6,
                           ),
                         ),
@@ -449,139 +435,200 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     _buildContactSection(),
 
                     // Bottom spacing
-                    const SizedBox(height: 100),
+                    SizedBox(height: 120),
                   ],
                 ),
               ),
             ],
           ),
 
-          // Fixed Bottom CTA Buttons
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _startChat(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.message, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Message',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 60,
-                    child: ElevatedButton(
-                      onPressed: () => _makePhoneCall(_provider.phone),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Icon(Icons.call, size: 20),
-                    ),
-                  ),
-                ],
+          // Floating Action Button for Booking
+          if (!_showBookingForm && _providerServices.isNotEmpty)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  if (_providerServices.isNotEmpty) {
+                    setState(() {
+                      _selectedService = _providerServices.first;
+                      _showBookingForm = true;
+                    });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _scrollController.animateTo(
+                        _scrollController.position.maxScrollExtent,
+                        duration: Duration(milliseconds: 500),
+                        curve: Curves.easeInOut,
+                      );
+                    });
+                  }
+                },
+                backgroundColor: kPrimaryColor,
+                foregroundColor: Colors.white,
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                icon: Icon(Icons.calendar_today),
+                label: Text(
+                  'Book Now',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
             ),
-          ),
+
+          // Fixed Bottom CTA Buttons (when booking form is not shown)
+          if (!_showBookingForm)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: kShadowColor,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionButton(
+                        icon: Icons.message,
+                        label: 'Message',
+                        color: kPrimaryColor,
+                        onTap: () => _startChat(context),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    _buildActionButton(
+                      icon: Icons.call,
+                      label: 'Call',
+                      color: kSuccessColor,
+                      onTap: () => _makePhoneCall(_provider.phone),
+                      isSmall: true,
+                    ),
+                    SizedBox(width: 12),
+                    _buildActionButton(
+                      icon: Icons.share,
+                      label: 'Share',
+                      color: kSecondaryColor,
+                      onTap: () => _shareProfile(context),
+                      isSmall: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    bool isSmall = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: isSmall
+              ? EdgeInsets.all(12)
+              : EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: isSmall ? 18 : 20, color: color),
+              if (!isSmall) SizedBox(width: 8),
+              if (!isSmall)
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                    fontSize: 14,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   // =================== ENHANCED PROFILE CARD ===================
 
-  Widget _buildEnhancedProfileCard() {
+  Widget _buildProfileCard() {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: kCardBackground,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: kShadowColor,
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with verification badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Professional Profile',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: kDarkTextColor,
+                  color: kTextPrimary,
                 ),
               ),
               if (_provider.subscriptionActive)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    gradient: LinearGradient(
+                      colors: [kSuccessColor, Color(0xFF6BCF7F)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.verified, size: 14, color: Colors.green),
-                      const SizedBox(width: 4),
+                      Icon(Icons.verified, size: 14, color: Colors.white),
+                      SizedBox(width: 4),
                       Text(
                         'Verified',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.green,
+                          color: Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -590,9 +637,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 20),
 
-          // Basic Information Grid
+          // Info Grid
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -603,86 +650,65 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 _provider.profession.isNotEmpty
                     ? _provider.profession
                     : 'Service Provider',
+                kPrimaryColor,
               ),
               _buildInfoChip(
                 Icons.location_city,
                 'Wilaya',
                 _provider.wilaya,
+                kSecondaryColor,
               ),
               _buildInfoChip(
                 Icons.location_on,
                 'Commune',
                 _provider.commune,
+                kAccentColor,
               ),
               _buildInfoChip(
                 Icons.star,
                 'Rating',
                 '${_currentRating.toStringAsFixed(1)} ⭐',
+                kWarningColor,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Detailed Information
         ],
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value) {
+  Widget _buildInfoChip(
+      IconData icon, String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: kPrimaryBlue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kPrimaryBlue.withOpacity(0.3)),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: kPrimaryBlue),
-          const SizedBox(width: 4),
+          Icon(icon, size: 14, color: color),
+          SizedBox(width: 6),
           Text(
             '$label: ',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: kPrimaryBlue,
+              color: color,
             ),
           ),
           Text(
             value,
             style: TextStyle(
               fontSize: 12,
-              color: kDarkTextColor,
+              color: kTextPrimary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: kDarkTextColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            color: kMutedTextColor,
-          ),
-        ),
-      ],
     );
   }
 
@@ -691,118 +717,156 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   Widget _buildServicesSection() {
     return _buildSectionCard(
       title: 'Services Offered',
+      icon: Icons.work_outline,
       child: _loadingServices
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: kPrimaryColor))
           : _providerServices.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No services listed yet',
-                    style: TextStyle(color: kMutedTextColor),
-                  ),
+              ? Column(
+                  children: [
+                    Icon(Icons.work_off, size: 60, color: kBorderColor),
+                    SizedBox(height: 12),
+                    Text(
+                      'No services listed yet',
+                      style: TextStyle(color: kTextSecondary),
+                    ),
+                  ],
                 )
               : Column(
                   children: _providerServices.map((service) {
                     final isSelected = _selectedService?['id'] == service['id'];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                    return AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      margin: EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? kPrimaryBlue.withOpacity(0.1)
+                            ? kPrimaryColor.withOpacity(0.05)
                             : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color:
-                              isSelected ? kPrimaryBlue : Colors.grey.shade200,
+                          color: isSelected ? kPrimaryColor : kBorderColor,
                           width: isSelected ? 2 : 1,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: kShadowColor,
+                            blurRadius: isSelected ? 12 : 4,
+                            offset: Offset(0, isSelected ? 4 : 2),
+                          ),
+                        ],
                       ),
-                      child: ListTile(
-                        onTap: () {
-                          setState(() {
-                            _selectedService = service;
-                            _showBookingForm = true;
-                          });
-                        },
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? kPrimaryBlue
-                                : kPrimaryBlue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.build_circle_outlined,
-                            color: isSelected ? Colors.white : kPrimaryBlue,
-                            size: 24,
-                          ),
-                        ),
-                        title: Text(
-                          service['title'] ?? 'Service',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: isSelected ? kPrimaryBlue : kDarkTextColor,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              service['description'] ?? '',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? kPrimaryBlue.withOpacity(0.8)
-                                    : kMutedTextColor,
-                                fontSize: 14,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            setState(() {
+                              _selectedService = service;
+                              _showBookingForm = true;
+                            });
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
+                                AnimatedContainer(
+                                  duration: Duration(milliseconds: 300),
+                                  width: 24,
+                                  height: 24,
                                   decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
                                     color: isSelected
-                                        ? kPrimaryBlue.withOpacity(0.2)
-                                        : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    service['category'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 12,
+                                        ? kPrimaryColor
+                                        : Colors.transparent,
+                                    border: Border.all(
                                       color: isSelected
-                                          ? kPrimaryBlue
-                                          : kMutedTextColor,
+                                          ? kPrimaryColor
+                                          : kBorderColor,
+                                      width: 2,
                                     ),
                                   ),
+                                  child: isSelected
+                                      ? Icon(Icons.check,
+                                          size: 14, color: Colors.white)
+                                      : null,
                                 ),
-                                const Spacer(),
-                                Text(
-                                  '${service['price'] ?? '0'} DZD',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected
-                                        ? kPrimaryBlue
-                                        : kPrimaryBlue,
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              service['title'] ?? 'Service',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: isSelected
+                                                    ? kPrimaryColor
+                                                    : kTextPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${service['price'] ?? '0'} DZD',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: kPrimaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (service['description'] != null &&
+                                          service['description']
+                                              .isNotEmpty) ...[
+                                        SizedBox(height: 8),
+                                        Text(
+                                          service['description'],
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: isSelected
+                                                ? kPrimaryColor.withOpacity(0.8)
+                                                : kTextSecondary,
+                                            height: 1.4,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                      SizedBox(height: 8),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? kPrimaryColor.withOpacity(0.1)
+                                              : kCardBg,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          service['category'] ?? 'General',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isSelected
+                                                ? kPrimaryColor
+                                                : kTextSecondary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
-                        trailing: isSelected
-                            ? Icon(Icons.check_circle,
-                                color: kPrimaryBlue, size: 24)
-                            : null,
                       ),
                     );
                   }).toList(),
@@ -810,20 +874,21 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  // =================== BOOKING FORM ===================
+  // =================== MODERN BOOKING FORM ===================
 
   Widget _buildBookingForm() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 500),
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: kCardBackground,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: kShadowColor,
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -833,16 +898,34 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Book Service',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: kDarkTextColor,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [kPrimaryColor, kSecondaryColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.calendar_today,
+                        size: 20, color: Colors.white),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Book Service',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: kTextPrimary,
+                    ),
+                  ),
+                ],
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 20),
+                icon: Icon(Icons.close, size: 20, color: kTextSecondary),
                 onPressed: () {
                   setState(() {
                     _showBookingForm = false;
@@ -852,38 +935,38 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 20),
 
           // Selected Service Info
           if (_selectedService != null)
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: kPrimaryBlue.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+                color: kPrimaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kPrimaryColor.withOpacity(0.2)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, color: kPrimaryBlue, size: 24),
-                  const SizedBox(width: 12),
+                  Icon(Icons.check_circle, color: kSuccessColor, size: 24),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _selectedService!['title'] ?? 'Service',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           '${_selectedService!['price'] ?? '0'} DZD',
                           style: TextStyle(
                             fontSize: 14,
-                            color: kPrimaryBlue,
+                            color: kPrimaryColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -893,144 +976,149 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 20),
+          SizedBox(height: 24),
+
+          // Steps Indicator
+          _buildBookingSteps(),
+          SizedBox(height: 24),
 
           // Date Selection
-          InkWell(
+          _buildSelectionCard(
+            icon: Icons.calendar_month,
+            title: 'Date',
+            value: _selectedDate != null
+                ? DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate!)
+                : 'Select appointment date',
             onTap: () => _selectDate(context),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today, color: kPrimaryBlue, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Select Date',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: kMutedTextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _selectedDate != null
-                              ? DateFormat('EEEE, MMMM d, yyyy')
-                                  .format(_selectedDate!)
-                              : 'Tap to select date',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: kDarkTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, color: Colors.grey.shade400),
-                ],
-              ),
-            ),
+            color: kAccentColor,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
           // Time Selection
-          InkWell(
+          _buildSelectionCard(
+            icon: Icons.access_time,
+            title: 'Time',
+            value: _selectedTime != null
+                ? _selectedTime!.format(context)
+                : 'Select appointment time',
             onTap: () => _selectTime(context),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+            color: Color(0xFF4ECDC4),
+          ),
+          SizedBox(height: 24),
+
+          // Notes
+          Text(
+            'Additional Notes (Optional)',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: kTextPrimary,
+            ),
+          ),
+          SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: kShadowColor,
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              onChanged: (value) => _notes = value,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Add any special instructions or requirements...',
+                hintStyle: TextStyle(color: kTextSecondary.withOpacity(0.7)),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: kBorderColor, width: 1),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: kBorderColor, width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: kPrimaryColor, width: 2),
+                ),
+                contentPadding: EdgeInsets.all(16),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.access_time, color: kPrimaryBlue, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Select Time',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: kMutedTextColor,
+            ),
+          ),
+          SizedBox(height: 24),
+
+          // Book Now Button
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: (_selectedService != null &&
+                          _selectedDate != null &&
+                          _selectedTime != null)
+                      ? kPrimaryColor.withOpacity(0.3)
+                      : kTextSecondary.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: (_selectedService != null &&
+                        _selectedDate != null &&
+                        _selectedTime != null)
+                    ? _bookService
+                    : null,
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 300),
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: (_selectedService != null &&
+                            _selectedDate != null &&
+                            _selectedTime != null)
+                        ? LinearGradient(
+                            colors: [kPrimaryColor, kSecondaryColor],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : LinearGradient(
+                            colors: [
+                              kBorderColor,
+                              kBorderColor.withOpacity(0.7)
+                            ],
                           ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.white,
+                          size: 22,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(width: 12),
                         Text(
-                          _selectedTime != null
-                              ? _selectedTime!.format(context)
-                              : 'Tap to select time',
+                          'Confirm Booking',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: kDarkTextColor,
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.grey.shade400),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Notes
-          TextField(
-            onChanged: (value) {
-              setState(() {
-                _notes = value;
-              });
-            },
-            decoration: InputDecoration(
-              labelText: 'Additional Notes (Optional)',
-              labelStyle: TextStyle(color: kMutedTextColor),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kPrimaryBlue, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 20),
-
-          // Book Now Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _bookService,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryBlue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Book Now',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
                 ),
               ),
             ),
@@ -1040,9 +1128,155 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
+  Widget _buildBookingSteps() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildStep(1, 'Service', _selectedService != null),
+        _buildDivider(),
+        _buildStep(2, 'Time', _selectedDate != null && _selectedTime != null),
+        _buildDivider(),
+        _buildStep(3, 'Confirm', false),
+      ],
+    );
+  }
+
+  Widget _buildStep(int number, String label, bool isCompleted) {
+    return Column(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: isCompleted
+                ? LinearGradient(
+                    colors: [kSuccessColor, Color(0xFF6BCF7F)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : LinearGradient(
+                    colors: [kBorderColor, kBorderColor.withOpacity(0.7)],
+                  ),
+            boxShadow: isCompleted
+                ? [
+                    BoxShadow(
+                      color: kSuccessColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              number.toString(),
+              style: TextStyle(
+                color: isCompleted ? Colors.white : kTextSecondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isCompleted ? kTextPrimary : kTextSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDivider() {
+    return Expanded(
+      child: Container(
+        height: 2,
+        margin: EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kBorderColor, kBorderColor.withOpacity(0.3)],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: kCardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kBorderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: kShadowColor,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: kTextSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: kTextPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: kBorderColor, size: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // =================== REST OF THE METHODS ===================
 
-  Widget _buildHeaderBackground(BuildContext context) {
+  Widget _buildHeaderBackground() {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1051,7 +1285,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kGradientStart, kGradientEnd],
+              colors: [kPrimaryColor, kSecondaryColor],
             ),
           ),
         ),
@@ -1060,7 +1294,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           left: 0,
           right: 0,
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -1074,7 +1308,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
                         blurRadius: 12,
-                        offset: const Offset(0, 6),
+                        offset: Offset(0, 6),
                       ),
                     ],
                   ),
@@ -1082,23 +1316,23 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     child: _buildProfileImage(),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   _provider.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   _provider.profession.isNotEmpty
                       ? _provider.profession
                       : 'Service Provider',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white70,
+                    color: Colors.white.withOpacity(0.9),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1123,7 +1357,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Center(
-            child: CircularProgressIndicator(color: kPrimaryBlue),
+            child: CircularProgressIndicator(color: Colors.white),
           );
         },
       );
@@ -1133,8 +1367,15 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Widget _buildFallbackImage() {
     return Container(
-      color: Colors.white.withOpacity(0.2),
-      child: const Icon(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.2),
+            Colors.white.withOpacity(0.1)
+          ],
+        ),
+      ),
+      child: Icon(
         Icons.person,
         color: Colors.white,
         size: 50,
@@ -1143,184 +1384,143 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Widget _buildRatingSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: kCardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return _buildSectionCard(
+      title: 'Rate This Provider',
+      icon: Icons.star,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Rate This Provider',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: kDarkTextColor,
-                ),
-              ),
-              if (_hasRated)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check, size: 14, color: Colors.green),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Rated',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              return GestureDetector(
+                onTap: () {
+                  if (!_hasRated && !_isSubmitting) {
+                    setState(() {
+                      _currentRating = (index + 1).toDouble();
+                    });
+                  }
+                },
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Icon(
+                    index < _currentRating.floor()
+                        ? Icons.star
+                        : Icons.star_border,
+                    color: _hasRated
+                        ? Colors.amber.withOpacity(0.5)
+                        : Colors.amber,
+                    size: 40,
                   ),
                 ),
-            ],
+              );
+            }),
           ),
-          const SizedBox(height: 16),
-          Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return GestureDetector(
-                    onTap: () {
-                      if (!_hasRated && !_isSubmitting) {
-                        setState(() {
-                          _currentRating = (index + 1).toDouble();
-                        });
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Icon(
-                        index < _currentRating.floor()
-                            ? Icons.star
-                            : Icons.star_border,
-                        color: _hasRated
-                            ? Colors.amber.withOpacity(0.5)
-                            : Colors.amber,
-                        size: 48,
+          SizedBox(height: 16),
+          Text(
+            _currentRating == 0
+                ? 'Tap to rate'
+                : '${_currentRating.toStringAsFixed(1)} Stars',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: kTextPrimary,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            _getRatingDescription(_currentRating),
+            style: TextStyle(
+              fontSize: 14,
+              color: kTextSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          SizedBox(height: 20),
+          if (!_hasRated)
+            SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: _isSubmitting || _currentRating == 0
+                      ? null
+                      : () => _submitRating(context),
+                  child: Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [kPrimaryColor, kSecondaryColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _currentRating == 0
-                    ? 'Tap to rate'
-                    : '${_currentRating.toStringAsFixed(1)} Stars',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: kDarkTextColor,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _getRatingDescription(_currentRating),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: kMutedTextColor,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (!_hasRated)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting || _currentRating == 0
-                        ? null
-                        : () => _submitRating(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimaryBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.star, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Submit Rating',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
+                    child: Center(
+                      child: _isSubmitting
+                          ? SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
-                            ],
-                          ),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => _viewAllRatings(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kPrimaryBlue,
-                    side: BorderSide(color: kPrimaryBlue),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.star, size: 22, color: Colors.white),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Submit Rating',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.reviews, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'View All Reviews',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
-            ],
+            ),
+          SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => _viewAllRatings(context),
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kPrimaryColor, width: 2),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.reviews, size: 22, color: kPrimaryColor),
+                        SizedBox(width: 12),
+                        Text(
+                          'View All Reviews',
+                          style: TextStyle(
+                            color: kPrimaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1338,16 +1538,16 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Widget _buildStatsSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: kCardBackground,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: kShadowColor,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1356,7 +1556,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         children: [
           _buildStatItem(
               'Rating', '${_currentRating.toStringAsFixed(1)}', Icons.star),
-          _buildStatItem('Services', '${_providerServices.length}', Icons.work),
+          _buildStatItem(
+              'Services', '${_providerServices.length}', Icons.work_outline),
+          _buildStatItem('Booked', '24', Icons.verified_user),
         ],
       ),
     );
@@ -1372,60 +1574,82 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             shape: BoxShape.circle,
             gradient: LinearGradient(
               colors: [
-                kGradientStart.withOpacity(0.1),
-                kGradientEnd.withOpacity(0.1)
+                kPrimaryColor.withOpacity(0.1),
+                kSecondaryColor.withOpacity(0.1)
               ],
             ),
           ),
-          child: Icon(icon, color: kPrimaryBlue, size: 24),
+          child: Icon(icon, color: kPrimaryColor, size: 24),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: kDarkTextColor,
+            color: kTextPrimary,
           ),
         ),
+        SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
             fontSize: 12,
-            color: kMutedTextColor,
+            color: kTextSecondary,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSectionCard({required String title, required Widget child}) {
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: kCardBackground,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: kShadowColor,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: kDarkTextColor,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [kPrimaryColor, kSecondaryColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 20, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: kTextPrimary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           child,
         ],
       ),
@@ -1434,42 +1658,37 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Widget _buildContactSection() {
     return _buildSectionCard(
-        title: 'Contact Information',
-        child: Column(
-          children: [
+      title: 'Contact Information',
+      icon: Icons.contact_phone,
+      child: Column(
+        children: [
+          _buildContactItem(
+            Icons.phone,
+            'Phone',
+            _provider.phone,
+            kSuccessColor,
+            () => _makePhoneCall(_provider.phone),
+          ),
+          SizedBox(height: 12),
+          if (_provider.whatsapp.isNotEmpty)
             _buildContactItem(
-              Icons.phone,
-              'Phone',
-              _provider.phone,
-              Colors.green,
-              () => _makePhoneCall(_provider.phone),
+              Icons.chat,
+              'WhatsApp',
+              _provider.whatsapp,
+              Color(0xFF25D366),
+              () => _openWhatsApp(_provider.whatsapp),
             ),
-            const SizedBox(height: 12),
-            if (_provider.whatsapp.isNotEmpty)
-              _buildContactItem(
-                Icons.chat,
-                'WhatsApp',
-                _provider.whatsapp,
-                const Color(0xFF25D366),
-                () => _openWhatsApp(_provider.whatsapp),
-              ),
-            if (_provider.whatsapp.isNotEmpty) const SizedBox(height: 12),
-            _buildContactItem(
-              Icons.location_on,
-              'Address',
-              _provider.address,
-              kPrimaryBlue,
-              () => _openLocationInMaps(_provider.address),
-            ),
-          ],
-        ));
-  }
-
-  void _sendEmail(String email) async {
-    final url = Uri.parse('mailto:$email');
-    if (await launchUrl(url)) {
-      await launchUrl(url);
-    }
+          if (_provider.whatsapp.isNotEmpty) SizedBox(height: 12),
+          _buildContactItem(
+            Icons.location_on,
+            'Address',
+            _provider.address,
+            kAccentColor,
+            () => _openLocationInMaps(_provider.address),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildContactItem(
@@ -1479,25 +1698,56 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     Color color,
     VoidCallback onTap,
   ) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.1),
-          child: Icon(icon, color: color),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: kTextPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: kTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: kBorderColor),
+            ],
+          ),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(subtitle),
-        trailing: Icon(Icons.chevron_right, color: Colors.grey.shade400),
       ),
     );
   }
@@ -1505,46 +1755,62 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   void _showMoreOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      backgroundColor: Colors.white,
       builder: (context) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: Icon(Icons.share, color: kPrimaryBlue),
-                title: const Text('Share Profile'),
-                onTap: () {
+              SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: kBorderColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 20),
+              _buildOptionItem(
+                Icons.share,
+                'Share Profile',
+                kPrimaryColor,
+                () {
                   Navigator.pop(context);
                   _shareProfile(context);
                 },
               ),
-              ListTile(
-                leading: Icon(Icons.bookmark, color: kPrimaryBlue),
-                title: const Text('Save to Favorites'),
-                onTap: () {
+              _buildOptionItem(
+                Icons.bookmark,
+                'Save to Favorites',
+                kWarningColor,
+                () {
                   Navigator.pop(context);
                   _saveToFavorites(context);
                 },
               ),
-              ListTile(
-                leading: Icon(Icons.report, color: Colors.red),
-                title: const Text('Report'),
-                onTap: () {
+              _buildOptionItem(
+                Icons.report,
+                'Report',
+                kAccentColor,
+                () {
                   Navigator.pop(context);
                   _showReportDialog(context);
                 },
               ),
-              ListTile(
-                leading: Icon(Icons.block, color: Colors.grey),
-                title: const Text('Block'),
-                onTap: () {
+              _buildOptionItem(
+                Icons.block,
+                'Block',
+                kTextSecondary,
+                () {
                   Navigator.pop(context);
                   _showBlockDialog(context);
                 },
               ),
+              SizedBox(height: 20),
             ],
           ),
         );
@@ -1552,13 +1818,35 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  void _saveToFavorites(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Added to favorites'),
-        backgroundColor: Colors.green,
+  Widget _buildOptionItem(
+      IconData icon, String title, Color color, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              SizedBox(width: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: kTextPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  void _saveToFavorites(BuildContext context) {
+    _showSnackbar('Added to favorites', kSuccessColor);
   }
 
   void _startChat(BuildContext context) async {
@@ -1566,9 +1854,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final chatService = ChatService();
 
     if (authViewModel.currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in to start a chat')),
-      );
+      _showSnackbar('Please sign in to start a chat', kAccentColor);
       return;
     }
 
@@ -1578,13 +1864,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         providerId: _provider.uid!,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Chat started. Chat ID: $chatId')),
-      );
+      _showSnackbar('Chat started. Chat ID: $chatId', kSuccessColor);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to start chat: ${e.toString()}')),
-      );
+      _showSnackbar('Failed to start chat: ${e.toString()}', kAccentColor);
     }
   }
 
@@ -1613,30 +1895,59 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   void _shareProfile(BuildContext context) {
     final text = 'Check out ${_provider.name}\'s profile on Service App!';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Share: $text')),
-    );
+    _showSnackbar('Share: $text', kPrimaryColor);
   }
 
   void _showReportDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Report User'),
-        content: const Text('Please describe the issue you encountered.'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Report User',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: kTextPrimary,
+          ),
+        ),
+        content: Text(
+          'Please describe the issue you encountered.',
+          style: TextStyle(color: kTextSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: kTextSecondary),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Report submitted successfully')),
-              );
-            },
-            child: const Text('Submit'),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.pop(context);
+                _showSnackbar('Report submitted successfully', kSuccessColor);
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [kPrimaryColor, kSecondaryColor],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Submit',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1647,21 +1958,53 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block User'),
-        content: Text('Are you sure you want to block ${_provider.name}?'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Block User',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: kTextPrimary,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to block ${_provider.name}?',
+          style: TextStyle(color: kTextSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: kTextSecondary),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${_provider.name} has been blocked')),
-              );
-            },
-            child: const Text('Block'),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.pop(context);
+                _showSnackbar(
+                    '${_provider.name} has been blocked', kAccentColor);
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [kAccentColor, Color(0xFFFF8A65)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Block',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1670,6 +2013,129 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   String _cleanPhoneNumber(String phoneNumber) {
     return phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+  }
+
+  void _showSnackbar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessDialog(DateTime appointmentDateTime) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [kSuccessColor, Color(0xFF6BCF7F)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: kSuccessColor.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(Icons.check, size: 40, color: Colors.white),
+            ),
+            SizedBox(height: 24),
+            Text(
+              'Booking Confirmed!',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: kTextPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Your appointment with ${_provider.name} has been scheduled successfully.',
+              style: TextStyle(
+                fontSize: 15,
+                color: kTextSecondary,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            Text(
+              DateFormat('EEEE, MMMM d, yyyy • h:mm a')
+                  .format(appointmentDateTime),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: kPrimaryColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _selectedService = null;
+                      _selectedDate = null;
+                      _selectedTime = null;
+                      _notes = '';
+                      _showBookingForm = false;
+                    });
+                  },
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [kPrimaryColor, kSecondaryColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<List<Map<String, dynamic>>> _getProviderServices(
@@ -1695,46 +2161,52 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Future<void> _viewAllRatings(BuildContext context) async {
     if (_provider.uid == null || _provider.uid!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Cannot view ratings: Provider ID is missing'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackbar(
+          'Cannot view ratings: Provider ID is missing', kAccentColor);
       return;
     }
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(20),
           height: MediaQuery.of(context).size.height * 0.8,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'All Reviews',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: kDarkTextColor,
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [kPrimaryColor, kSecondaryColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'All Reviews',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+                    IconButton(
+                      icon: Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
@@ -1744,7 +2216,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return Center(
+                          child:
+                              CircularProgressIndicator(color: kPrimaryColor));
                     }
 
                     if (snapshot.hasError) {
@@ -1752,13 +2226,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.error, size: 60, color: Colors.red[300]),
-                            const SizedBox(height: 16),
-                            const Text(
+                            Icon(Icons.error, size: 60, color: kAccentColor),
+                            SizedBox(height: 16),
+                            Text(
                               'Error loading reviews',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: kDarkTextColor,
+                                color: kTextPrimary,
                               ),
                             ),
                           ],
@@ -1771,14 +2245,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.reviews,
-                                size: 60, color: Colors.grey[300]),
-                            const SizedBox(height: 16),
-                            const Text(
+                            Icon(Icons.reviews, size: 60, color: kBorderColor),
+                            SizedBox(height: 16),
+                            Text(
                               'No reviews yet',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: kMutedTextColor,
+                                color: kTextSecondary,
                               ),
                             ),
                           ],
@@ -1789,18 +2262,26 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     final ratings = snapshot.data!.docs;
 
                     return ListView.builder(
+                      padding: EdgeInsets.all(16),
                       itemCount: ratings.length,
                       itemBuilder: (context, index) {
                         final rating = ratings[index];
                         final data = rating.data() as Map<String, dynamic>;
 
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
+                          margin: EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey[200]!),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: kBorderColor),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kShadowColor,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1811,13 +2292,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                         data['userPhoto'].isNotEmpty
                                     ? NetworkImage(data['userPhoto'])
                                     : null,
-                                backgroundColor: kPrimaryBlue.withOpacity(0.1),
+                                backgroundColor: kPrimaryColor.withOpacity(0.1),
                                 child: data['userPhoto'] == null ||
                                         data['userPhoto'].isEmpty
-                                    ? Icon(Icons.person, color: kPrimaryBlue)
+                                    ? Icon(Icons.person, color: kPrimaryColor)
                                     : null,
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1827,9 +2308,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                         Expanded(
                                           child: Text(
                                             data['userName'] ?? 'Anonymous',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
+                                              color: kTextPrimary,
                                             ),
                                           ),
                                         ),
@@ -1858,7 +2340,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                                 .toDate()),
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: kMutedTextColor,
+                                          color: kTextSecondary,
                                         ),
                                       ),
                                   ],

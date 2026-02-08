@@ -98,7 +98,7 @@ class _FeedScreenState extends State<FeedScreen> {
         const SnackBar(
           content: Text('Please sign in to create a post'),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -159,7 +159,7 @@ class _FeedScreenState extends State<FeedScreen> {
           border: Border.all(
             color: isSelected
                 ? const Color.fromARGB(255, 12, 94, 153)
-                : Colors.grey.shade300,
+                : Colors.white.withOpacity(0.6),
             width: 1,
           ),
         ),
@@ -168,7 +168,7 @@ class _FeedScreenState extends State<FeedScreen> {
           style: TextStyle(
             color: isSelected
                 ? const Color.fromARGB(255, 12, 94, 153)
-                : const Color.fromARGB(255, 255, 255, 255),
+                : Colors.white,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             fontSize: 13,
           ),
@@ -186,7 +186,7 @@ class _FeedScreenState extends State<FeedScreen> {
             width: 60,
             height: 60,
             child: CircularProgressIndicator(
-              color: Color.fromARGB(255, 12, 94, 153),
+              color: Colors.white,
               strokeWidth: 3,
             ),
           ),
@@ -194,7 +194,7 @@ class _FeedScreenState extends State<FeedScreen> {
           Text(
             'Loading posts...',
             style: TextStyle(
-              color: Colors.grey,
+              color: Colors.white,
               fontSize: 16,
             ),
           ),
@@ -212,7 +212,7 @@ class _FeedScreenState extends State<FeedScreen> {
           children: [
             Icon(
               Icons.error_outline,
-              color: Colors.red.shade400,
+              color: Colors.white,
               size: 60,
             ),
             const SizedBox(height: 20),
@@ -221,6 +221,7 @@ class _FeedScreenState extends State<FeedScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 10),
@@ -229,15 +230,15 @@ class _FeedScreenState extends State<FeedScreen> {
               child: Text(
                 'Please check your internet connection and try again',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _refreshData,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: const Color.fromARGB(255, 12, 94, 153),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -268,7 +269,7 @@ class _FeedScreenState extends State<FeedScreen> {
           children: [
             Icon(
               Icons.description_outlined,
-              color: Colors.blue.withOpacity(0.7),
+              color: Colors.white,
               size: 80,
             ),
             const SizedBox(height: 24),
@@ -277,6 +278,7 @@ class _FeedScreenState extends State<FeedScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 10),
@@ -285,15 +287,15 @@ class _FeedScreenState extends State<FeedScreen> {
               child: Text(
                 'Be the first to share your service needs or offers',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _showCreatePostModal,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: const Color.fromARGB(255, 12, 94, 153),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -325,7 +327,7 @@ class _FeedScreenState extends State<FeedScreen> {
               _selectedFilter == PostFilterType.seeking
                   ? Icons.search
                   : Icons.work_outline,
-              color: Colors.blue.withOpacity(0.7),
+              color: Colors.white,
               size: 80,
             ),
             const SizedBox(height: 24),
@@ -334,6 +336,7 @@ class _FeedScreenState extends State<FeedScreen> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 10),
@@ -344,15 +347,15 @@ class _FeedScreenState extends State<FeedScreen> {
                     ? 'No one is looking for services right now'
                     : 'No services are being offered right now',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _showCreatePostModal,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: const Color.fromARGB(255, 12, 94, 153),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -391,13 +394,15 @@ class _FeedScreenState extends State<FeedScreen> {
     return Scaffold(
       body: SafeArea(
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: [
-                const Color.fromARGB(255, 12, 94, 153),
-                const Color.fromARGB(255, 12, 94, 153).withOpacity(0.8),
+                Color.fromARGB(255, 12, 94, 153),
+                Color(0xFF4A6FDC),
+                Color(0xFF667EEA),
+                Color(0xFF764BA2),
               ],
             ),
           ),
@@ -1062,7 +1067,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
                   Text(
                     "Create Post",
                     style: TextStyle(
-                      color: kPrimaryBlue,
+                      color: const Color.fromARGB(255, 12, 94, 153),
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1157,7 +1162,8 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 child: DropdownButton<String>(
                   value: _serviceCategory,
                   isExpanded: true,
-                  icon: Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: const Color.fromARGB(255, 12, 94, 153)),
                   style: TextStyle(color: kDarkTextColor, fontSize: 15),
                   underline: const SizedBox(),
                   onChanged: (String? newValue) {
@@ -1192,11 +1198,12 @@ class _CreatePostModalState extends State<CreatePostModal> {
                       label: const Text('Gallery'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: kPrimaryBlue,
+                        foregroundColor: const Color.fromARGB(255, 12, 94, 153),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(color: kPrimaryBlue),
+                          side: BorderSide(
+                              color: const Color.fromARGB(255, 12, 94, 153)),
                         ),
                       ),
                     ),
@@ -1209,11 +1216,12 @@ class _CreatePostModalState extends State<CreatePostModal> {
                       label: const Text('Camera'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: kPrimaryBlue,
+                        foregroundColor: const Color.fromARGB(255, 12, 94, 153),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(color: kPrimaryBlue),
+                          side: BorderSide(
+                              color: const Color.fromARGB(255, 12, 94, 153)),
                         ),
                       ),
                     ),
@@ -1225,7 +1233,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
               ElevatedButton(
                 onPressed: _isUploading ? null : _submitPost,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryBlue,
+                  backgroundColor: const Color.fromARGB(255, 12, 94, 153),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
