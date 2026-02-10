@@ -1,10 +1,6 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:service_app/Services/http_polling_service.dart';
 import '../models/ChatModel.dart';
 import '../models/MessageModel.dart';
 
@@ -13,9 +9,11 @@ String getCanonicalChatId(String id1, String id2) {
   return '${ids[0]}_${ids[1]}';
 }
 
+/// ✅ UPDATED ChatService - Works with FREE Render.com server
+/// ❌ NO Cloud Functions needed!
+/// ✅ Just saves to Firestore, Render server detects changes automatically
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final HttpPollingService _pollingService = HttpPollingService();
 
   final CollectionReference<Map<String, dynamic>> _chatsRef;
   final CollectionReference<Map<String, dynamic>> _usersRef;
@@ -123,6 +121,10 @@ class ChatService {
   }
 
   // ==================== MESSAGE MANAGEMENT ====================
+
+  /// ✅ SIMPLIFIED - Just save to Firestore
+  /// ✅ Render.com server watches Firestore and sends notifications automatically!
+  /// ❌ NO Cloud Functions needed!
   Future<void> sendMessage(String chatId, MessageModel message) async {
     developer.log('\n🚀 [ChatService] SENDING MESSAGE', name: 'ChatService');
     developer.log('  Chat ID: $chatId', name: 'ChatService');
@@ -152,6 +154,8 @@ class ChatService {
     developer.log('  Receiver ID: $otherUserId', name: 'ChatService');
     developer.log('  Sender Name: $senderName', name: 'ChatService');
 
+    // 🔥 SIMPLIFIED: Just save to Firestore
+    // Your Render.com server watches for this change and sends notification automatically!
     await _firestore.runTransaction((transaction) async {
       transaction.set(messageDoc, messageData);
       transaction.update(chatDocRef, {
@@ -163,92 +167,10 @@ class ChatService {
       });
     });
 
-    developer.log('✅ Message saved to Firestore.', name: 'ChatService');
-
-    // 🚨 CRITICAL: Send notification via HTTP polling
-    await _sendNotificationViaHttpPolling(
-      chatId: chatId,
-      receiverId: otherUserId,
-      message: message.text,
-      senderId: message.senderId,
-      senderName: senderName,
-      messageId: messageDoc.id, // Include messageId for deduplication
-    );
-
-    developer.log('📤 Message sent via HTTP polling.', name: 'ChatService');
-  }
-
-  /// Send notification via HTTP polling service
-  Future<void> _sendNotificationViaHttpPolling({
-    required String chatId,
-    required String receiverId,
-    required String message,
-    required String senderId,
-    required String senderName,
-    required String messageId,
-  }) async {
-    try {
-      final result = await _pollingService.sendMessage(
-        receiverId: receiverId,
-        message: message,
-        chatId: chatId,
-        senderName: senderName,
-        messageId: messageId,
-      );
-
-      if (result['success'] == true) {
-        if (result['delivered'] == true) {
-          developer.log('📡 Notification delivered in real-time to $receiverId',
-              name: 'ChatService');
-        } else {
-          developer.log('💾 Notification stored for $receiverId (offline)',
-              name: 'ChatService');
-        }
-      } else {
-        developer.log('⚠️ HTTP polling notification failed: ${result['error']}',
-            name: 'ChatService');
-      }
-    } catch (e, stackTrace) {
-      developer.log('❌ Error sending HTTP polling notification: $e',
-          name: 'ChatService', error: e, stackTrace: stackTrace);
-      // Don't throw - notification failure shouldn't block message sending
-    }
-  }
-
-  /// Send message with immediate notification
-  Future<void> sendMessageWithNotification(
-    String chatId,
-    MessageModel message,
-  ) async {
-    try {
-      // 1. Save to Firestore
-      await sendMessage(chatId, message);
-
-      // 2. Additional logging
-      final chatData = await getChatData(chatId);
-      if (chatData != null) {
-        final participants = List<String>.from(chatData['participants'] ?? []);
-        final receiverId = participants.firstWhere(
-          (id) => id != message.senderId,
-          orElse: () => '',
-        );
-
-        if (receiverId.isNotEmpty) {
-          // Check if receiver is online
-          final onlineStatus =
-              await _pollingService.checkUserOnline(receiverId);
-          final isOnline = onlineStatus['isOnline'] == true;
-
-          developer.log(
-              '📊 Receiver status: ${isOnline ? "Online" : "Offline"}',
-              name: 'ChatService');
-        }
-      }
-    } catch (e, stackTrace) {
-      developer.log('❌ Error in sendMessageWithNotification: $e',
-          name: 'ChatService', error: e, stackTrace: stackTrace);
-      rethrow;
-    }
+    developer.log('✅ Message saved to Firestore', name: 'ChatService');
+    developer.log(
+        '📡 Render server will detect this change and send notification automatically!',
+        name: 'ChatService');
   }
 
   Stream<List<MessageModel>> listenMessages(
@@ -307,54 +229,6 @@ class ChatService {
     } catch (e, stackTrace) {
       developer.log('❌ Error marking messages as read: $e',
           name: 'ChatService', error: e, stackTrace: stackTrace);
-    }
-  }
-
-  // ==================== NOTIFICATION METHODS ====================
-
-  /// Check if a user is online via HTTP polling
-  Future<bool> isUserOnline(String userId) async {
-    try {
-      final result = await _pollingService.checkUserOnline(userId);
-      return result['isOnline'] == true;
-    } catch (e) {
-      developer.log('❌ Error checking online status: $e', name: 'ChatService');
-      return false;
-    }
-  }
-
-  /// Get pending messages count for current user
-  Future<int> getPendingMessagesCount(String userId) async {
-    try {
-      return await _pollingService.getPendingMessagesCount();
-    } catch (e) {
-      developer.log('❌ Error getting pending count: $e', name: 'ChatService');
-      return 0;
-    }
-  }
-
-  /// Send typing indicator
-  Future<void> sendTypingIndicator({
-    required String chatId,
-    required String receiverId,
-    required bool isTyping,
-  }) async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      await _pollingService.sendTypingIndicator(
-        receiverId: receiverId,
-        chatId: chatId,
-        isTyping: isTyping,
-      );
-
-      if (isTyping) {
-        developer.log('✍️ Typing indicator sent to $receiverId',
-            name: 'ChatService');
-      }
-    } catch (e) {
-      developer.log('⚠️ Typing indicator error: $e', name: 'ChatService');
     }
   }
 
@@ -472,6 +346,60 @@ class ChatService {
       developer.log('❌ Error getting participant names: $e',
           name: 'ChatService');
       return {};
+    }
+  }
+
+  /// Get available providers for chat
+  Future<List<Map<String, dynamic>>> getAvailableProviders() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUserId = currentUser?.uid;
+
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final providerQuery =
+          await _usersRef.where('role', isEqualTo: 'provider').limit(20).get();
+
+      final providers =
+          providerQuery.docs.where((doc) => doc.id != currentUserId).map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['name'] ?? 'Provider',
+          'email': data['email'] ?? '',
+          'photoUrl': data['photoUrl'] ?? '',
+          'role': data['role'] ?? 'provider',
+        };
+      }).toList();
+
+      if (providers.isNotEmpty) {
+        return providers;
+      }
+
+      final allUsers = await _usersRef.limit(20).get();
+
+      final potentialProviders =
+          allUsers.docs.where((doc) => doc.id != currentUserId).where((doc) {
+        final data = doc.data();
+        return data['name']?.isNotEmpty == true ||
+            data['email']?.isNotEmpty == true;
+      }).map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['name'] ?? 'User ${doc.id.substring(0, 6)}',
+          'email': data['email'] ?? '',
+          'photoUrl': data['photoUrl'] ?? '',
+          'role': data['role'] ?? 'user',
+        };
+      }).toList();
+
+      return potentialProviders;
+    } catch (e) {
+      developer.log('❌ Error getting providers: $e', name: 'ChatService');
+      return [];
     }
   }
 }

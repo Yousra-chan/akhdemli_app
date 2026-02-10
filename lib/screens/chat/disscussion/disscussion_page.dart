@@ -8,8 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/models/MessageModel.dart';
 import 'package:intl/intl.dart';
-import 'package:service_app/Services/http_polling_service.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
+import 'package:service_app/Services/notification_service.dart';
 
 // Profile image cache with expiration
 class ProfileImageCache {
@@ -91,17 +91,21 @@ class _DiscussionPageState extends State<DiscussionPage> {
   String? _contactUserId;
 
   // State
-  bool _isLoading = true; // ✅ FIXED: Start as true to show loading
+  bool _isLoading = true;
   bool _isSendingMessage = false;
   bool _imagesLoaded = false;
   Timer? _scrollToBottomTimer;
   bool _initialScrollDone = false;
   bool _shouldAutoScroll = true;
 
+  static const String _renderServerUrl =
+      'https://notifications-f7n2.onrender.com';
+
   @override
   void initState() {
     super.initState();
     _initializeChat();
+    _checkRenderServer();
   }
 
   @override
@@ -118,13 +122,12 @@ class _DiscussionPageState extends State<DiscussionPage> {
     print('🔄 Initializing chat with chatId: ${widget.chatId}');
     _extractContactUserId();
     _loadProfileImages();
-    _setupMessageListener(); // ✅ This sets up the stream
+    _setupMessageListener();
 
     _messageController.addListener(() {
       if (mounted) setState(() {});
     });
 
-    // Stop auto-scroll when user scrolls up
     _scrollController.addListener(() {
       if (_scrollController.position.userScrollDirection ==
           ScrollDirection.reverse) {
@@ -136,21 +139,42 @@ class _DiscussionPageState extends State<DiscussionPage> {
     });
   }
 
+  // Check if Render server is working
+  void _checkRenderServer() async {
+    try {
+      print('🔍 Checking Render server connection...');
+      final response = await http.get(
+        Uri.parse('$_renderServerUrl/health'),
+        headers: {'Accept': 'application/json'},
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        print('✅ Render server is online');
+        final data = json.decode(response.body);
+        print('📡 Server status: ${data['status']}');
+      } else {
+        print('⚠️ Render server returned ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Cannot connect to Render server: $e');
+      print('💡 Server URL: $_renderServerUrl');
+      print('💡 Make sure your server is running on Render.com');
+    }
+  }
+
   void _setupMessageListener() {
     print('📡 Setting up message listener for chatId: ${widget.chatId}');
     _messagesSubscription?.cancel();
 
-    // ✅ FIXED: Better error handling with detailed logs
     _messagesSubscription = widget.chatViewModel
         .listenMessages(widget.chatId)
         .handleError((error, stackTrace) {
-      print('❌ CRITICAL ERROR listening to messages: $error');
-      print('📍 Stack trace: $stackTrace');
+      print('❌ Error listening to messages: $error');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading messages: $error'),
+            content: Text('Error loading messages'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
@@ -166,8 +190,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
 
           setState(() {
             _messages = messages;
-            _isLoading = false; // ✅ FIXED: Set to false when data arrives
-            print('✅ Updated UI with ${_messages.length} messages');
+            _isLoading = false;
           });
 
           if (wasAtBottom && _shouldAutoScroll) {
@@ -250,7 +273,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
         });
       }
     } catch (e) {
-      print('Error loading profile images: $e');
+      print('⚠️ Error loading profile images: $e');
       if (mounted) {
         setState(() {
           _imagesLoaded = true;
@@ -283,7 +306,10 @@ class _DiscussionPageState extends State<DiscussionPage> {
       _shouldAutoScroll = true;
       _scrollToBottom();
 
-      await _notifyRecipient(messageText);
+      // 🔥 SEND NOTIFICATION USING RENDER SERVER
+      await _sendNotificationViaRenderServer(messageText);
+
+      // Save notification to Firestore for history
       await _saveNotificationToFirestore(
         receiverId: _contactUserId ?? widget.contactUserId ?? '',
         message: messageText,
@@ -300,7 +326,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send message: $e'),
+            content: Text('Failed to send message'),
             backgroundColor: Colors.red.shade400,
             duration: const Duration(seconds: 2),
           ),
@@ -312,31 +338,163 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  Future<void> _notifyRecipient(String message) async {
+  Future<void> _sendNotificationViaRenderServer(String message) async {
     try {
-      final receiverId = _contactUserId ?? widget.contactUserId;
-      if (receiverId == null || receiverId.isEmpty) {
-        print('⚠️ No receiver ID for notification');
+      print('🔍 NOTIFICATION DEBUG - Checking source...');
+      print('📱 Current User: ${widget.currentUserId}');
+      print('👤 Contact User: ${_contactUserId}');
+      print('💬 Message: $message');
+      print('🔗 Chat ID: ${widget.chatId}');
+
+      // 🔥 ADD THIS CHECK - Only send if receiver is NOT current user
+      if (_contactUserId == widget.currentUserId) {
+        print('⚠️ SKIPPING: Receiver is same as sender');
         return;
       }
 
-      await http
+      final receiverId = _contactUserId ?? widget.contactUserId;
+      if (receiverId == null || receiverId.isEmpty) {
+        print('⚠️ SKIPPING: No receiver ID');
+        return;
+      }
+
+      print('📤 Sending notification to user: $receiverId');
+
+      // 🔥 ADD UNIQUE ID to prevent duplicates
+      final notificationId =
+          '${widget.chatId}_${DateTime.now().millisecondsSinceEpoch}';
+      print('🆔 Notification ID: $notificationId');
+
+      final response = await http
           .post(
-            Uri.parse('https://notifications-server-66y2.onrender.com/send'),
-            headers: {'Content-Type': 'application/json'},
+            Uri.parse(
+                'https://notifications-f7n2.onrender.com/send-notification'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
             body: json.encode({
               'senderId': widget.currentUserId,
               'receiverId': receiverId,
               'message': message,
-              'chatId': widget.chatId,
               'senderName': widget.contactName,
+              'chatId': widget.chatId,
+              'notificationId': notificationId, // 🔥 Add unique ID
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
-      print('✅ Notification sent to HTTP server');
+      print('📡 Server response: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        if (result['success'] == true) {
+          print('✅ Notification sent successfully');
+          print('🎯 Message ID: ${result['messageId']}');
+        } else {
+          print('❌ Server returned error: ${result['error']}');
+        }
+      } else {
+        print('❌ Server error ${response.statusCode}: ${response.body}');
+      }
     } catch (e) {
-      print('⚠️ Error notifying recipient: $e');
+      print('❌ Error sending notification: $e');
+      print('💡 Check if server is sleeping (free tier)');
+    }
+  }
+
+  // Fallback: Send direct FCM notification (if Render server fails)
+  Future<void> _sendFallbackNotification(
+      String receiverToken, String message) async {
+    try {
+      print('🔄 Trying fallback notification method...');
+
+      // Option 1: Use NotificationService
+      final success =
+          await NotificationService().sendNotificationViaRenderServer(
+        receiverToken: receiverToken,
+        title: 'New message from ${widget.contactName}',
+        body: message,
+        data: {
+          'type': 'message',
+          'chatId': widget.chatId,
+          'senderId': widget.currentUserId,
+        },
+      );
+
+      if (success) {
+        print('✅ Fallback notification sent via NotificationService');
+      } else {
+        print('❌ NotificationService fallback failed, trying direct FCM...');
+        await _sendDirectFCMNotification(receiverToken, message);
+      }
+    } catch (e) {
+      print('❌ Fallback error: $e');
+    }
+  }
+
+  // Direct FCM as last resort
+  Future<void> _sendDirectFCMNotification(
+      String receiverToken, String message) async {
+    try {
+      print('🚨 Using direct FCM as last resort...');
+
+      // You need to add your FCM server key from Firebase Console
+      const serverKey = 'YOUR_FCM_SERVER_KEY_HERE'; // Get from Firebase Console
+
+      if (serverKey == 'YOUR_FCM_SERVER_KEY_HERE') {
+        print('⚠️ Please add your FCM server key in discussion_page.dart');
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$serverKey',
+        },
+        body: json.encode({
+          'to': receiverToken,
+          'notification': {
+            'title': 'New message from ${widget.contactName}',
+            'body': message,
+            'sound': 'default',
+            'android_channel_id': 'high_importance_channel',
+          },
+          'data': {
+            'type': 'message',
+            'chatId': widget.chatId,
+            'senderId': widget.currentUserId,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Direct FCM notification sent');
+      } else {
+        print('❌ Direct FCM failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Direct FCM error: $e');
+    }
+  }
+
+  // Alternative fallback
+  Future<void> _sendFallbackDirectNotification(String message) async {
+    try {
+      final receiverId = _contactUserId ?? widget.contactUserId;
+      if (receiverId == null) return;
+
+      // Try using NotificationService directly
+      await NotificationService().sendMessageNotification(
+        receiverUserId: receiverId,
+        messageText: message,
+        chatId: widget.chatId,
+        senderName: widget.contactName,
+      );
+    } catch (e) {
+      print('❌ All notification methods failed: $e');
     }
   }
 
@@ -367,7 +525,41 @@ class _DiscussionPageState extends State<DiscussionPage> {
 
       print('✅ Notification saved to Firestore');
     } catch (e) {
-      print('⚠️ Error saving notification: $e');
+      print('⚠️ Error saving notification to Firestore: $e');
+    }
+  }
+
+  // Test notification button (for debugging)
+  Future<void> _testNotification() async {
+    try {
+      print('🧪 Testing notification system...');
+
+      // Test Render server connection
+      final healthResponse = await http
+          .get(
+            Uri.parse('$_renderServerUrl/health'),
+          )
+          .timeout(Duration(seconds: 10));
+
+      print('✅ Render server health: ${healthResponse.statusCode}');
+
+      // Send test message
+      await _sendNotificationViaRenderServer('Test notification from app! 🎉');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Test notification sent!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('❌ Test failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Test failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -391,6 +583,13 @@ class _DiscussionPageState extends State<DiscussionPage> {
             _buildMessageInput(),
           ],
         ),
+        // Debug button (remove in production)
+        floatingActionButton: FloatingActionButton(
+          onPressed: _testNotification,
+          child: Icon(Icons.notifications),
+          backgroundColor: Colors.blue,
+          mini: true,
+        ),
       ),
     );
   }
@@ -405,7 +604,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
       ),
       title: Row(
         children: [
-          // User profile image circle
           Container(
             width: 40,
             height: 40,
@@ -523,7 +721,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
   }
 
   Widget _buildMessagesList() {
-    // ✅ FIXED: Show loading first, then messages, then empty state
     if (_isLoading && _messages.isEmpty) {
       return Center(
         child: Column(
@@ -657,6 +854,14 @@ class _DiscussionPageState extends State<DiscussionPage> {
               fontSize: 14,
             ),
           ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _testNotification,
+            child: Text('Test Notifications'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+          ),
         ],
       ),
     );
@@ -759,7 +964,6 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ FIXED: Better timestamp handling
     DateTime timestamp;
     try {
       if (message.timestamp is Timestamp) {

@@ -1,49 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data'; // ✅ FIXED: Added missing import for Int64List
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:service_app/Services/http_polling_service.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Notification Service Complet
-/// Ce service gère:
-/// 1. Les notifications FCM (Firebase Cloud Messaging)
-/// 2. Les notifications locales
-/// 3. La communication avec votre serveur Render
+/// ✅ Notification Service using YOUR Render FCM Server
 class NotificationService {
-  // Singleton
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
 
-  // Firebase
   late FirebaseMessaging _firebaseMessaging;
   late FlutterLocalNotificationsPlugin _localNotifications;
 
-  // Services
-  final HttpPollingService _httpPollingService = HttpPollingService();
+  // 🔥 YOUR RENDER SERVER URL
+  static const String _renderServerUrl =
+      'https://your-server-name.onrender.com';
 
-  // Stream controllers
-  final StreamController<Map<String, dynamic>> _messageController =
-      StreamController<Map<String, dynamic>>.broadcast();
-
-  final StreamController<String> _notificationController =
-      StreamController<String>.broadcast();
-
-  // State
   bool _initialized = false;
   String? _currentUserId;
   String? _currentUserName;
 
-  /// Constructor privé
   NotificationService._internal();
 
   /// ==========================================================================
   /// INITIALIZATION
   /// ==========================================================================
 
-  /// Initialize the notification service
   static Future<void> initialize() async {
     await _instance._initialize();
   }
@@ -60,75 +44,66 @@ class NotificationService {
       // 2. Local Notifications
       _localNotifications = FlutterLocalNotificationsPlugin();
 
-      // 3. Initialize local notifications
-      await _initializeLocalNotifications();
-
-      // 4. Setup Android channel
-      await _setupAndroidChannel();
-
-      // 5. Request permissions
+      // 3. Request permissions
       await _requestPermissions();
 
-      // 6. Configure message handlers
-      await _configureMessageHandlers();
+      // 4. Initialize local notifications
+      await _initializeLocalNotifications();
 
-      // 7. Setup HTTP polling listener
-      _setupHttpPollingListener();
+      // 5. Setup message handlers
+      await _configureMessageHandlers();
 
       _initialized = true;
       print('✅ NotificationService initialized successfully');
-    } catch (e, stackTrace) {
+    } catch (e) {
       print('❌ NotificationService init error: $e');
-      print('Stack trace: $stackTrace');
-      _initialized = false;
+    }
+  }
+
+  Future<void> _requestPermissions() async {
+    try {
+      final settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      print('📱 Notification permission: ${settings.authorizationStatus}');
+    } catch (e) {
+      print('❌ Permission error: $e');
     }
   }
 
   Future<void> _initializeLocalNotifications() async {
     try {
-      const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('ic_launcher');
+      const AndroidInitializationSettings androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-      const InitializationSettings initializationSettings =
-          InitializationSettings(android: initializationSettingsAndroid);
+      const InitializationSettings settings =
+          InitializationSettings(android: androidSettings);
 
       await _localNotifications.initialize(
-        initializationSettings,
-        onDidReceiveNotificationResponse:
-            (NotificationResponse notificationResponse) {
-          // Quand l'utilisateur clique sur une notification
-          print('👆 Notification clicked: ${notificationResponse.payload}');
-
-          if (notificationResponse.payload != null) {
+        settings,
+        onDidReceiveNotificationResponse: (response) {
+          print('👆 Notification tapped: ${response.payload}');
+          if (response.payload != null) {
             try {
-              final data = json.decode(notificationResponse.payload!)
-                  as Map<String, dynamic>;
-              _handleNotificationClick(data);
+              final data =
+                  json.decode(response.payload!) as Map<String, dynamic>;
+              _handleNotificationTap(data);
             } catch (e) {
-              print('❌ Error parsing notification payload: $e');
+              print('❌ Error parsing payload: $e');
             }
           }
         },
       );
 
-      print('✅ Local notifications initialized');
-    } catch (e) {
-      print('❌ Error initializing local notifications: $e');
-    }
-  }
-
-  Future<void> _setupAndroidChannel() async {
-    try {
-      // ✅ FIXED: Removed 'const' because vibrationPattern uses non-const Int64List.fromList()
-      final AndroidNotificationChannel channel = AndroidNotificationChannel(
+      // Create notification channel
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'high_importance_channel',
         'High Importance Notifications',
-        description: 'This channel is used for important notifications.',
+        description: 'Important notifications',
         importance: Importance.high,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound('notification'),
-        enableVibration: true,
-        vibrationPattern: Int64List.fromList([0, 500, 1000, 500]),
       );
 
       await _localNotifications
@@ -136,270 +111,298 @@ class NotificationService {
               AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      print('✅ Android notification channel created');
+      print('✅ Local notifications initialized');
     } catch (e) {
-      print('❌ Error creating Android notification channel: $e');
-    }
-  }
-
-  Future<void> _requestPermissions() async {
-    try {
-      final NotificationSettings settings =
-          await _firebaseMessaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-      print('🔔 Permission status: ${settings.authorizationStatus}');
-
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        print('✅ Notifications authorized');
-      } else if (settings.authorizationStatus ==
-          AuthorizationStatus.provisional) {
-        print('⚠️ Notifications provisionally authorized');
-      } else {
-        print('❌ Notifications not authorized');
-      }
-    } catch (e) {
-      print('❌ Permission request error: $e');
+      print('❌ Local notifications error: $e');
     }
   }
 
   Future<void> _configureMessageHandlers() async {
     try {
-      // 1. Message reçu quand l'app est au premier plan (ouverte)
+      // Foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         print('📨 [FOREGROUND] Message received');
-        print('📨 Data: ${message.data}');
-        print(
-            '📨 Notification: ${message.notification?.title} - ${message.notification?.body}');
-
-        _handleIncomingMessage(message, fromBackground: false);
+        _showLocalNotification(message);
       });
 
-      // 2. App ouverte depuis une notification (quand app était en background)
+      // Background/terminated messages
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        print('👆 [OPENED FROM BACKGROUND] App opened from notification');
-        print('📨 Data: ${message.data}');
-
-        _handleIncomingMessage(message, fromBackground: true);
-        _handleNotificationClick(message.data);
+        print('👆 App opened from notification');
+        _handleNotificationTap(message.data);
       });
 
-      // 3. Configurer le token refresh
+      // Token refresh
       _firebaseMessaging.onTokenRefresh.listen((String newToken) {
-        print('🔄 FCM token refreshed: ${newToken.substring(0, 30)}...');
-        _onTokenRefresh(newToken);
+        print('🔄 FCM token refreshed');
+        if (_currentUserId != null) {
+          _saveFCMTokenToFirestore(newToken);
+        }
       });
 
-      print('✅ Firebase message handlers configured');
+      print('✅ Message handlers configured');
     } catch (e) {
-      print('❌ Error configuring message handlers: $e');
+      print('❌ Message handlers error: $e');
     }
   }
 
-  void _setupHttpPollingListener() {
-    // Écouter les messages du HTTP Polling
-    _httpPollingService.onMessage.listen((Map<String, dynamic> message) {
-      print('📡 [HTTP POLLING] Message received: ${message['message']}');
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    print('🎯 Notification tapped: $data');
+    final chatId = data['chatId'];
+    final senderId = data['senderId'];
 
-      // ✅ NEW: Save to Firestore so it appears in notifications page
-      _saveReceivedMessageNotificationToFirestore(message);
-
-      // Créer un RemoteMessage factice pour utiliser les mêmes handlers
-      final remoteMessage = RemoteMessage(
-        data: Map<String, String>.from(message),
-        notification: RemoteNotification(
-          title: message['senderName']?.toString() ?? 'Nouveau message',
-          body: message['message']?.toString() ?? '',
-        ),
-      );
-
-      _handleIncomingMessage(remoteMessage, fromBackground: false);
-    });
-
-    // Écouter les erreurs du HTTP Polling
-    _httpPollingService.onError.listen((String error) {
-      print('❌ [HTTP POLLING ERROR] $error');
-      _notificationController.add('HTTP Polling Error: $error');
-    });
-  }
-
-  /// ✅ NEW: Save received notification to Firestore for notifications page
-  Future<void> _saveReceivedMessageNotificationToFirestore(
-      Map<String, dynamic> messageData) async {
-    try {
-      if (_currentUserId == null) return;
-
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'userId': _currentUserId, // Current user (receiver)
-        'senderId': messageData['senderId'],
-        'senderName': messageData['senderName'] ?? 'Unknown',
-        'message': messageData['message'],
-        'title': '${messageData['senderName'] ?? "Unknown"} sent a message',
-        'type': 'message',
-        'chatId': messageData['chatId'],
-        'time': Timestamp.now(),
-        'isRead': false,
-        'messageCount': 1,
-        'lastMessageTime': Timestamp.now(),
-      });
-
-      print('✅ Received notification saved to Firestore');
-    } catch (e) {
-      print('⚠️ Error saving received notification: $e');
-    }
-  }
-
-  /// ==========================================================================
-  /// MESSAGE HANDLING
-  /// ==========================================================================
-
-  Future<void> _handleIncomingMessage(
-    RemoteMessage message, {
-    required bool fromBackground,
-  }) async {
-    try {
-      final data = message.data;
-      final notification = message.notification;
-
-      print('📨 Handling incoming message');
-      print('📨 Type: ${data['type']}');
-      print('📨 From background: $fromBackground');
-
-      // Émettre sur le stream pour que d'autres parties de l'app puissent réagir
-      _messageController.add(data);
-      _notificationController.add('New message received');
-
-      // Afficher une notification locale
-      await _showLocalNotification(message);
-
-      // Si c'est un message de chat, mettre à jour Firestore
-      if (data['type'] == 'message') {
-        await _updateMessageStatus(data);
-      }
-
-      // Si c'est une notification système
-      if (data['type'] == 'system') {
-        print('🔔 System notification: ${data['message']}');
-      }
-
-      // Si c'est une notification de test
-      if (data['type'] == 'test') {
-        print('🧪 Test notification received');
-      }
-    } catch (e, stackTrace) {
-      print('❌ Error handling incoming message: $e');
-      print('Stack trace: $stackTrace');
+    if (chatId != null) {
+      // Navigate to chat screen
+      // You can use a stream or method channel here
+      print('📍 Navigate to chat: $chatId from $senderId');
     }
   }
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
     try {
-      final data = message.data;
       final notification = message.notification;
+      if (notification == null) return;
 
-      // Convertir data en JSON string pour le payload
-      final payload = json.encode(data);
-
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
         'high_importance_channel',
         'High Importance Notifications',
-        channelDescription: 'This channel is used for important notifications.',
+        channelDescription: 'Important notifications',
         importance: Importance.high,
         priority: Priority.high,
-        showWhen: true,
+        playSound: true,
       );
 
-      const NotificationDetails platformChannelSpecifics = NotificationDetails(
-        android: androidPlatformChannelSpecifics,
-      );
+      const NotificationDetails platformDetails =
+          NotificationDetails(android: androidDetails);
 
       await _localNotifications.show(
-        notification.hashCode,
-        notification?.title ?? 'New Notification',
-        notification?.body ?? '',
-        platformChannelSpecifics,
-        payload: payload,
+        message.hashCode,
+        notification.title ?? 'New Message',
+        notification.body ?? '',
+        platformDetails,
+        payload: json.encode(message.data),
       );
 
       print('✅ Local notification shown');
     } catch (e) {
-      print('❌ Error showing local notification: $e');
+      print('❌ Local notification error: $e');
     }
   }
 
-  Future<void> _updateMessageStatus(Map<String, dynamic> data) async {
+  /// ==========================================================================
+  /// 🔥 RENDER SERVER COMMUNICATION
+  /// ==========================================================================
+
+  /// Send notification via YOUR Render server
+  Future<bool> sendNotificationViaRenderServer({
+    required String receiverToken,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
     try {
-      final messageId = data['messageId'];
-      final chatId = data['chatId'];
+      print(
+          '📤 Sending via Render server to: ${receiverToken.substring(0, 30)}...');
 
-      if (messageId != null && chatId != null) {
-        print('📝 Updating message status for $messageId');
+      final response = await http.post(
+        Uri.parse('$_renderServerUrl/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'token': receiverToken,
+          'title': title,
+          'body': body,
+          'data': data ?? {},
+        }),
+      );
 
-        await FirebaseFirestore.instance
-            .collection('chats')
-            .doc(chatId)
-            .collection('messages')
-            .doc(messageId.toString())
-            .set({
-          'status': 'delivered',
-          'deliveredAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        print('✅ Message status updated');
+      if (response.statusCode == 200) {
+        print('✅ Notification sent via Render server');
+        return true;
+      } else {
+        print('❌ Render server error: ${response.body}');
+        return false;
       }
     } catch (e) {
-      print('⚠️ Error updating message status: $e');
+      print('❌ Render server connection error: $e');
+      return false;
     }
   }
 
-  void _handleNotificationClick(Map<String, dynamic> data) {
-    print('🎯 Notification clicked');
-    print('🎯 Data: $data');
+  /// Send message notification to specific user
+  Future<bool> sendMessageNotification({
+    required String receiverUserId,
+    required String messageText,
+    required String chatId,
+    String? senderName,
+  }) async {
+    try {
+      print('📤 Sending message notification to user: $receiverUserId');
 
-    // Extraire les informations
-    final chatId = data['chatId'];
-    final senderId = data['senderId'];
-    final senderName = data['senderName'];
-    final message = data['message'];
+      // 1. Get receiver's FCM token from Firestore
+      final receiverDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(receiverUserId)
+          .get();
 
-    print('🎯 Chat ID: $chatId');
-    print('🎯 Sender: $senderName ($senderId)');
-    print('🎯 Message: $message');
+      if (!receiverDoc.exists) {
+        print('❌ Receiver not found');
+        return false;
+      }
 
-    // Ici vous pouvez naviguer vers le chat approprié
-    // Cette logique dépend de votre architecture de navigation
-    // Exemple: navigatorKey.currentState?.pushNamed('/chat', arguments: {...});
+      final receiverData = receiverDoc.data();
+      final receiverToken = receiverData?['fcmToken'] as String?;
 
-    // Émettre un événement pour que l'UI réagisse
-    _notificationController.add('notification_clicked:$chatId');
+      if (receiverToken == null) {
+        print('❌ Receiver has no FCM token');
+        return false;
+      }
+
+      // 2. Use current user info if senderName not provided
+      String finalSenderName = senderName ?? _currentUserName ?? 'Someone';
+
+      // 3. Send via Render server
+      final success = await sendNotificationViaRenderServer(
+        receiverToken: receiverToken,
+        title: 'New message from $finalSenderName',
+        body: messageText.length > 100
+            ? '${messageText.substring(0, 100)}...'
+            : messageText,
+        data: {
+          'type': 'message',
+          'chatId': chatId,
+          'senderId': _currentUserId,
+          'senderName': finalSenderName,
+          'message': messageText,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      if (success) {
+        // 4. Save notification to Firestore for history
+        await _saveNotificationToFirestore(
+          receiverUserId: receiverUserId,
+          type: 'message',
+          title: 'New message from $finalSenderName',
+          body: messageText,
+          data: {
+            'chatId': chatId,
+            'senderId': _currentUserId,
+          },
+        );
+      }
+
+      return success;
+    } catch (e) {
+      print('❌ Error sending message notification: $e');
+      return false;
+    }
   }
 
-  void _onTokenRefresh(String newToken) {
-    print('🔄 Processing token refresh');
+  /// Send booking notification
+  Future<bool> sendBookingNotification({
+    required String receiverUserId,
+    required String bookingId,
+    required String serviceName,
+    required String status, // confirmed, cancelled, reminder
+    DateTime? date,
+  }) async {
+    try {
+      // Get receiver's token
+      final receiverDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(receiverUserId)
+          .get();
 
-    // Sauvegarder le nouveau token
-    _saveFCMTokenToFirestore(newToken);
+      final receiverToken = receiverDoc.data()?['fcmToken'] as String?;
+      if (receiverToken == null) return false;
 
-    // Mettre à jour sur le serveur Render
-    _updateTokenOnRenderServer(newToken);
+      // Determine message based on status
+      String title, body;
+      switch (status) {
+        case 'confirmed':
+          title = 'Booking Confirmed!';
+          body = 'Your booking for $serviceName has been confirmed';
+          break;
+        case 'cancelled':
+          title = 'Booking Cancelled';
+          body = 'Your booking for $serviceName has been cancelled';
+          break;
+        case 'reminder':
+          title = 'Booking Reminder';
+          body = 'Reminder: Your $serviceName is tomorrow';
+          break;
+        default:
+          title = 'Booking Update';
+          body = 'Update for your $serviceName booking';
+      }
+
+      // Send via Render server
+      return await sendNotificationViaRenderServer(
+        receiverToken: receiverToken,
+        title: title,
+        body: body,
+        data: {
+          'type': 'booking',
+          'bookingId': bookingId,
+          'serviceName': serviceName,
+          'status': status,
+          'date': date?.toIso8601String(),
+        },
+      );
+    } catch (e) {
+      print('❌ Booking notification error: $e');
+      return false;
+    }
   }
+
+  /// ==========================================================================
+  /// PUBLIC API
+  /// ==========================================================================
+
+  /// Register user with notification system
+  Future<void> registerUser({
+    required String userId,
+    required String userName,
+  }) async {
+    try {
+      _currentUserId = userId;
+      _currentUserName = userName;
+
+      print('👤 Registering user $userName ($userId)');
+
+      // Get and save FCM token
+      final token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        print('📱 FCM Token obtained');
+        await _saveFCMTokenToFirestore(token);
+
+        // Optional: Register token with Render server
+        await _registerTokenWithRenderServer(userId, token);
+      }
+
+      print('✅ User registered for notifications');
+    } catch (e) {
+      print('❌ User registration error: $e');
+    }
+  }
+
+  /// Get FCM token
+  Future<String?> getFCMToken() async {
+    try {
+      return await _firebaseMessaging.getToken();
+    } catch (e) {
+      print('❌ Get token error: $e');
+      return null;
+    }
+  }
+
+  /// ==========================================================================
+  /// PRIVATE HELPERS
+  /// ==========================================================================
 
   Future<void> _saveFCMTokenToFirestore(String token) async {
     try {
-      if (_currentUserId == null) {
-        print('⚠️ Cannot save token: no user logged in');
-        return;
-      }
-
-      print('💾 Saving new FCM token to Firestore for user $_currentUserId');
+      if (_currentUserId == null) return;
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -410,140 +413,55 @@ class NotificationService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      print('✅ New FCM token saved to Firestore');
+      print('✅ FCM token saved to Firestore');
     } catch (e) {
-      print('❌ Error saving FCM token to Firestore: $e');
+      print('❌ Token save error: $e');
     }
   }
 
-  Future<void> _updateTokenOnRenderServer(String token) async {
+  Future<void> _registerTokenWithRenderServer(
+      String userId, String token) async {
     try {
-      if (_currentUserId == null) {
-        print('⚠️ Cannot update token on server: no user logged in');
-        return;
-      }
-
-      print('📤 Updating FCM token on Render server...');
-
-      final success = await _httpPollingService.sendFCMTokenToServer(
-        userId: _currentUserId!,
-        fcmToken: token,
+      // Optional: Send token to your Render server for registration
+      final response = await http.post(
+        Uri.parse('$_renderServerUrl/register-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'userId': userId,
+          'token': token,
+          'userName': _currentUserName,
+        }),
       );
 
-      if (success) {
-        print('✅ FCM token updated on Render server');
-      } else {
-        print('❌ Failed to update FCM token on Render server');
+      if (response.statusCode == 200) {
+        print('✅ Token registered with Render server');
       }
     } catch (e) {
-      print('❌ Error updating FCM token on Render server: $e');
+      print('⚠️ Render server registration error: $e');
     }
   }
 
-  /// ==========================================================================
-  /// PUBLIC API
-  /// ==========================================================================
-
-  /// Register user with the notification system
-  Future<void> registerUser({
-    required String userId,
-    required String userName,
+  Future<void> _saveNotificationToFirestore({
+    required String receiverUserId,
+    required String type,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
   }) async {
     try {
-      _currentUserId = userId;
-      _currentUserName = userName;
-
-      print('👤 Registering user $userName ($userId) for notifications');
-
-      // 1. Get FCM token
-      final token = await getFCMToken();
-
-      if (token == null) {
-        print('⚠️ No FCM token available');
-        return;
-      }
-
-      print('📱 FCM Token: ${token.substring(0, 30)}...');
-
-      // 2. Save to Firestore
-      await _saveFCMTokenToFirestore(token);
-
-      // 3. Register with HTTP polling service
-      final connected = await _httpPollingService.connect(
-        userId: userId,
-        userName: userName,
-        fcmToken: token,
-      );
-
-      if (connected) {
-        // 4. Start polling for messages
-        await _httpPollingService.startPolling();
-        print('✅ User registered and polling started');
-      } else {
-        print('❌ Failed to connect to HTTP polling service');
-      }
-    } catch (e, stackTrace) {
-      print('❌ Error registering user: $e');
-      print('Stack trace: $stackTrace');
-    }
-  }
-
-  /// Unregister user from notifications
-  Future<void> unregisterUser() async {
-    try {
-      print('👋 Unregistering user $_currentUserName ($_currentUserId)');
-
-      await _httpPollingService.disconnect();
-
-      _currentUserId = null;
-      _currentUserName = null;
-
-      print('✅ User unregistered from notifications');
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'receiverId': receiverUserId,
+        'senderId': _currentUserId,
+        'senderName': _currentUserName,
+        'type': type,
+        'title': title,
+        'body': body,
+        'data': data,
+        'timestamp': FieldValue.serverTimestamp(),
+        'read': false,
+      });
     } catch (e) {
-      print('❌ Error unregistering user: $e');
-    }
-  }
-
-  /// Get FCM token
-  Future<String?> getFCMToken() async {
-    try {
-      final token = await _firebaseMessaging.getToken();
-      return token;
-    } catch (e) {
-      print('❌ Error getting FCM token: $e');
-      return null;
-    }
-  }
-
-  /// Send a test notification
-  Future<void> sendTestNotification() async {
-    try {
-      print('🧪 Sending test notification...');
-
-      final token = await getFCMToken();
-      if (token == null) {
-        print('❌ Cannot send test: no FCM token');
-        return;
-      }
-
-      // Créer un message de test
-      final testMessage = RemoteMessage(
-        data: {
-          'type': 'test',
-          'testId': DateTime.now().millisecondsSinceEpoch.toString(),
-          'message': 'This is a test notification',
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-        notification: RemoteNotification(
-          title: 'Test Notification',
-          body: 'This is a test notification from your app',
-        ),
-      );
-
-      await _showLocalNotification(testMessage);
-      print('✅ Test notification sent');
-    } catch (e) {
-      print('❌ Error sending test notification: $e');
+      print('⚠️ Save notification error: $e');
     }
   }
 
@@ -553,45 +471,24 @@ class NotificationService {
       await _localNotifications.cancelAll();
       print('🗑️ All notifications cleared');
     } catch (e) {
-      print('❌ Error clearing notifications: $e');
+      print('❌ Clear notifications error: $e');
     }
   }
 
-  /// ==========================================================================
-  /// STREAMS
-  /// ==========================================================================
+  /// Test notification
+  Future<void> sendTestNotification() async {
+    try {
+      final token = await getFCMToken();
+      if (token == null) return;
 
-  /// Stream for incoming messages
-  Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
-
-  /// Stream for notification events
-  Stream<String> get onNotification => _notificationController.stream;
-
-  /// ==========================================================================
-  /// GETTERS
-  /// ==========================================================================
-
-  /// Check if service is initialized
-  bool get isInitialized => _initialized;
-
-  /// Get current user ID
-  String? get currentUserId => _currentUserId;
-
-  /// Get current user name
-  String? get currentUserName => _currentUserName;
-
-  /// Get HTTP polling service instance
-  HttpPollingService get httpPollingService => _httpPollingService;
-
-  /// ==========================================================================
-  /// CLEANUP
-  /// ==========================================================================
-
-  /// Dispose all resources
-  void dispose() {
-    _messageController.close();
-    _notificationController.close();
-    _httpPollingService.dispose();
-    print('♻️ NotificationService disposed');
+      await sendNotificationViaRenderServer(
+        receiverToken: token,
+        title: 'Test Notification',
+        body: 'Your notifications are working! 🎉',
+        data: {'type': 'test'},
+      );
+    } catch (e) {
+      print('❌ Test notification error: $e');
+    }
   }
 }

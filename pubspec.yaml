@@ -42,18 +42,18 @@ dependencies:
   flutter_local_notifications: ^17.2.3
   firebase_messaging: ^14.7.10
 
-
-
-
   # Permissions
   permission_handler: ^12.0.1
 
-  # Firebase
+  # Firebase (UPDATED VERSIONS)
   firebase_core: ^2.27.0
   cloud_firestore: ^4.16.0
-  firebase_auth: ^4.17.2
+  firebase_auth: ^4.17.2  
+  # Play Services & Info
+  cloud_functions: ^4.5.1
+  google_api_availability: ^5.0.0
+  package_info_plus: ^8.0.0
   
-
   # Geospatial Firestore queries
   geoflutterfire_plus: ^0.0.21
   wilaya_commune: ^0.0.1

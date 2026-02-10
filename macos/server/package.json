@@ -1,0 +1,16 @@
+{
+  "name": "notification-server",
+  "version": "1.0.0",
+  "main": "render-notification-server.js",
+  "scripts": {
+    "start": "node render-notification-server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "googleapis": "^171.4.0",
+    "http": "^0.0.1-security",
+    "node-fetch": "^3.3.2"
+  },
+  "type": "module"
+}
