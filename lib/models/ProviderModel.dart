@@ -11,6 +11,8 @@ class ProviderModel {
   String commune;
   double rating; // Changed from final to mutable
   final bool subscriptionActive;
+  final Timestamp? subscriptionExpiry;
+  final Timestamp? subscriptionExpiresAt;
   LatLng? location;
 
   // Fields required by the UI
@@ -36,6 +38,8 @@ class ProviderModel {
     this.serviceImages = const [],
     this.rating = 0.0,
     this.subscriptionActive = false,
+    this.subscriptionExpiry,
+    this.subscriptionExpiresAt,
     this.location,
   });
 
@@ -60,6 +64,8 @@ class ProviderModel {
       serviceImages: const [], // Will be fetched separately
       rating: user.rating,
       subscriptionActive: user.subscriptionActive,
+      subscriptionExpiry: user.subscriptionExpiry,
+      subscriptionExpiresAt: user.subscriptionExpiresAt,
       location: userLocation,
     );
   }
@@ -89,6 +95,9 @@ class ProviderModel {
       serviceImages: const [], // Will be fetched separately
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
       subscriptionActive: data['subscriptionActive'] ?? false,
+      subscriptionExpiry: data['subscriptionExpiry'],
+      subscriptionExpiresAt:
+          data['subscriptionExpiresAt'] ?? data['subscriptionExpiry'],
       location: location,
     );
   }
@@ -109,6 +118,8 @@ class ProviderModel {
       'serviceImages': serviceImages,
       'rating': rating,
       'subscriptionActive': subscriptionActive,
+      'subscriptionExpiry': subscriptionExpiry,
+      'subscriptionExpiresAt': subscriptionExpiresAt,
       'location': location != null
           ? {'latitude': location!.latitude, 'longitude': location!.longitude}
           : null,
@@ -157,6 +168,8 @@ class ProviderModel {
       serviceImages: images,
       rating: rating,
       subscriptionActive: subscriptionActive,
+      subscriptionExpiry: subscriptionExpiry,
+      subscriptionExpiresAt: subscriptionExpiresAt,
       location: location,
     );
   }
@@ -178,6 +191,8 @@ class ProviderModel {
     String? photoUrl,
     List<String>? serviceIds,
     List<String>? serviceImages,
+    Timestamp? subscriptionExpiry,
+    Timestamp? subscriptionExpiresAt,
   }) {
     return ProviderModel(
       uid: uid ?? this.uid,
@@ -194,8 +209,18 @@ class ProviderModel {
       serviceImages: serviceImages ?? this.serviceImages,
       rating: rating ?? this.rating,
       subscriptionActive: subscriptionActive ?? this.subscriptionActive,
+      subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,
+      subscriptionExpiresAt:
+          subscriptionExpiresAt ?? this.subscriptionExpiresAt,
       location: location ?? this.location,
     );
+  }
+
+  bool get isSubscriptionActive {
+    if (!subscriptionActive) return false;
+    final expiry = subscriptionExpiresAt ?? subscriptionExpiry;
+    if (expiry == null) return false;
+    return expiry.toDate().isAfter(DateTime.now());
   }
 
   @override

@@ -61,9 +61,11 @@ class FirebaseService {
   }
 
   static Stream<List<ProviderModel>> getProviders() {
+    final now = Timestamp.fromDate(DateTime.now());
     return _firestore
         .collection('providers')
         .where('subscriptionActive', isEqualTo: true)
+        .where('subscriptionExpiry', isGreaterThan: now)
         .snapshots()
         .handleError((error) {
       print('❌ Error fetching providers: $error');

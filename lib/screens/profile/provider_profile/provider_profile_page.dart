@@ -10,6 +10,7 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/services/chat_service.dart';
 import 'package:service_app/services/booking_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:flutter/services.dart';
 
 // ... [Keep all the color constants as they are]
 const kPrimaryColor = Color(0xFF667EEA);
@@ -60,6 +61,144 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     _currentRating = _provider.rating;
     _checkIfUserHasRated();
     _loadProviderServices();
+  }
+
+  Future<void> _openWhatsAppSupport() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('subscription')
+          .get();
+
+      String? adminPhone;
+      if (doc.exists) {
+        final d = doc.data();
+        if (d != null && d is Map<String, dynamic>) {
+          adminPhone = d['adminPhone'] as String?;
+        }
+      }
+      if (adminPhone == null || adminPhone == '') {
+        _showSnackbar(
+            'Admin phone not configured. Contact support.', kAccentColor);
+        return;
+      }
+
+      final message = Uri.encodeComponent(
+          'Hello, I want to buy a subscription for my provider account (uid: ${_provider.uid}).');
+      final url = Uri.parse('https://wa.me/$adminPhone?text=$message');
+
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        _showSnackbar('Could not open WhatsApp.', kAccentColor);
+      }
+    } catch (e) {
+      _showSnackbar('Error opening WhatsApp: $e', kAccentColor);
+    }
+  }
+
+  Future<void> _showEnterCodeDialog() async {
+    final TextEditingController _codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(_tr(context, 'enter_subscription_code')),
+          content: TextField(
+            controller: _codeController,
+            decoration: InputDecoration(hintText: _tr(context, 'code')),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(_tr(context, 'cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final code = _codeController.text.trim();
+                Navigator.of(context).pop();
+                if (code.isNotEmpty) await _applySubscriptionCode(code);
+              },
+              child: Text(_tr(context, 'apply')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _applySubscriptionCode(String code) async {
+    setState(() {
+      _isSubmitting = true;
+    });
+    try {
+      final now = Timestamp.fromDate(DateTime.now());
+      final query = await FirebaseFirestore.instance
+          .collection('subscription_codes')
+          .where('code', isEqualTo: code)
+          .where('validUntil', isGreaterThan: now)
+          .get();
+
+      if (query.docs.isEmpty) {
+        _showSnackbar(_tr(context, 'invalid_or_expired_code'), kAccentColor);
+        return;
+      }
+
+      // Find a code doc that is unused and either assigned to this provider or unassigned
+      QueryDocumentSnapshot? matched;
+      for (final doc in query.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final used = data['used'] ?? false;
+        final assignedTo = data['providerId'] as String?;
+        if (used == true) continue;
+        if (assignedTo == null || assignedTo == _provider.uid) {
+          matched = doc;
+          break;
+        }
+      }
+
+      if (matched == null) {
+        _showSnackbar(_tr(context, 'code_not_available_for_you'), kAccentColor);
+        return;
+      }
+
+      final data = matched.data() as Map<String, dynamic>;
+      final validUntil = data['validUntil'] as Timestamp?;
+      if (validUntil == null || validUntil.toDate().isBefore(DateTime.now())) {
+        _showSnackbar(_tr(context, 'invalid_or_expired_code'), kAccentColor);
+        return;
+      }
+
+      // Update user document
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_provider.uid)
+          .update({
+        'subscriptionActive': true,
+        'subscriptionExpiry': validUntil,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Mark code as used
+      await matched.reference.update({
+        'used': true,
+        'usedBy': _provider.uid,
+        'usedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _provider = _provider.copyWith(subscriptionActive: true);
+      });
+
+      _showSnackbar(_tr(context, 'subscription_activated'), kSuccessColor);
+    } catch (e) {
+      _showSnackbar(
+          _trParams(context, 'error', {'error': e.toString()}), kAccentColor);
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
   }
 
   // Helper method to get translation
@@ -620,6 +759,32 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     ],
                   ),
                 ),
+              // If the current user is the owner of this profile, show subscription actions
+              Builder(builder: (ctx) {
+                final authViewModel = ctx.read<AuthViewModel>();
+                final isOwner = authViewModel.currentUser?.uid == _provider.uid;
+                if (!isOwner) return SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _openWhatsAppSupport,
+                        icon: Icon(Icons.shopping_cart_outlined, size: 16),
+                        label: Text(_tr(context, 'buy_subscription')),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: kPrimaryColor),
+                      ),
+                      SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _showEnterCodeDialog,
+                        child: Text(_tr(context, 'enter_code')),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
           SizedBox(height: 20),

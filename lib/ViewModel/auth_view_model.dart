@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:service_app/models/UserModel.dart';
+import 'package:service_app/Services/subscription_service.dart';
 import 'package:service_app/Services/auth_service.dart';
 import 'package:service_app/Services/user_service.dart';
 
@@ -374,6 +375,13 @@ class AuthViewModel with ChangeNotifier {
       _validateUserId(uid);
 
       print('🔄 Fetching user profile for uid: $uid');
+      // Ensure subscription expiry is enforced before returning the user
+      try {
+        final subService = SubscriptionService();
+        await subService.checkAndUpdateExpiryForProvider(uid);
+      } catch (e) {
+        print('❌ Error checking subscription expiry: $e');
+      }
 
       final userModel = await _userService.getUserById(uid);
       if (userModel != null) {
@@ -387,6 +395,12 @@ class AuthViewModel with ChangeNotifier {
       print('❌ Error loading user profile: $e');
       _setError('Failed to load user profile');
     }
+  }
+
+  /// Public method to refresh the current user from Firestore
+  Future<void> refreshCurrentUser() async {
+    if (_currentUser == null) return;
+    await _fetchCurrentUser(_currentUser!.uid);
   }
 
   /// Fetches user and sets current user

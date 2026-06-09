@@ -14,6 +14,8 @@ import 'package:service_app/screens/profile/settings/settings_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/screens/profile/subscription_page.dart';
+import 'package:service_app/screens/admin/admin_codes_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final UserModel user;
@@ -397,12 +399,32 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSettingsSection(BuildContext context) {
+    final auth = context.read<AuthViewModel>();
+    final user = auth.currentUser ?? widget.user;
+
     return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
-        ));
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: Column(
+        children: [
+          if (user.isProvider)
+            ListTile(
+              leading: Icon(Icons.subscriptions_outlined, color: Colors.blue),
+              title: Text('My Subscription'),
+              trailing: Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SubscriptionPage())),
+            ),
+          if (user.isAdmin)
+            ListTile(
+              leading: Icon(Icons.vpn_key_outlined, color: Colors.purple),
+              title: Text('Manage Subscription Codes'),
+              trailing: Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AdminCodesPage())),
+            ),
+        ],
+      ),
+    );
   }
 
   // My Bookings Tile - Updated for real-time language

@@ -9,10 +9,12 @@ class ProviderService {
   /// Get all active providers
   Future<List<ProviderModel>> getAllProviders() async {
     try {
+      final now = Timestamp.fromDate(DateTime.now());
       final querySnapshot = await _firestore
           .collection(_collectionName)
           .where('role', isEqualTo: 'provider')
           .where('subscriptionActive', isEqualTo: true)
+          .where('subscriptionExpiry', isGreaterThan: now)
           .get();
 
       return querySnapshot.docs.map((doc) {
@@ -72,10 +74,12 @@ class ProviderService {
   // Get featured providers
   Future<List<ProviderModel>> getFeaturedProviders({int limit = 10}) async {
     try {
+      final now = Timestamp.fromDate(DateTime.now());
       final querySnapshot = await _firestore
           .collection(_collectionName)
           .where('role', isEqualTo: 'provider')
           .where('subscriptionActive', isEqualTo: true)
+          .where('subscriptionExpiry', isGreaterThan: now)
           .where('rating', isGreaterThan: 4.0)
           .orderBy('rating', descending: true)
           .limit(limit)
@@ -93,10 +97,12 @@ class ProviderService {
   // Get providers by category
   Future<List<ProviderModel>> getProvidersByCategory(String category) async {
     try {
+      final now = Timestamp.fromDate(DateTime.now());
       final querySnapshot = await _firestore
           .collection(_collectionName)
           .where('role', isEqualTo: 'provider')
           .where('subscriptionActive', isEqualTo: true)
+          .where('subscriptionExpiry', isGreaterThan: now)
           .where('serviceCategories', arrayContains: category)
           .get();
 
@@ -130,8 +136,14 @@ class ProviderService {
       if (!doc.exists) return false;
 
       final data = doc.data() as Map<String, dynamic>;
-      return data['role'] == 'provider' &&
-          (data['subscriptionActive'] ?? false);
+      final isProvider = data['role'] == 'provider';
+      final active = data['subscriptionActive'] ?? false;
+      final expiry = data['subscriptionExpiry'] as Timestamp?;
+
+      if (!isProvider || !active) return false;
+      if (expiry == null) return false;
+
+      return expiry.toDate().isAfter(DateTime.now());
     } catch (e) {
       throw Exception('Failed to check provider status: $e');
     }

@@ -18,6 +18,9 @@ class UserModel {
   // YOUR ACTUAL FIELDS (from Firestore)
   final String? profession;
   final bool subscriptionActive;
+  final Timestamp? subscriptionExpiry;
+  final Timestamp? subscriptionExpiresAt;
+  final bool isAdmin;
   final Timestamp? fcmTokenUpdatedAt;
   final List<String> chatIds;
 
@@ -43,6 +46,9 @@ class UserModel {
     // YOUR ACTUAL FIELDS
     this.profession,
     this.subscriptionActive = false,
+    this.subscriptionExpiry,
+    this.subscriptionExpiresAt,
+    this.isAdmin = false,
     this.fcmTokenUpdatedAt,
     this.chatIds = const [],
 
@@ -69,8 +75,11 @@ class UserModel {
 
       // YOUR ACTUAL FIELDS
       'profession': profession,
+      'subscriptionExpiry': subscriptionExpiry,
       'subscriptionActive': subscriptionActive,
       'fcmTokenUpdatedAt': fcmTokenUpdatedAt,
+      'subscriptionExpiresAt': subscriptionExpiresAt ?? subscriptionExpiry,
+      'isAdmin': isAdmin,
       'chatIds': chatIds,
 
       // Location fields
@@ -98,12 +107,16 @@ class UserModel {
       // YOUR ACTUAL FIELDS
       profession: data['profession'],
       subscriptionActive: data['subscriptionActive'] ?? false,
+      subscriptionExpiry: data['subscriptionExpiry'],
       fcmTokenUpdatedAt: data['fcmTokenUpdatedAt'],
       chatIds: List<String>.from(data['chatIds'] ?? []),
 
       // Location fields
       wilaya: data['wilaya'],
       commune: data['commune'],
+      subscriptionExpiresAt:
+          data['subscriptionExpiresAt'] ?? data['subscriptionExpiry'],
+      isAdmin: data['role'] == 'admin' || (data['isAdmin'] ?? false),
     );
   }
 
@@ -123,6 +136,7 @@ class UserModel {
     List<String>? serviceIds,
     String? profession,
     bool? subscriptionActive,
+    Timestamp? subscriptionExpiry,
     Timestamp? fcmTokenUpdatedAt,
     List<String>? chatIds,
     String? wilaya,
@@ -144,6 +158,7 @@ class UserModel {
       serviceIds: serviceIds ?? this.serviceIds,
       profession: profession ?? this.profession,
       subscriptionActive: subscriptionActive ?? this.subscriptionActive,
+      subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,
       fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt,
       chatIds: chatIds ?? this.chatIds,
       wilaya: wilaya ?? this.wilaya,

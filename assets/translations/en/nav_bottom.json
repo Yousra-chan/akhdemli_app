@@ -4,5 +4,6 @@
   "home": "Home",
   "chat": "Chat",
   "profile": "Profile",
+  "admin": "Admin",
   "loading_profile": "Loading user profile..."
 }

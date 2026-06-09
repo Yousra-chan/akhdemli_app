@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:service_app/screens/profile/profile_page_loader.dart';
 import 'package:service_app/screens/search/search_screen.dart';
 import 'package:service_app/screens/posts/posts_screen.dart';
+import 'package:service_app/screens/admin/admin_codes_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/providers/language_provider.dart';
@@ -29,6 +30,98 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
   final Color backgroundColor =
       const Color.fromARGB(255, 248, 249, 255); // kLightBackgroundColor
   final Color navBackgroundColor = const Color.fromARGB(255, 255, 255, 255);
+
+  // Helper method to build navigation children based on admin status
+  List<Widget> _buildNavigationChildren({
+    required String userId,
+    required bool isAdmin,
+  }) {
+    final children = [
+      const HomePage(),
+      const MapSearchPage(),
+      const FeedScreen(),
+      ChatPage(userId: userId),
+      const ProfilePageLoader(),
+    ];
+
+    // Add admin page at the end if user is admin
+    if (isAdmin) {
+      children.add(const AdminCodesPage());
+    }
+
+    return children;
+  }
+
+  // Helper method to build navigation items
+  List<BottomNavigationBarItem> _buildNavigationItems(
+    LanguageProvider languageProvider,
+    bool isAdmin,
+  ) {
+    final items = [
+      BottomNavigationBarItem(
+        icon: _buildIcon(
+          0,
+          CupertinoIcons.briefcase,
+          CupertinoIcons.briefcase_fill,
+          selectedColor,
+        ),
+        label: languageProvider.tr('services', category: 'nav_bottom'),
+      ),
+      BottomNavigationBarItem(
+        icon: _buildIcon(
+          1,
+          CupertinoIcons.map,
+          CupertinoIcons.map_fill,
+          selectedColor,
+        ),
+        label: languageProvider.tr('search', category: 'nav_bottom'),
+      ),
+      BottomNavigationBarItem(
+        icon: _buildIcon(
+          2,
+          CupertinoIcons.home,
+          CupertinoIcons.home,
+          selectedColor,
+        ),
+        label: languageProvider.tr('home', category: 'nav_bottom'),
+      ),
+      BottomNavigationBarItem(
+        icon: _buildIcon(
+          3,
+          CupertinoIcons.chat_bubble,
+          CupertinoIcons.chat_bubble_2_fill,
+          selectedColor,
+        ),
+        label: languageProvider.tr('chat', category: 'nav_bottom'),
+      ),
+      BottomNavigationBarItem(
+        icon: _buildIcon(
+          4,
+          CupertinoIcons.person,
+          CupertinoIcons.person_fill,
+          selectedColor,
+        ),
+        label: languageProvider.tr('profile', category: 'nav_bottom'),
+      ),
+    ];
+
+    // Add admin tab if user is admin
+    if (isAdmin) {
+      items.add(
+        BottomNavigationBarItem(
+          icon: _buildIcon(
+            5,
+            CupertinoIcons.shield,
+            CupertinoIcons.shield_fill,
+            selectedColor,
+          ),
+          label: languageProvider.tr('admin', category: 'nav_bottom') ?? 'Admin',
+        ),
+      );
+    }
+
+    return items;
+  }
 
   // Badge widget for unread messages
   Widget _buildMessageBadge(int count, Widget child) {
@@ -213,13 +306,10 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                   backgroundColor: backgroundColor,
                   body: IndexedStack(
                     index: selectorIndex,
-                    children: [
-                      const HomePage(),
-                      const MapSearchPage(),
-                      const FeedScreen(),
-                      ChatPage(userId: userId),
-                      const ProfilePageLoader(),
-                    ],
+                    children: _buildNavigationChildren(
+                      userId: userId,
+                      isAdmin: authViewModel.currentUser!.isAdmin,
+                    ),
                   ),
                   bottomNavigationBar: Container(
                     margin: const EdgeInsets.all(12),
@@ -260,60 +350,10 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                         currentIndex: selectorIndex,
                         type: BottomNavigationBarType.fixed,
                         elevation: 0,
-                        items: [
-                          BottomNavigationBarItem(
-                            icon: _buildIcon(
-                              0,
-                              CupertinoIcons.briefcase,
-                              CupertinoIcons.briefcase_fill,
-                              selectedColor,
-                            ),
-                            label: languageProvider.tr('services',
-                                category: 'nav_bottom'),
-                          ),
-                          BottomNavigationBarItem(
-                            icon: _buildIcon(
-                              1,
-                              CupertinoIcons.map,
-                              CupertinoIcons.map_fill,
-                              selectedColor,
-                            ),
-                            label: languageProvider.tr('search',
-                                category: 'nav_bottom'),
-                          ),
-                          BottomNavigationBarItem(
-                            icon: _buildIcon(
-                              2,
-                              CupertinoIcons.home,
-                              CupertinoIcons.home,
-                              selectedColor,
-                            ),
-                            label: languageProvider.tr('home',
-                                category: 'nav_bottom'),
-                          ),
-                          BottomNavigationBarItem(
-                            // Chat badge shows ONLY message count from chats.unreadCount
-                            icon: _buildIcon(
-                              3,
-                              CupertinoIcons.chat_bubble,
-                              CupertinoIcons.chat_bubble_2_fill,
-                              selectedColor,
-                              badgeCount: messageUnreadCount,
-                            ),
-                            label: languageProvider.tr('chat',
-                                category: 'nav_bottom'),
-                          ),
-                          BottomNavigationBarItem(
-                            icon: _buildIcon(
-                              4,
-                              CupertinoIcons.person,
-                              CupertinoIcons.person_fill,
-                              selectedColor,
-                            ),
-                            label: languageProvider.tr('profile',
-                                category: 'nav_bottom'),
-                          ),
-                        ],
+                        items: _buildNavigationItems(
+                          languageProvider,
+                          authViewModel.currentUser!.isAdmin,
+                        ),
                         onTap: (val) {
                           setState(() {
                             selectorIndex = val;
