@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -30,7 +32,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     super.dispose();
   }
 
-  Future<void> _changePassword() async {
+  Future<void> _changePassword(LanguageProvider languageProvider) async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -52,19 +54,23 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password changed successfully'),
+          SnackBar(
+            content: Text(
+              languageProvider.tr('changePasswordSuccess', category: 'profile'),
+            ),
             backgroundColor: kSuccessColor,
           ),
         );
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Failed to change password';
+      String errorMessage =
+          languageProvider.tr('failedChangePassword', category: 'profile');
       if (e.code == 'wrong-password') {
-        errorMessage = 'Current password is incorrect';
+        errorMessage =
+            languageProvider.tr('wrongPassword', category: 'profile');
       } else if (e.code == 'weak-password') {
-        errorMessage = 'New password is too weak';
+        errorMessage = languageProvider.tr('weakPassword', category: 'profile');
       }
 
       if (mounted) {
@@ -79,7 +85,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to change password: $e'),
+            content: Text(
+              '${languageProvider.tr('failedChangePassword', category: 'profile')}: $e',
+            ),
             backgroundColor: kDangerColor,
           ),
         );
@@ -103,6 +111,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: kLightBackgroundColor,
       body: Stack(
@@ -110,8 +120,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                // Simple App Bar (matches ProfilePage design)
-                _buildAppBar(context),
+                // Simple App Bar
+                _buildAppBar(context, languageProvider),
 
                 // Form Section
                 Container(
@@ -132,27 +142,30 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        _buildPasswordField(
+                        _buildPasswordFieldWidget(
                           controller: _currentPasswordController,
-                          label: 'Current Password',
+                          label: languageProvider.tr('currentPassword',
+                              category: 'profile'),
                           obscureText: _obscureCurrentPassword,
                           onToggle: () => setState(() =>
                               _obscureCurrentPassword =
                                   !_obscureCurrentPassword),
                         ),
                         const Divider(height: 1, indent: 20, endIndent: 20),
-                        _buildPasswordField(
+                        _buildPasswordFieldWidget(
                           controller: _newPasswordController,
-                          label: 'New Password',
+                          label: languageProvider.tr('newPassword',
+                              category: 'profile'),
                           obscureText: _obscureNewPassword,
                           onToggle: () => setState(
                               () => _obscureNewPassword = !_obscureNewPassword),
-                          validator: _validatePassword,
+                          validator: (value) => _validatePassword(value),
                         ),
                         const Divider(height: 1, indent: 20, endIndent: 20),
-                        _buildPasswordField(
+                        _buildPasswordFieldWidget(
                           controller: _confirmPasswordController,
-                          label: 'Confirm New Password',
+                          label: languageProvider.tr('confirmNewPassword',
+                              category: 'profile'),
                           obscureText: _obscureConfirmPassword,
                           onToggle: () => setState(() =>
                               _obscureConfirmPassword =
@@ -161,7 +174,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                             final validation = _validatePassword(value);
                             if (validation != null) return validation;
                             if (value != _newPasswordController.text) {
-                              return 'Passwords do not match';
+                              return languageProvider.tr('passwordsDoNotMatch',
+                                  category: 'profile');
                             }
                             return null;
                           },
@@ -185,7 +199,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Password Requirements:',
+                          languageProvider.tr('passwordRequirements',
+                              category: 'profile'),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: kDarkTextColor,
@@ -193,73 +208,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2, right: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: kMutedTextColor,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'At least 6 characters long',
-                                style: TextStyle(
-                                  color: kMutedTextColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
+                        _buildRequirementItem(
+                          languageProvider.tr('passwordLength',
+                              category: 'profile'),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2, right: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: kMutedTextColor,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Include letters and numbers',
-                                style: TextStyle(
-                                  color: kMutedTextColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
+                        _buildRequirementItem(
+                          languageProvider.tr('passwordChars',
+                              category: 'profile'),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2, right: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: kMutedTextColor,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Avoid common passwords',
-                                style: TextStyle(
-                                  color: kMutedTextColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
+                        _buildRequirementItem(
+                          languageProvider.tr('passwordCommon',
+                              category: 'profile'),
                         ),
                       ],
                     ),
@@ -269,7 +230,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 const SizedBox(height: 30),
 
                 // Change Password Button
-                _buildChangePasswordButton(),
+                _buildChangePasswordButton(languageProvider),
 
                 const SizedBox(height: 40),
               ],
@@ -289,7 +250,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -316,9 +277,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               ),
             ),
           ),
-          const Text(
-            'Change Password',
-            style: TextStyle(
+          Text(
+            languageProvider.tr('changePassword', category: 'profile'),
+            style: const TextStyle(
               color: kDarkTextColor,
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -326,14 +287,14 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             ),
           ),
           Container(
-            width: 40, // Placeholder for spacing
+            width: 40,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPasswordField({
+  Widget _buildPasswordFieldWidget({
     required TextEditingController controller,
     required String label,
     required bool obscureText,
@@ -393,11 +354,36 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
   }
 
-  Widget _buildChangePasswordButton() {
+  Widget _buildRequirementItem(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2, right: 6),
+          child: Icon(
+            Icons.circle,
+            size: 6,
+            color: kMutedTextColor,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: kMutedTextColor,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChangePasswordButton(LanguageProvider languageProvider) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _changePassword,
+        onPressed: _isLoading ? null : () => _changePassword(languageProvider),
         style: ElevatedButton.styleFrom(
           backgroundColor: kPrimaryBlue,
           foregroundColor: Colors.white,
@@ -416,9 +402,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Change Password',
-                style: TextStyle(
+            : Text(
+                languageProvider.tr('changePassword', category: 'profile'),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),

@@ -15,22 +15,49 @@ const Color kOfferingColor = Color.fromARGB(255, 100, 200, 100);
 const Color kAccentColor = Color(0xFFFFB300);
 
 const double kDummyPriceEstimate = 5000.00;
-const List<String> kDummyWorkImages = [
-  // ... (Your dummy image list, truncated for brevity)
-];
+const List<String> kDummyWorkImages = [];
 
 enum PostType { seeking, offering }
 
+// --- Service Category Translation Helper ---
+class ServiceCategoryTranslator {
+  static const Map<String, String> _categoryKeys = {
+    "Electrician": "electrician",
+    "Plumbing": "plumbing",
+    "Tutoring": "tutoring",
+    "Handyman": "handyman",
+    "Cleaning": "cleaning",
+    "Other": "other",
+    "General": "general",
+  };
+
+  static String getTranslationKey(String category) {
+    return _categoryKeys[category] ?? 'other';
+  }
+}
+
+// --- Post Type Translation Helper ---
+extension PostTypeTranslation on PostType {
+  String get translationKey {
+    switch (this) {
+      case PostType.seeking:
+        return 'looking_for';
+      case PostType.offering:
+        return 'offering';
+    }
+  }
+}
+
 class Post {
-  final String id; // <--- This field was missing in your shared factory!
+  final String id;
   final String title;
   final String body;
-  final String user; // User's name
-  final String userId; // User's unique ID for chat <--- CORRECT FIELD
+  final String user;
+  final String userId;
   final PostType type;
   final String serviceCategory;
   final DateTime timestamp;
-  final List<String> imageUrls; // NEW: For storing image URLs
+  final List<String> imageUrls;
 
   const Post({
     required this.id,
@@ -41,8 +68,13 @@ class Post {
     required this.type,
     required this.serviceCategory,
     required this.timestamp,
-    this.imageUrls = const [], // Default empty list
+    this.imageUrls = const [],
   });
+
+  // Get translation key for service category
+  String get categoryTranslationKey {
+    return ServiceCategoryTranslator.getTranslationKey(serviceCategory);
+  }
 
   // Convert Post object to Map (for Firestore)
   Map<String, dynamic> toMap() {
@@ -54,7 +86,7 @@ class Post {
       'type': type == PostType.seeking ? 'seeking' : 'offering',
       'serviceCategory': serviceCategory,
       'timestamp': Timestamp.fromDate(timestamp),
-      'imageUrls': imageUrls, // NEW: Save image URLs
+      'imageUrls': imageUrls,
     };
   }
 
@@ -69,8 +101,7 @@ class Post {
       type: map['type'] == 'seeking' ? PostType.seeking : PostType.offering,
       serviceCategory: map['serviceCategory'] ?? 'General',
       timestamp: (map['timestamp'] as Timestamp).toDate(),
-      imageUrls:
-          List<String>.from(map['imageUrls'] ?? []), // NEW: Load image URLs
+      imageUrls: List<String>.from(map['imageUrls'] ?? []),
     );
   }
 }

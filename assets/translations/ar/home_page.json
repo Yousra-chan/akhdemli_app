@@ -1,0 +1,13 @@
+{
+  "hello_user": "مرحباً، {name}!",
+  "hello_guest": "مرحباً، زائر!",
+  "find_service_providers": "ابحث عن أفضل مقدمي الخدمات بالقرب منك",
+  "manage_services": "إدارة خدماتك وحجوزاتك",
+  "search_services_providers": "ابحث عن خدمات أو مقدمي خدمات...",
+  "search_services_listings": "ابحث في خدماتك...",
+  "categories": "الفئات",
+  "no_services_available": "لا توجد خدمات متاحة",
+  "all_categories": "جميع الفئات",
+  "all_services": "جميع الخدمات",
+  "search_results": "نتائج البحث"
+}

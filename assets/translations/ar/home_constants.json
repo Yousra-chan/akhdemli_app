@@ -1,0 +1,19 @@
+{
+  "services": "الخدمات",
+  "clean_services": "خدمات التنظيف",
+  "plumbing_services": "خدمات السباكة",
+  "electrical_services": "خدمات الكهرباء",
+  "carpentry_services": "خدمات النجارة",
+  "painting_services": "خدمات الدهان",
+  "gardening_services": "خدمات البستنة",
+  "moving_services": "خدمات النقل",
+  "repair_services": "خدمات التصليح",
+  "installation_services": "خدمات التركيب",
+  "tutoring_services": "خدمات التدريس",
+  "health_services": "خدمات الصحة",
+  "beauty_services": "خدمات التجميل",
+  "home_services": "خدمات المنزل",
+  "tech_services": "خدمات التقنية",
+  "food_services": "خدمات الطعام",
+  "other_services": "خدمات أخرى"
+}

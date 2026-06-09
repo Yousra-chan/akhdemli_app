@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
 
 class LanguagePage extends StatefulWidget {
@@ -10,81 +11,250 @@ class LanguagePage extends StatefulWidget {
 }
 
 class _LanguagePageState extends State<LanguagePage> {
-  String _selectedLanguage = 'en';
   bool _isLoading = false;
 
-  final Map<String, Map<String, String>> _languages = {
-    'en': {
+  final List<Map<String, String>> _languages = [
+    {
+      'code': 'en',
       'name': 'English',
       'nativeName': 'English',
-      'code': 'en',
+      'flag': '🇺🇸',
     },
-    'ar': {
-      'name': 'Arabic',
-      'nativeName': 'العربية',
-      'code': 'ar',
-    },
-    'fr': {
+    {
+      'code': 'fr',
       'name': 'French',
       'nativeName': 'Français',
-      'code': 'fr',
+      'flag': '🇫🇷',
     },
-    'es': {
-      'name': 'Spanish',
-      'nativeName': 'Español',
-      'code': 'es',
+    {
+      'code': 'ar',
+      'name': 'Arabic',
+      'nativeName': 'العربية',
+      'flag': '🇩🇿',
     },
-  };
+  ];
 
   @override
-  void initState() {
-    super.initState();
-    _loadCurrentLanguage();
+  Widget build(BuildContext context) {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        final currentLocale = languageProvider.locale.languageCode;
+
+        return Scaffold(
+          backgroundColor: kLightBackgroundColor,
+          body: Column(
+            children: [
+              // Custom App Bar matching SettingsPage
+              _buildCustomAppBar(context, languageProvider),
+
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        children: _languages.map((language) {
+                          final isSelected = currentLocale == language['code'];
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: kCardBackgroundColor,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: kSoftShadowColor.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                              border: isSelected
+                                  ? Border.all(
+                                      color: kPrimaryBlue,
+                                      width: 2,
+                                    )
+                                  : null,
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? kPrimaryBlue.withOpacity(0.15)
+                                      : kPrimaryBlue.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    language['flag']!,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                language['name']!,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected
+                                      ? kPrimaryBlue
+                                      : kDarkTextColor,
+                                  fontSize: 16,
+                                  fontFamily: 'Exo2',
+                                ),
+                              ),
+                              subtitle: Text(
+                                language['nativeName']!,
+                                style: const TextStyle(
+                                  color: kMutedTextColor,
+                                  fontSize: 14,
+                                  fontFamily: 'Exo2',
+                                ),
+                              ),
+                              trailing: isSelected
+                                  ? Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: kPrimaryBlue,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    )
+                                  : null,
+                              onTap: isSelected
+                                  ? null
+                                  : () => _changeLanguage(
+                                        context,
+                                        language['code']!,
+                                        languageProvider,
+                                      ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  Future<void> _loadCurrentLanguage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _selectedLanguage = prefs.getString('selected_language') ?? 'en';
-      });
-    } catch (e) {
-      print('Error loading language: $e');
-    }
+  Widget _buildCustomAppBar(
+      BuildContext context, LanguageProvider languageProvider) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 20,
+        right: 20,
+        bottom: 15,
+      ),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: kLightBackgroundColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: kDarkTextColor,
+                size: 24,
+              ),
+            ),
+          ),
+          Text(
+            languageProvider.tr('language', category: 'language'),
+            style: const TextStyle(
+              color: kDarkTextColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Exo2',
+            ),
+          ),
+          Container(
+            width: 40, // Placeholder for spacing
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _changeLanguage(String languageCode) async {
+  Future<void> _changeLanguage(
+    BuildContext context,
+    String languageCode,
+    LanguageProvider languageProvider,
+  ) async {
     setState(() {
-      _selectedLanguage = languageCode;
       _isLoading = true;
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selected_language', languageCode);
+      final newLocale = Locale(languageCode);
 
-      // Simulate API call or app restart
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Update provider
+      await languageProvider.setLanguage(newLocale);
 
+      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Language changed to ${_languages[languageCode]!['name']}'),
+              _getLanguageName(languageCode),
+              style: const TextStyle(
+                fontFamily: 'Exo2',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             backgroundColor: kSuccessColor,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
           ),
         );
+      }
 
-        // In a real app, you might want to restart the app or use a state management solution
-        // to update the language across the entire app
+      // Add a small delay for smooth transition
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Navigate back
+      if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to change language: $e'),
+            content: Text(
+              'Error changing language: $e',
+              style: const TextStyle(
+                fontFamily: 'Exo2',
+              ),
+            ),
             backgroundColor: kDangerColor,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
           ),
         );
       }
@@ -95,97 +265,16 @@ class _LanguagePageState extends State<LanguagePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kLightBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: kPrimaryBlue,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kLightTextColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Language",
-          style: TextStyle(
-            color: kLightTextColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Exo2',
-          ),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
-              ),
-            )
-          : ListView(
-              children: _languages.entries.map((entry) {
-                final language = entry.value;
-                final isSelected = _selectedLanguage == entry.key;
-
-                return Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: kCardBackgroundColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kSoftShadowColor.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: kPrimaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          language['code']!.toUpperCase(),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: kPrimaryBlue,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      language['name']!,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: kDarkTextColor,
-                        fontFamily: 'Exo2',
-                      ),
-                    ),
-                    subtitle: Text(
-                      language['nativeName']!,
-                      style: TextStyle(
-                        color: kMutedTextColor,
-                        fontFamily: 'Exo2',
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? Icon(
-                            Icons.check_circle,
-                            color: kPrimaryBlue,
-                          )
-                        : null,
-                    onTap: () => _changeLanguage(entry.key),
-                  ),
-                );
-              }).toList(),
-            ),
-    );
+  String _getLanguageName(String languageCode) {
+    switch (languageCode) {
+      case 'en':
+        return '✅ English selected';
+      case 'fr':
+        return '✅ Français sélectionné';
+      case 'ar':
+        return '✅ تم تحديد العربية';
+      default:
+        return '✅ Language changed';
+    }
   }
 }

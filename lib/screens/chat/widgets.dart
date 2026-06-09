@@ -5,6 +5,8 @@ import 'constants.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/models/chatmodel.dart';
 import 'package:intl/intl.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 // --- Reusable Widget Builders ---
 
@@ -45,16 +47,23 @@ Widget buildChatTile(
   String currentUserId, {
   int unreadCount = 0,
 }) {
+  final languageProvider =
+      Provider.of<LanguageProvider>(context, listen: false);
   final bool isUnread = unreadCount > 0;
 
   // Déterminer l'autre utilisateur
   final otherUserId =
       chat.clientId == currentUserId ? chat.providerId : chat.clientId;
-  final String chatName = "Contact ${otherUserId.substring(0, 5)}...";
+  final String chatName = languageProvider.trParams(
+    'contact_with_id',
+    category: 'chat',
+    params: {'id': otherUserId.substring(0, 5)},
+  );
 
   // Dernier message
-  final String lastMessageText =
-      chat.lastMessage.isEmpty ? "Démarrer la discussion..." : chat.lastMessage;
+  final String lastMessageText = chat.lastMessage.isEmpty
+      ? languageProvider.tr('start_discussion', category: 'chat')
+      : chat.lastMessage;
 
   // Statut en ligne simulé
   final bool isOnline = otherUserId.hashCode % 2 == 0;
@@ -130,7 +139,7 @@ Widget buildChatTile(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            _formatTimestamp(chat.lastMessageTime.toDate()),
+            _formatTimestamp(chat.lastMessageTime.toDate(), languageProvider),
             style: TextStyle(
               fontSize: 11,
               color: isUnread ? kPrimaryBlue : Colors.grey[500],
@@ -181,7 +190,7 @@ Widget buildChatTile(
 
 // --- Fonctions utilitaires conservées ---
 
-String _formatTimestamp(DateTime timestamp) {
+String _formatTimestamp(DateTime timestamp, LanguageProvider lang) {
   final now = DateTime.now();
   final difference = now.difference(timestamp);
 
@@ -190,9 +199,13 @@ String _formatTimestamp(DateTime timestamp) {
     final minutes = timestamp.minute.toString().padLeft(2, '0');
     return "$hours:$minutes";
   } else if (difference.inDays == 1) {
-    return "Yesterday";
+    return lang.tr('yesterday', category: 'chat');
   } else if (difference.inDays < 7) {
-    return "${difference.inDays}d ago";
+    return lang.trParams(
+      'days_ago',
+      category: 'chat',
+      params: {'days': difference.inDays.toString()},
+    );
   } else {
     return DateFormat('dd/MM/yy').format(timestamp);
   }

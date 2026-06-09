@@ -9,8 +9,9 @@ import 'package:service_app/models/BookingModel.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/services/chat_service.dart';
 import 'package:service_app/services/booking_service.dart';
+import 'package:service_app/providers/language_provider.dart';
 
-// Modern Color Palette
+// ... [Keep all the color constants as they are]
 const kPrimaryColor = Color(0xFF667EEA);
 const kSecondaryColor = Color(0xFF764BA2);
 const kAccentColor = Color(0xFFFF6B6B);
@@ -61,6 +62,22 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     _loadProviderServices();
   }
 
+  // Helper method to get translation
+  String _tr(BuildContext context, String key) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+    return languageProvider.tr(key, category: 'provider_profile');
+  }
+
+  // Helper method to get translation with parameters
+  String _trParams(
+      BuildContext context, String key, Map<String, String> params) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+    return languageProvider.trParams(key,
+        category: 'provider_profile', params: params);
+  }
+
   Future<void> _loadProviderServices() async {
     try {
       final services = await _getProviderServices(_provider.uid ?? '');
@@ -99,12 +116,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final authViewModel = context.read<AuthViewModel>();
 
     if (authViewModel.currentUser == null) {
-      _showSnackbar('Please sign in to rate this provider', kAccentColor);
+      _showSnackbar(_tr(context, 'sign_in_to_rate'), kAccentColor);
       return;
     }
 
     if (_provider.uid == null || _provider.uid!.isEmpty) {
-      _showSnackbar('Provider information is incomplete', kAccentColor);
+      _showSnackbar(_tr(context, 'provider_info_incomplete'), kAccentColor);
       return;
     }
 
@@ -116,7 +133,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       final currentUser = authViewModel.currentUser!;
       final ratingId = '${currentUser.uid}_${_provider.uid!}';
 
-      // Save user's rating
       await FirebaseFirestore.instance.collection('ratings').doc(ratingId).set({
         'userId': currentUser.uid,
         'providerId': _provider.uid!,
@@ -126,7 +142,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         'userPhoto': currentUser.photoUrl,
       });
 
-      // Get all ratings for this provider
       final ratingsSnapshot = await FirebaseFirestore.instance
           .collection('ratings')
           .where('providerId', isEqualTo: _provider.uid!)
@@ -145,7 +160,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       final newAverageRating =
           ratingCount > 0 ? totalRating / ratingCount : 0.0;
 
-      // Update provider rating
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_provider.uid!)
@@ -154,7 +168,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update local state
       setState(() {
         _hasRated = true;
         _provider = _provider.copyWith(rating: newAverageRating);
@@ -162,10 +175,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       });
 
       _showSnackbar(
-          'Thank you! You rated ${_provider.name} with $_currentRating stars',
+          _trParams(context, 'thank_you_rating',
+              {'name': _provider.name, 'rating': _currentRating.toString()}),
           kSuccessColor);
     } catch (e) {
-      _showSnackbar('Failed to submit rating: ${e.toString()}', kAccentColor);
+      _showSnackbar(
+          _trParams(context, 'failed_submit_rating', {'error': e.toString()}),
+          kAccentColor);
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -173,34 +189,31 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     }
   }
 
-  // =================== BOOKING FUNCTIONALITY ===================
-
   Future<void> _bookService() async {
     final authViewModel = context.read<AuthViewModel>();
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      _showSnackbar('Please sign in to book a service', kAccentColor);
+      _showSnackbar(_tr(context, 'sign_in_to_book'), kAccentColor);
       return;
     }
 
     if (_selectedService == null) {
-      _showSnackbar('Please select a service', kAccentColor);
+      _showSnackbar(_tr(context, 'please_select_service'), kAccentColor);
       return;
     }
 
     if (_selectedDate == null) {
-      _showSnackbar('Please select a date', kAccentColor);
+      _showSnackbar(_tr(context, 'please_select_date'), kAccentColor);
       return;
     }
 
     if (_selectedTime == null) {
-      _showSnackbar('Please select a time', kAccentColor);
+      _showSnackbar(_tr(context, 'please_select_time'), kAccentColor);
       return;
     }
 
     try {
-      // Combine date and time
       final appointmentDateTime = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
@@ -209,13 +222,11 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         _selectedTime!.minute,
       );
 
-      // Check if appointment is in the future
       if (appointmentDateTime.isBefore(DateTime.now())) {
-        _showSnackbar('Please select a future date and time', kAccentColor);
+        _showSnackbar(_tr(context, 'select_future_datetime'), kAccentColor);
         return;
       }
 
-      // Create booking
       final booking = BookingModel(
         id: '',
         clientId: currentUser.uid,
@@ -236,7 +247,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       final success = await _bookingService.createBooking(booking);
 
       if (success) {
-        // Send notification to provider
         await BookingNotificationService.createNewBookingNotification(
           providerId: _provider.uid!,
           clientName: currentUser.name,
@@ -247,13 +257,14 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
         _showSuccessDialog(appointmentDateTime);
       } else {
-        _showSnackbar(
-            'Failed to create booking. Please try again.', kAccentColor);
+        _showSnackbar(_tr(context, 'failed_create_booking'), kAccentColor);
       }
     } catch (e) {
-      _showSnackbar('Error: ${e.toString()}', kAccentColor);
+      _showSnackbar(
+          _trParams(context, 'error', {'error': e.toString()}), kAccentColor);
     }
   }
+  // Continuing from the previous section...
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -309,8 +320,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     }
   }
 
-  // =================== MAIN BUILD METHOD ===================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -320,7 +329,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           CustomScrollView(
             controller: _scrollController,
             slivers: [
-              // Modern Header with Parallax Effect
               SliverAppBar(
                 backgroundColor: Colors.white,
                 expandedHeight: 280.0,
@@ -392,34 +400,21 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   ),
                 ),
               ),
-
-              // Main Content
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    // Profile Info Card
                     _buildProfileCard(),
                     SizedBox(height: 16),
-
-                    // Services Section with Booking
                     _buildServicesSection(),
                     SizedBox(height: 16),
-
-                    // Booking Form (if a service is selected)
                     if (_showBookingForm) _buildBookingForm(),
-
-                    // Stats Section
                     _buildStatsSection(),
                     SizedBox(height: 16),
-
-                    // Rating Section
                     _buildRatingSection(),
                     SizedBox(height: 16),
-
-                    // About Section
                     if (_provider.description.isNotEmpty)
                       _buildSectionCard(
-                        title: 'About',
+                        title: _tr(context, 'about'),
                         icon: Icons.info_outline,
                         child: Text(
                           _provider.description,
@@ -430,19 +425,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                           ),
                         ),
                       ),
-
-                    // Contact Section
                     _buildContactSection(),
-
-                    // Bottom spacing
                     SizedBox(height: 120),
                   ],
                 ),
               ),
             ],
           ),
-
-          // Floating Action Button for Booking
           if (!_showBookingForm && _providerServices.isNotEmpty)
             Positioned(
               bottom: 20,
@@ -471,13 +460,11 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
                 icon: Icon(Icons.calendar_today),
                 label: Text(
-                  'Book Now',
+                  _tr(context, 'book_now'),
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ),
-
-          // Fixed Bottom CTA Buttons (when booking form is not shown)
           if (!_showBookingForm)
             Positioned(
               left: 0,
@@ -504,7 +491,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     Expanded(
                       child: _buildActionButton(
                         icon: Icons.message,
-                        label: 'Message',
+                        label: _tr(context, 'message'),
                         color: kPrimaryColor,
                         onTap: () => _startChat(context),
                       ),
@@ -512,7 +499,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     SizedBox(width: 12),
                     _buildActionButton(
                       icon: Icons.call,
-                      label: 'Call',
+                      label: _tr(context, 'call'),
                       color: kSuccessColor,
                       onTap: () => _makePhoneCall(_provider.phone),
                       isSmall: true,
@@ -520,7 +507,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     SizedBox(width: 12),
                     _buildActionButton(
                       icon: Icons.share,
-                      label: 'Share',
+                      label: _tr(context, 'share'),
                       color: kSecondaryColor,
                       onTap: () => _shareProfile(context),
                       isSmall: true,
@@ -577,8 +564,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  // =================== ENHANCED PROFILE CARD ===================
-
   Widget _buildProfileCard() {
     return Container(
       margin: EdgeInsets.all(16),
@@ -601,7 +586,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Professional Profile',
+                _tr(context, 'professional_profile'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -625,7 +610,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                       Icon(Icons.verified, size: 14, color: Colors.white),
                       SizedBox(width: 4),
                       Text(
-                        'Verified',
+                        _tr(context, 'verified'),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white,
@@ -638,35 +623,33 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ],
           ),
           SizedBox(height: 20),
-
-          // Info Grid
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
               _buildInfoChip(
                 Icons.person,
-                'Profession',
+                _tr(context, 'profession'),
                 _provider.profession.isNotEmpty
                     ? _provider.profession
-                    : 'Service Provider',
+                    : _tr(context, 'service_provider'),
                 kPrimaryColor,
               ),
               _buildInfoChip(
                 Icons.location_city,
-                'Wilaya',
+                _tr(context, 'wilaya'),
                 _provider.wilaya,
                 kSecondaryColor,
               ),
               _buildInfoChip(
                 Icons.location_on,
-                'Commune',
+                _tr(context, 'commune'),
                 _provider.commune,
                 kAccentColor,
               ),
               _buildInfoChip(
                 Icons.star,
-                'Rating',
+                _tr(context, 'rating'),
                 '${_currentRating.toStringAsFixed(1)} ⭐',
                 kWarningColor,
               ),
@@ -712,11 +695,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  // =================== SERVICES SECTION WITH BOOKING ===================
-
   Widget _buildServicesSection() {
     return _buildSectionCard(
-      title: 'Services Offered',
+      title: _tr(context, 'services_offered'),
       icon: Icons.work_outline,
       child: _loadingServices
           ? Center(child: CircularProgressIndicator(color: kPrimaryColor))
@@ -726,7 +707,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     Icon(Icons.work_off, size: 60, color: kBorderColor),
                     SizedBox(height: 12),
                     Text(
-                      'No services listed yet',
+                      _tr(context, 'no_services_listed'),
                       style: TextStyle(color: kTextSecondary),
                     ),
                   ],
@@ -801,7 +782,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              service['title'] ?? 'Service',
+                                              service['title'] ??
+                                                  _tr(context, 'service'),
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
@@ -812,7 +794,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                             ),
                                           ),
                                           Text(
-                                            '${service['price'] ?? '0'} DZD',
+                                            '${service['price'] ?? '0'} ${_tr(context, 'dzd')}',
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -850,7 +832,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                               BorderRadius.circular(8),
                                         ),
                                         child: Text(
-                                          service['category'] ?? 'General',
+                                          service['category'] ??
+                                              _tr(context, 'general'),
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: isSelected
@@ -873,8 +856,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
     );
   }
-
-  // =================== MODERN BOOKING FORM ===================
 
   Widget _buildBookingForm() {
     return AnimatedContainer(
@@ -915,7 +896,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   ),
                   SizedBox(width: 12),
                   Text(
-                    'Book Service',
+                    _tr(context, 'book_service'),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -936,8 +917,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ],
           ),
           SizedBox(height: 20),
-
-          // Selected Service Info
           if (_selectedService != null)
             Container(
               padding: EdgeInsets.all(16),
@@ -955,7 +934,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _selectedService!['title'] ?? 'Service',
+                          _selectedService!['title'] ?? _tr(context, 'service'),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -963,7 +942,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          '${_selectedService!['price'] ?? '0'} DZD',
+                          '${_selectedService!['price'] ?? '0'} ${_tr(context, 'dzd')}',
                           style: TextStyle(
                             fontSize: 14,
                             color: kPrimaryColor,
@@ -977,38 +956,30 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               ),
             ),
           SizedBox(height: 24),
-
-          // Steps Indicator
           _buildBookingSteps(),
           SizedBox(height: 24),
-
-          // Date Selection
           _buildSelectionCard(
             icon: Icons.calendar_month,
-            title: 'Date',
+            title: _tr(context, 'date'),
             value: _selectedDate != null
                 ? DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate!)
-                : 'Select appointment date',
+                : _tr(context, 'select_appointment_date'),
             onTap: () => _selectDate(context),
             color: kAccentColor,
           ),
           SizedBox(height: 16),
-
-          // Time Selection
           _buildSelectionCard(
             icon: Icons.access_time,
-            title: 'Time',
+            title: _tr(context, 'time'),
             value: _selectedTime != null
                 ? _selectedTime!.format(context)
-                : 'Select appointment time',
+                : _tr(context, 'select_appointment_time'),
             onTap: () => _selectTime(context),
             color: Color(0xFF4ECDC4),
           ),
           SizedBox(height: 24),
-
-          // Notes
           Text(
-            'Additional Notes (Optional)',
+            _tr(context, 'additional_notes'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -1031,7 +1002,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               onChanged: (value) => _notes = value,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Add any special instructions or requirements...',
+                hintText: _tr(context, 'add_instructions'),
                 hintStyle: TextStyle(color: kTextSecondary.withOpacity(0.7)),
                 filled: true,
                 fillColor: Colors.white,
@@ -1052,8 +1023,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ),
           ),
           SizedBox(height: 24),
-
-          // Book Now Button
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
@@ -1109,7 +1078,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         ),
                         SizedBox(width: 12),
                         Text(
-                          'Confirm Booking',
+                          _tr(context, 'confirm_booking'),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -1132,11 +1101,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStep(1, 'Service', _selectedService != null),
+        _buildStep(1, _tr(context, 'step_service'), _selectedService != null),
         _buildDivider(),
-        _buildStep(2, 'Time', _selectedDate != null && _selectedTime != null),
+        _buildStep(2, _tr(context, 'step_time'),
+            _selectedDate != null && _selectedTime != null),
         _buildDivider(),
-        _buildStep(3, 'Confirm', false),
+        _buildStep(3, _tr(context, 'step_confirm'), false),
       ],
     );
   }
@@ -1274,8 +1244,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  // =================== REST OF THE METHODS ===================
-
   Widget _buildHeaderBackground() {
     return Stack(
       fit: StackFit.expand,
@@ -1329,7 +1297,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 Text(
                   _provider.profession.isNotEmpty
                       ? _provider.profession
-                      : 'Service Provider',
+                      : _tr(context, 'service_provider'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white.withOpacity(0.9),
@@ -1385,7 +1353,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Widget _buildRatingSection() {
     return _buildSectionCard(
-      title: 'Rate This Provider',
+      title: _tr(context, 'rate_provider'),
       icon: Icons.star,
       child: Column(
         children: [
@@ -1418,8 +1386,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           SizedBox(height: 16),
           Text(
             _currentRating == 0
-                ? 'Tap to rate'
-                : '${_currentRating.toStringAsFixed(1)} Stars',
+                ? _tr(context, 'tap_to_rate')
+                : _trParams(context, 'stars',
+                    {'rating': _currentRating.toStringAsFixed(1)}),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -1472,7 +1441,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                 Icon(Icons.star, size: 22, color: Colors.white),
                                 SizedBox(width: 12),
                                 Text(
-                                  'Submit Rating',
+                                  _tr(context, 'submit_rating'),
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -1508,7 +1477,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         Icon(Icons.reviews, size: 22, color: kPrimaryColor),
                         SizedBox(width: 12),
                         Text(
-                          'View All Reviews',
+                          _tr(context, 'view_all_reviews'),
                           style: TextStyle(
                             color: kPrimaryColor,
                             fontSize: 16,
@@ -1528,12 +1497,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   String _getRatingDescription(double rating) {
-    if (rating == 0) return 'Be the first to rate this provider!';
-    if (rating < 2) return 'Poor';
-    if (rating < 3) return 'Fair';
-    if (rating < 4) return 'Good';
-    if (rating < 4.5) return 'Very Good';
-    return 'Excellent';
+    if (rating == 0) return _tr(context, 'be_first_to_rate');
+    if (rating < 2) return _tr(context, 'rating_poor');
+    if (rating < 3) return _tr(context, 'rating_fair');
+    if (rating < 4) return _tr(context, 'rating_good');
+    if (rating < 4.5) return _tr(context, 'rating_very_good');
+    return _tr(context, 'rating_excellent');
   }
 
   Widget _buildStatsSection() {
@@ -1554,11 +1523,11 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem(
-              'Rating', '${_currentRating.toStringAsFixed(1)}', Icons.star),
-          _buildStatItem(
-              'Services', '${_providerServices.length}', Icons.work_outline),
-          _buildStatItem('Booked', '24', Icons.verified_user),
+          _buildStatItem(_tr(context, 'rating'),
+              '${_currentRating.toStringAsFixed(1)}', Icons.star),
+          _buildStatItem(_tr(context, 'services'),
+              '${_providerServices.length}', Icons.work_outline),
+          _buildStatItem(_tr(context, 'booked'), '24', Icons.verified_user),
         ],
       ),
     );
@@ -1658,13 +1627,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Widget _buildContactSection() {
     return _buildSectionCard(
-      title: 'Contact Information',
+      title: _tr(context, 'contact_information'),
       icon: Icons.contact_phone,
       child: Column(
         children: [
           _buildContactItem(
             Icons.phone,
-            'Phone',
+            _tr(context, 'phone'),
             _provider.phone,
             kSuccessColor,
             () => _makePhoneCall(_provider.phone),
@@ -1673,7 +1642,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           if (_provider.whatsapp.isNotEmpty)
             _buildContactItem(
               Icons.chat,
-              'WhatsApp',
+              _tr(context, 'whatsapp'),
               _provider.whatsapp,
               Color(0xFF25D366),
               () => _openWhatsApp(_provider.whatsapp),
@@ -1681,7 +1650,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           if (_provider.whatsapp.isNotEmpty) SizedBox(height: 12),
           _buildContactItem(
             Icons.location_on,
-            'Address',
+            _tr(context, 'address'),
             _provider.address,
             kAccentColor,
             () => _openLocationInMaps(_provider.address),
@@ -1776,7 +1745,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               SizedBox(height: 20),
               _buildOptionItem(
                 Icons.share,
-                'Share Profile',
+                _tr(context, 'share_option'),
                 kPrimaryColor,
                 () {
                   Navigator.pop(context);
@@ -1785,7 +1754,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               ),
               _buildOptionItem(
                 Icons.bookmark,
-                'Save to Favorites',
+                _tr(context, 'save_favorites'),
                 kWarningColor,
                 () {
                   Navigator.pop(context);
@@ -1794,7 +1763,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               ),
               _buildOptionItem(
                 Icons.report,
-                'Report',
+                _tr(context, 'report'),
                 kAccentColor,
                 () {
                   Navigator.pop(context);
@@ -1803,7 +1772,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               ),
               _buildOptionItem(
                 Icons.block,
-                'Block',
+                _tr(context, 'block'),
                 kTextSecondary,
                 () {
                   Navigator.pop(context);
@@ -1846,7 +1815,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   void _saveToFavorites(BuildContext context) {
-    _showSnackbar('Added to favorites', kSuccessColor);
+    _showSnackbar(_tr(context, 'added_to_favorites'), kSuccessColor);
   }
 
   void _startChat(BuildContext context) async {
@@ -1854,7 +1823,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final chatService = ChatService();
 
     if (authViewModel.currentUser == null) {
-      _showSnackbar('Please sign in to start a chat', kAccentColor);
+      _showSnackbar(_tr(context, 'sign_in_to_book'), kAccentColor);
       return;
     }
 
@@ -1864,15 +1833,28 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         providerId: _provider.uid!,
       );
 
-      _showSnackbar('Chat started. Chat ID: $chatId', kSuccessColor);
+      if (chatId != null) {
+        _showSnackbar(
+          _trParams(context, 'chat_started', {'name': _provider.name}),
+          kSuccessColor,
+        );
+      } else {
+        _showSnackbar(
+          _tr(context, 'failed_start_chat'),
+          kAccentColor,
+        );
+      }
     } catch (e) {
-      _showSnackbar('Failed to start chat: ${e.toString()}', kAccentColor);
+      _showSnackbar(
+        _trParams(context, 'failed_start_chat', {'error': e.toString()}),
+        kAccentColor,
+      );
     }
   }
 
   void _makePhoneCall(String phoneNumber) async {
     final url = Uri.parse('tel:${_cleanPhoneNumber(phoneNumber)}');
-    if (await launchUrl(url)) {
+    if (await canLaunchUrl(url)) {
       await launchUrl(url);
     }
   }
@@ -1880,7 +1862,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   void _openWhatsApp(String whatsappNumber) async {
     final cleanNumber = _cleanPhoneNumber(whatsappNumber);
     final url = Uri.parse('https://wa.me/$cleanNumber');
-    if (await launchUrl(url)) {
+    if (await canLaunchUrl(url)) {
       await launchUrl(url);
     }
   }
@@ -1888,14 +1870,15 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   void _openLocationInMaps(String address) async {
     final encodedAddress = Uri.encodeComponent(address);
     final url = Uri.parse('https://maps.google.com/?q=$encodedAddress');
-    if (await launchUrl(url)) {
+    if (await canLaunchUrl(url)) {
       await launchUrl(url);
     }
   }
 
   void _shareProfile(BuildContext context) {
-    final text = 'Check out ${_provider.name}\'s profile on Service App!';
-    _showSnackbar('Share: $text', kPrimaryColor);
+    final text =
+        _trParams(context, 'share_profile_text', {'name': _provider.name});
+    _showSnackbar(text, kPrimaryColor);
   }
 
   void _showReportDialog(BuildContext context) {
@@ -1907,21 +1890,21 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         title: Text(
-          'Report User',
+          _tr(context, 'report_user'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: kTextPrimary,
           ),
         ),
         content: Text(
-          'Please describe the issue you encountered.',
+          _tr(context, 'report_description'),
           style: TextStyle(color: kTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              _tr(context, 'cancel'),
               style: TextStyle(color: kTextSecondary),
             ),
           ),
@@ -1931,7 +1914,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               borderRadius: BorderRadius.circular(12),
               onTap: () {
                 Navigator.pop(context);
-                _showSnackbar('Report submitted successfully', kSuccessColor);
+                _showSnackbar(_tr(context, 'report_submitted'), kSuccessColor);
               },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -1942,7 +1925,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Submit',
+                  _tr(context, 'submit'),
                   style: TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w600),
                 ),
@@ -1963,21 +1946,21 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         title: Text(
-          'Block User',
+          _tr(context, 'block_user'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: kTextPrimary,
           ),
         ),
         content: Text(
-          'Are you sure you want to block ${_provider.name}?',
+          _trParams(context, 'block_confirm', {'name': _provider.name}),
           style: TextStyle(color: kTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              _tr(context, 'cancel'),
               style: TextStyle(color: kTextSecondary),
             ),
           ),
@@ -1988,7 +1971,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _showSnackbar(
-                    '${_provider.name} has been blocked', kAccentColor);
+                    _trParams(
+                        context, 'user_blocked', {'name': _provider.name}),
+                    kAccentColor);
               },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -1999,7 +1984,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Block',
+                  _tr(context, 'block'),
                   style: TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w600),
                 ),
@@ -2062,7 +2047,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ),
             SizedBox(height: 24),
             Text(
-              'Booking Confirmed!',
+              _tr(context, 'booking_confirmed'),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -2072,7 +2057,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ),
             SizedBox(height: 12),
             Text(
-              'Your appointment with ${_provider.name} has been scheduled successfully.',
+              _trParams(
+                  context, 'appointment_scheduled', {'name': _provider.name}),
               style: TextStyle(
                 fontSize: 15,
                 color: kTextSecondary,
@@ -2120,7 +2106,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        'Done',
+                        _tr(context, 'done'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -2161,8 +2147,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Future<void> _viewAllRatings(BuildContext context) async {
     if (_provider.uid == null || _provider.uid!.isEmpty) {
-      _showSnackbar(
-          'Cannot view ratings: Provider ID is missing', kAccentColor);
+      _showSnackbar(_tr(context, 'provider_info_incomplete'), kAccentColor);
       return;
     }
 
@@ -2193,7 +2178,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'All Reviews',
+                      _tr(context, 'all_reviews'),
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -2229,7 +2214,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                             Icon(Icons.error, size: 60, color: kAccentColor),
                             SizedBox(height: 16),
                             Text(
-                              'Error loading reviews',
+                              _tr(context, 'error_loading_reviews'),
                               style: TextStyle(
                                 fontSize: 16,
                                 color: kTextPrimary,
@@ -2248,7 +2233,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                             Icon(Icons.reviews, size: 60, color: kBorderColor),
                             SizedBox(height: 16),
                             Text(
-                              'No reviews yet',
+                              _tr(context, 'no_reviews'),
                               style: TextStyle(
                                 fontSize: 16,
                                 color: kTextSecondary,
@@ -2307,7 +2292,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            data['userName'] ?? 'Anonymous',
+                                            data['userName'] ??
+                                                _tr(context, 'anonymous'),
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
@@ -2367,14 +2353,17 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
     if (difference.inDays == 0) {
       if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) return 'Just now';
-        return '${difference.inMinutes}m ago';
+        if (difference.inMinutes == 0) return _tr(context, 'just_now');
+        return _trParams(context, 'minutes_ago',
+            {'minutes': difference.inMinutes.toString()});
       }
-      return '${difference.inHours}h ago';
+      return _trParams(
+          context, 'hours_ago', {'hours': difference.inHours.toString()});
     } else if (difference.inDays == 1) {
-      return 'Yesterday';
+      return _tr(context, 'yesterday');
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
+      return _trParams(
+          context, 'days_ago', {'days': difference.inDays.toString()});
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }

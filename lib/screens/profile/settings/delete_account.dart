@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key});
@@ -26,11 +27,13 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     super.dispose();
   }
 
-  Future<void> _deleteAccount() async {
+  Future<void> _deleteAccount(LanguageProvider languageProvider) async {
     if (!_understandConsequences) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please confirm you understand the consequences'),
+        SnackBar(
+          content: Text(
+            languageProvider.tr('pleaseConfirmDelete', category: 'profile'),
+          ),
           backgroundColor: kDangerColor,
         ),
       );
@@ -40,8 +43,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     if (_confirmationController.text.trim().toLowerCase() !=
         'delete my account') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please type "delete my account" to confirm'),
+        SnackBar(
+          content: Text(
+            languageProvider.tr('typeDeleteMyAccount', category: 'profile'),
+          ),
           backgroundColor: kDangerColor,
         ),
       );
@@ -65,36 +70,45 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       final shouldDelete = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text(
-            'Final Confirmation',
-            style: TextStyle(color: kDangerColor, fontWeight: FontWeight.bold),
+          title: Text(
+            languageProvider.tr('finalConfirmation', category: 'profile'),
+            style: const TextStyle(
+              color: kDangerColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          content: const Text(
-            'This is your last chance to cancel. Your account and all data will be permanently deleted. This action cannot be undone.',
-            style: TextStyle(fontSize: 16),
+          content: Text(
+            languageProvider.tr('deleteLastChance', category: 'profile'),
+            style: const TextStyle(fontSize: 16),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel',
-                  style: TextStyle(color: kMutedTextColor)),
+              child: Text(
+                languageProvider.tr('cancel', category: 'profile'),
+                style: const TextStyle(color: kMutedTextColor),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(backgroundColor: kDangerColor),
-              child: const Text('Delete Forever'),
+              child: Text(
+                languageProvider.tr('deleteForever', category: 'profile'),
+              ),
             ),
           ],
         ),
       );
 
       if (shouldDelete == true) {
-        await _performAccountDeletion(user.uid);
+        await _performAccountDeletion(user.uid, languageProvider);
       }
     } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Failed to delete account';
+      String errorMessage =
+          languageProvider.tr('failedChangePassword', category: 'profile');
       if (e.code == 'wrong-password') {
-        errorMessage = 'Incorrect password';
+        errorMessage =
+            languageProvider.tr('incorrectPassword', category: 'profile');
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -106,7 +120,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to delete account: $e'),
+          content: Text(
+            '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
+          ),
           backgroundColor: kDangerColor,
         ),
       );
@@ -117,7 +133,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     }
   }
 
-  Future<void> _performAccountDeletion(String userId) async {
+  Future<void> _performAccountDeletion(
+    String userId,
+    LanguageProvider languageProvider,
+  ) async {
     try {
       // Delete user data from Firestore first
       await _deleteUserData(userId);
@@ -132,8 +151,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account deleted successfully'),
+          SnackBar(
+            content: Text(
+              languageProvider.tr('accountDeletedSuccess', category: 'profile'),
+            ),
             backgroundColor: kSuccessColor,
           ),
         );
@@ -144,7 +165,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error during account deletion: $e'),
+          content: Text(
+            '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
+          ),
           backgroundColor: kDangerColor,
         ),
       );
@@ -157,14 +180,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     // Delete user document
     await firestore.collection('users').doc(userId).delete();
 
-    // You might want to delete other user-related data here
-    // For example:
-    // - User's services
-    // - User's bookings
-    // - User's messages
-    // - User's reviews
-
-    // Example: Delete user's services if they're a provider
+    // Delete user's services if they're a provider
     final servicesSnapshot = await firestore
         .collection('services')
         .where('providerId', isEqualTo: userId)
@@ -174,7 +190,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       await doc.reference.delete();
     }
 
-    // Example: Delete user's bookings
+    // Delete user's bookings
     final bookingsSnapshot = await firestore
         .collection('bookings')
         .where('userId', isEqualTo: userId)
@@ -189,6 +205,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = context.watch<LanguageProvider>();
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -200,9 +217,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           icon: const Icon(Icons.arrow_back, color: kLightTextColor),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Delete Account",
-          style: TextStyle(
+        title: Text(
+          languageProvider.tr('deleteAccount', category: 'profile'),
+          style: const TextStyle(
             color: kLightTextColor,
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -232,19 +249,21 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     color: kDangerColor,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Account Deletion',
-                    style: TextStyle(
+                  Text(
+                    languageProvider.tr('deleteAccountPermanent',
+                        category: 'profile'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: kDangerColor,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'This action is permanent and cannot be undone',
+                  Text(
+                    languageProvider.tr('deleteAccountIsPermanent',
+                        category: 'profile'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
                       color: kDangerColor,
                     ),
@@ -255,28 +274,40 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             const SizedBox(height: 30),
 
             // Consequences
-            const Text(
-              'What will be deleted:',
-              style: TextStyle(
+            Text(
+              languageProvider.tr('whatWillBeDeleted', category: 'profile'),
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
                 color: kDarkTextColor,
               ),
             ),
             const SizedBox(height: 10),
-            _buildConsequenceItem('Your profile information'),
-            _buildConsequenceItem('All your service listings (if provider)'),
-            _buildConsequenceItem('Your booking history'),
-            _buildConsequenceItem('Your messages and chats'),
-            _buildConsequenceItem('Your reviews and ratings'),
-            _buildConsequenceItem('All app preferences and settings'),
+            _buildConsequenceItem(
+              languageProvider.tr('profileInfo', category: 'profile'),
+            ),
+            _buildConsequenceItem(
+              languageProvider.tr('serviceListings', category: 'profile'),
+            ),
+            _buildConsequenceItem(
+              languageProvider.tr('bookingHistory', category: 'profile'),
+            ),
+            _buildConsequenceItem(
+              languageProvider.tr('messagesChats', category: 'profile'),
+            ),
+            _buildConsequenceItem(
+              languageProvider.tr('reviewsRatings', category: 'profile'),
+            ),
+            _buildConsequenceItem(
+              languageProvider.tr('appPreferences', category: 'profile'),
+            ),
             const SizedBox(height: 20),
 
             // Current User Info
             if (currentUser?.email != null) ...[
-              const Text(
-                'Account to be deleted:',
-                style: TextStyle(
+              Text(
+                languageProvider.tr('accountToBeDeleted', category: 'profile'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   color: kDarkTextColor,
                 ),
@@ -297,7 +328,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               controller: _passwordController,
               obscureText: _obscurePassword,
               decoration: InputDecoration(
-                labelText: 'Current Password',
+                labelText:
+                    languageProvider.tr('currentPassword', category: 'profile'),
                 prefixIcon: const Icon(Icons.lock, color: kDangerColor),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -318,7 +350,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             TextFormField(
               controller: _confirmationController,
               decoration: InputDecoration(
-                labelText: 'Type "delete my account" to confirm',
+                labelText: languageProvider.tr('typeDeleteConfirm',
+                    category: 'profile'),
                 prefixIcon: const Icon(Icons.warning, color: kDangerColor),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -336,10 +369,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                       setState(() => _understandConsequences = value!),
                   activeColor: kDangerColor,
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'I understand that this action is permanent and all my data will be lost forever',
-                    style: TextStyle(fontSize: 14),
+                    languageProvider.tr('understandConsequences',
+                        category: 'profile'),
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
               ],
@@ -351,7 +385,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _deleteAccount,
+                onPressed:
+                    _isLoading ? null : () => _deleteAccount(languageProvider),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kDangerColor,
                   shape: RoundedRectangleBorder(
@@ -368,9 +403,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                               AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text(
-                        'Delete Account Permanently',
-                        style: TextStyle(
+                    : Text(
+                        languageProvider.tr('deleteAccountPermanently',
+                            category: 'profile'),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -392,9 +428,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   ),
                   side: BorderSide(color: kMutedTextColor.withOpacity(0.5)),
                 ),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(
+                child: Text(
+                  languageProvider.tr('cancel', category: 'profile'),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: kMutedTextColor,

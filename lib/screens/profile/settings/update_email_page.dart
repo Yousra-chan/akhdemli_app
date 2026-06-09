@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 class UpdateEmailPage extends StatefulWidget {
   const UpdateEmailPage({super.key});
@@ -11,21 +13,22 @@ class UpdateEmailPage extends StatefulWidget {
 
 class _UpdateEmailPageState extends State<UpdateEmailPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _currentPasswordController =
-      TextEditingController();
   final TextEditingController _newEmailController = TextEditingController();
+  final TextEditingController _confirmEmailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _currentPasswordController.dispose();
     _newEmailController.dispose();
+    _confirmEmailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _updateEmail() async {
+  Future<void> _updateEmail(LanguageProvider languageProvider) async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -34,34 +37,33 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
+      // Re-authenticate user
       final credential = EmailAuthProvider.credential(
         email: user.email!,
-        password: _currentPasswordController.text,
+        password: _passwordController.text,
       );
-
-      // Re-authenticate user
       await user.reauthenticateWithCredential(credential);
 
       // Update email
-      await user.verifyBeforeUpdateEmail(_newEmailController.text.trim());
+      await user.verifyBeforeUpdateEmail(_newEmailController.text);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent to new address'),
+          SnackBar(
+            content: Text(
+              languageProvider.tr('updateEmailSuccess', category: 'profile'),
+            ),
             backgroundColor: kSuccessColor,
           ),
         );
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Failed to update email';
+      String errorMessage =
+          languageProvider.tr('failedUpdateEmail', category: 'profile');
       if (e.code == 'wrong-password') {
-        errorMessage = 'Current password is incorrect';
-      } else if (e.code == 'email-already-in-use') {
-        errorMessage = 'Email is already in use';
-      } else if (e.code == 'invalid-email') {
-        errorMessage = 'Invalid email address';
+        errorMessage =
+            languageProvider.tr('wrongPassword', category: 'profile');
       }
 
       if (mounted) {
@@ -76,7 +78,9 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update email: $e'),
+            content: Text(
+              '${languageProvider.tr('failedUpdateEmail', category: 'profile')}: $e',
+            ),
             backgroundColor: kDangerColor,
           ),
         );
@@ -90,17 +94,17 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter email address';
+      return 'Please enter an email';
     }
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Please enter a valid email address';
+      return 'Please enter a valid email';
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final languageProvider = context.watch<LanguageProvider>();
 
     return Scaffold(
       backgroundColor: kLightBackgroundColor,
@@ -109,14 +113,10 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                // Simple App Bar (matches ProfilePage design)
-                _buildAppBar(context),
+                // App Bar
+                _buildAppBar(context, languageProvider),
 
-                // Current Email Display
-                if (currentUser?.email != null)
-                  _buildCurrentEmail(currentUser!),
-
-                // Form Section
+                // Form
                 Container(
                   margin:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -135,103 +135,40 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        _buildPasswordField(),
+                        // New Email Field
+                        _buildEmailField(
+                          controller: _newEmailController,
+                          label: languageProvider.tr('newEmail',
+                              category: 'profile'),
+                          validator: _validateEmail,
+                        ),
                         const Divider(height: 1, indent: 20, endIndent: 20),
-                        _buildEmailField(),
-                      ],
-                    ),
-                  ),
-                ),
 
-                // Info Box
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: kWarningColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kWarningColor.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Important Information:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: kWarningColor,
-                            fontSize: 14,
-                          ),
+                        // Confirm Email Field
+                        _buildEmailField(
+                          controller: _confirmEmailController,
+                          label: languageProvider.tr('confirmEmail',
+                              category: 'profile'),
+                          validator: (value) {
+                            final validation = _validateEmail(value);
+                            if (validation != null) return validation;
+                            if (value != _newEmailController.text) {
+                              return languageProvider.tr('emailMismatch',
+                                  category: 'profile');
+                            }
+                            return null;
+                          },
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2, right: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: kWarningColor,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'You will need to verify your new email address',
-                                style: TextStyle(
-                                  color: kMutedTextColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2, right: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: kWarningColor,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'A verification email will be sent to the new address',
-                                style: TextStyle(
-                                  color: kMutedTextColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2, right: 6),
-                              child: Icon(
-                                Icons.circle,
-                                size: 6,
-                                color: kWarningColor,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Your email will not change until verified',
-                                style: TextStyle(
-                                  color: kMutedTextColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
+                        const Divider(height: 1, indent: 20, endIndent: 20),
+
+                        // Password Field
+                        _buildPasswordField(
+                          controller: _passwordController,
+                          label: languageProvider.tr('currentPassword',
+                              category: 'profile'),
+                          obscureText: _obscurePassword,
+                          onToggle: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
                       ],
                     ),
@@ -241,14 +178,12 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                 const SizedBox(height: 30),
 
                 // Update Email Button
-                _buildUpdateEmailButton(),
+                _buildUpdateButton(languageProvider),
 
                 const SizedBox(height: 40),
               ],
             ),
           ),
-
-          // Loading overlay
           if (_isLoading)
             Container(
               color: Colors.black54,
@@ -261,7 +196,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -288,134 +223,33 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
               ),
             ),
           ),
-          const Text(
-            'Update Email',
-            style: TextStyle(
+          Text(
+            languageProvider.tr('updateEmail', category: 'profile'),
+            style: const TextStyle(
               color: kDarkTextColor,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
             ),
           ),
-          Container(
-            width: 40, // Placeholder for spacing
-          ),
+          Container(width: 40),
         ],
       ),
     );
   }
 
-  Widget _buildCurrentEmail(User currentUser) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      decoration: BoxDecoration(
-        color: kCardBackgroundColor,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: kSoftShadowColor.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Current Email:',
-              style: TextStyle(
-                color: kMutedTextColor,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              currentUser.email!,
-              style: const TextStyle(
-                color: kDarkTextColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPasswordField() {
+  Widget _buildEmailField({
+    required TextEditingController controller,
+    required String label,
+    String? Function(String?)? validator,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Current Password',
-            style: const TextStyle(
-              color: kMutedTextColor,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.lock_outline,
-                color: kPrimaryBlue,
-                size: 24,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextFormField(
-                  controller: _currentPasswordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                        color: kMutedTextColor,
-                        size: 20,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                  style: const TextStyle(
-                    color: kDarkTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your current password';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmailField() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'New Email Address',
+            label,
             style: const TextStyle(
               color: kMutedTextColor,
               fontSize: 14,
@@ -432,9 +266,8 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
-                  controller: _newEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  controller: controller,
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -443,7 +276,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
-                  validator: _validateEmail,
+                  validator: validator,
                 ),
               ),
             ],
@@ -453,11 +286,75 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
     );
   }
 
-  Widget _buildUpdateEmailButton() {
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool obscureText,
+    required VoidCallback onToggle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: kMutedTextColor,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.lock_outline,
+                color: kPrimaryBlue,
+                size: 24,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: controller,
+                  obscureText: obscureText,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureText ? Icons.visibility : Icons.visibility_off,
+                        color: kMutedTextColor,
+                        size: 20,
+                      ),
+                      onPressed: onToggle,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  style: const TextStyle(
+                    color: kDarkTextColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpdateButton(LanguageProvider languageProvider) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _updateEmail,
+        onPressed: _isLoading ? null : () => _updateEmail(languageProvider),
         style: ElevatedButton.styleFrom(
           backgroundColor: kPrimaryBlue,
           foregroundColor: Colors.white,
@@ -476,9 +373,9 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Update Email',
-                style: TextStyle(
+            : Text(
+                languageProvider.tr('updateEmail', category: 'profile'),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),

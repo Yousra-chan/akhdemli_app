@@ -1,0 +1,19 @@
+{
+  "services": "Services",
+  "clean_services": "Services de nettoyage",
+  "plumbing_services": "Services de plomberie",
+  "electrical_services": "Services électriques",
+  "carpentry_services": "Services de menuiserie",
+  "painting_services": "Services de peinture",
+  "gardening_services": "Services de jardinage",
+  "moving_services": "Services de déménagement",
+  "repair_services": "Services de réparation",
+  "installation_services": "Services d'installation",
+  "tutoring_services": "Services de tutorat",
+  "health_services": "Services de santé",
+  "beauty_services": "Services de beauté",
+  "home_services": "Services à domicile",
+  "tech_services": "Services technologiques",
+  "food_services": "Services alimentaires",
+  "other_services": "Autres services"
+}

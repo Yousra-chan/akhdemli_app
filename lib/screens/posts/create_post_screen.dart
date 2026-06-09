@@ -4,6 +4,7 @@ import 'package:service_app/screens/posts/posts_screen.dart';
 import 'package:service_app/Services/firestore_service.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'posts_constants.dart';
 import 'package:service_app/screens/posts/posts_widgets.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,13 +20,19 @@ class _FeedScreenState extends State<FeedScreen> {
   final FirestoreService _firestoreService = FirestoreService();
 
   void _handleCreatePost(Post post) async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       await _firestoreService.addPost(post);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '${post.type == PostType.seeking ? "Request" : "Offer"} published successfully!'),
+              post.type == PostType.seeking
+                  ? languageProvider.tr('request_published', category: 'posts')
+                  : languageProvider.tr('offer_published', category: 'posts'),
+            ),
             backgroundColor: kPrimaryBlue,
           ),
         );
@@ -34,7 +41,13 @@ class _FeedScreenState extends State<FeedScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating post: $e'),
+            content: Text(
+              languageProvider.trParams(
+                'error_creating_post',
+                category: 'posts',
+                params: {'error': e.toString()},
+              ),
+            ),
             backgroundColor: kSeekingColor,
           ),
         );
@@ -44,12 +57,16 @@ class _FeedScreenState extends State<FeedScreen> {
 
   void _showCreatePostModal() {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please sign in to create a post'),
+          content: Text(
+            languageProvider.tr('please_sign_in', category: 'posts'),
+          ),
           backgroundColor: kSeekingColor,
         ),
       );
@@ -75,12 +92,14 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       backgroundColor: kLightBackgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Service Exchange',
-          style: TextStyle(
+        title: Text(
+          languageProvider.tr('service_exchange', category: 'posts'),
+          style: const TextStyle(
             color: kDarkTextColor,
             fontWeight: FontWeight.w800,
             fontSize: 20,
@@ -108,8 +127,18 @@ class _FeedScreenState extends State<FeedScreen> {
         stream: _firestoreService.getPostsStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: kPrimaryBlue),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: kPrimaryBlue),
+                  const SizedBox(height: 16),
+                  Text(
+                    languageProvider.tr('loading_posts', category: 'posts'),
+                    style: TextStyle(color: kMutedTextColor),
+                  ),
+                ],
+              ),
             );
           }
 
@@ -125,7 +154,8 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Error loading posts',
+                    languageProvider.tr('unable_to_load_posts',
+                        category: 'posts'),
                     style: TextStyle(
                       color: kDarkTextColor,
                       fontSize: 18,
@@ -134,8 +164,24 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Please try again later',
+                    languageProvider.tr('try_again_later', category: 'posts'),
                     style: TextStyle(color: kMutedTextColor),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      languageProvider.tr('try_again', category: 'posts'),
+                    ),
                   ),
                 ],
               ),
@@ -162,7 +208,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    "No posts yet",
+                    languageProvider.tr('no_posts_yet', category: 'posts'),
                     style: TextStyle(
                       color: kDarkTextColor,
                       fontSize: 20,
@@ -170,13 +216,36 @@ class _FeedScreenState extends State<FeedScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    "Be the first to share your service needs or offers!",
-                    style: TextStyle(
-                      color: kMutedTextColor,
-                      fontSize: 14,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Text(
+                      languageProvider.tr('be_first_to_share',
+                          category: 'posts'),
+                      style: TextStyle(
+                        color: kMutedTextColor,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _showCreatePostModal,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      languageProvider.tr('create_first_post',
+                          category: 'posts'),
+                    ),
                   ),
                 ],
               ),
@@ -199,9 +268,9 @@ class _FeedScreenState extends State<FeedScreen> {
         child: FloatingActionButton.extended(
           onPressed: _showCreatePostModal,
           icon: const Icon(CupertinoIcons.add_circled_solid),
-          label: const Text(
-            'Create Post',
-            style: TextStyle(fontWeight: FontWeight.w600),
+          label: Text(
+            languageProvider.tr('create_post', category: 'posts'),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           backgroundColor: kPrimaryBlue,
           foregroundColor: Colors.white,

@@ -1,3 +1,4 @@
+// firestore_service.dart - This should be in your services folder
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/screens/posts/posts_constants.dart';
 
@@ -37,72 +38,6 @@ class FirestoreService {
         return Post.fromMap(data, doc.id);
       }).toList();
     });
-  }
-
-  // USER PROFILE METHODS
-
-  // Get user stats including address, total jobs, rating, etc.
-  Future<Map<String, dynamic>> getUserStats(String userId) async {
-    try {
-      // Get user document
-      final userDoc = await _usersCollection.doc(userId).get();
-
-      Map<String, dynamic> userData = {};
-
-      if (userDoc.exists) {
-        userData = userDoc.data() as Map<String, dynamic>? ?? {};
-
-        // Get jobs statistics
-        final jobsQuery =
-            await _jobsCollection.where('userId', isEqualTo: userId).get();
-
-        final completedJobsQuery = await _jobsCollection
-            .where('userId', isEqualTo: userId)
-            .where('status', isEqualTo: 'completed')
-            .get();
-
-        // Calculate rating from reviews
-        final reviewsQuery = await _reviewsCollection
-            .where('targetUserId', isEqualTo: userId)
-            .get();
-
-        double averageRating = 0.0;
-        if (reviewsQuery.docs.isNotEmpty) {
-          double totalRating = 0;
-          int validReviews = 0;
-
-          for (final doc in reviewsQuery.docs) {
-            final data = doc.data() as Map<String, dynamic>?;
-            if (data != null &&
-                data.containsKey('rating') &&
-                data['rating'] != null) {
-              totalRating += (data['rating'] as num).toDouble();
-              validReviews++;
-            }
-          }
-
-          if (validReviews > 0) {
-            averageRating = totalRating / validReviews;
-          }
-        }
-
-        return {
-          'address': userData['address'] ?? '',
-          'totalJobs': jobsQuery.docs.length,
-          'completedJobs': completedJobsQuery.docs.length,
-          'rating': averageRating,
-          'name': userData['name'] ?? '',
-          'email': userData['email'] ?? '',
-          'photoUrl': userData['photoUrl'] ?? '',
-          'role': userData['role'] ?? 'client',
-        };
-      }
-
-      return {};
-    } catch (e) {
-      print('Error getting user stats: $e');
-      rethrow;
-    }
   }
 
   // Update user address
@@ -213,6 +148,89 @@ class FirestoreService {
     } catch (e) {
       print('Error creating/updating user profile: $e');
       rethrow;
+    }
+  }
+
+  // Get ratings for a user (provider)
+  Future<List<Map<String, dynamic>>> getUserRatings(String userId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('ratings')
+          .where('providerId', isEqualTo: userId)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
+    } catch (e) {
+      print('Error getting user ratings: $e');
+      return [];
+    }
+  }
+
+  // Get bookings where user is the provider
+  Future<List<Map<String, dynamic>>> getBookingsByProvider(
+      String providerId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('bookings')
+          .where('providerId', isEqualTo: providerId)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
+    } catch (e) {
+      print('Error getting bookings by provider: $e');
+      return [];
+    }
+  }
+
+  // Get bookings where user is the client
+  Future<List<Map<String, dynamic>>> getBookingsByClient(
+      String clientId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('bookings')
+          .where('clientId', isEqualTo: clientId)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
+    } catch (e) {
+      print('Error getting bookings by client: $e');
+      return [];
+    }
+  }
+
+  // Get user services count (for providers)
+  Future<int> getUserServicesCount(String providerId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('services')
+          .where('providerId', isEqualTo: providerId)
+          .get();
+
+      return querySnapshot.size;
+    } catch (e) {
+      print('Error getting user services count: $e');
+      return 0;
+    }
+  }
+
+  // Get original getUserStats method (if you still need it)
+  Future<Map<String, dynamic>> getUserStats(String uid) async {
+    try {
+      // This is your original method - keep it if needed elsewhere
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data() as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      print('Error getting user stats: $e');
+      return {};
     }
   }
 }

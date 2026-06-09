@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
-import 'registration_widget.dart';
+import 'package:service_app/screens/auth/constants.dart';
+import 'package:service_app/screens/auth/register/registration_widget.dart'
+    hide
+        kAppFont,
+        kDarkTextColor,
+        kMutedTextColor,
+        kInputFillColor,
+        kLightBackgroundColor,
+        kHorizontalPadding,
+        kPrimaryBlue;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -28,9 +38,20 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // Geolocation state variables
   Position? _currentPosition;
-  String _locationMessage = 'Tap the button to set your precise GPS location.';
+  String _locationMessage = '';
   double? _latitude;
   double? _longitude;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
+      setState(() {
+        _locationMessage = lang.tr('gps_button', category: 'auth');
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -40,6 +61,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _signInWithGoogle() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       final user = await authViewModel.signInWithGoogle();
       if (!mounted) return;
@@ -53,12 +76,15 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar('Google sign-in failed: $e');
+      _showErrorSnackBar(lang.trParams('google_sign_in_failed_message',
+          category: 'auth', params: {'error': e.toString().split('\n').first}));
     }
   }
 
   Future<void> _signInWithApple() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       final user = await authViewModel.signInWithApple();
       if (!mounted) return;
@@ -72,14 +98,17 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar('Apple sign-in failed: $e');
+      _showErrorSnackBar(lang.trParams('apple_sign_in_failed_message',
+          category: 'auth', params: {'error': e.toString().split('\n').first}));
     }
   }
 
   /// Determine the current position of the device.
   Future<void> _determinePosition() async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     setState(() {
-      _locationMessage = 'Requesting location and checking permissions...';
+      _locationMessage = lang.tr('gps_requesting', category: 'auth');
     });
 
     bool serviceEnabled;
@@ -88,9 +117,10 @@ class _RegisterPageState extends State<RegisterPage> {
     // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _currentPosition = null;
-      _locationMessage = 'Location services are disabled. Please enable them.';
-      setState(() {});
+      setState(() {
+        _currentPosition = null;
+        _locationMessage = lang.tr('gps_disabled', category: 'auth');
+      });
       return;
     }
 
@@ -100,17 +130,19 @@ class _RegisterPageState extends State<RegisterPage> {
       // Request permission if denied once.
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        _currentPosition = null;
-        _locationMessage = 'Location permissions are denied.';
-        setState(() {});
+        setState(() {
+          _currentPosition = null;
+          _locationMessage = lang.tr('gps_denied', category: 'auth');
+        });
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      _currentPosition = null;
-      _locationMessage = 'Permissions permanently denied. Enable in settings.';
-      setState(() {});
+      setState(() {
+        _currentPosition = null;
+        _locationMessage = lang.tr('gps_denied_forever', category: 'auth');
+      });
       return;
     }
 
@@ -126,7 +158,7 @@ class _RegisterPageState extends State<RegisterPage> {
         _currentPosition = position;
         _latitude = position.latitude;
         _longitude = position.longitude;
-        _locationMessage = 'Location fetched successfully!';
+        _locationMessage = lang.tr('gps_success', category: 'auth');
       });
     } catch (e) {
       // Update state upon error
@@ -134,7 +166,9 @@ class _RegisterPageState extends State<RegisterPage> {
         _currentPosition = null;
         _latitude = null;
         _longitude = null;
-        _locationMessage = 'Error fetching position: ${e.toString()}';
+        _locationMessage = lang.trParams('gps_error',
+            category: 'auth',
+            params: {'error': e.toString().split('\n').first});
       });
     }
   }
@@ -145,6 +179,7 @@ class _RegisterPageState extends State<RegisterPage> {
     _formKey.currentState!.save();
 
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
 
     try {
       debugPrint('📱 Starting registration process...');
@@ -166,7 +201,18 @@ class _RegisterPageState extends State<RegisterPage> {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Account Created for: ${user.name}!'),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    lang.trParams('register_success',
+                        category: 'auth', params: {'name': user.name ?? ''}),
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: kPrimaryBlue,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -183,28 +229,39 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       } else {
         // Show error
-        final errorMessage = authViewModel.error ?? 'Registration failed';
+        final errorMessage =
+            authViewModel.error ?? lang.tr('register_error', category: 'auth');
         _showErrorSnackBar(errorMessage);
       }
     } catch (e) {
       if (!mounted) return;
-      final errorMessage =
-          authViewModel.error ?? 'An unexpected error occurred';
+      final errorMessage = authViewModel.error ??
+          lang.tr('register_unexpected_error', category: 'auth');
       _showErrorSnackBar(errorMessage);
     }
   }
 
   void _showErrorSnackBar(String message) {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Registration Failed: $message'),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Text(
+                    '${lang.tr('register_failed', category: 'auth')}: $message')),
+          ],
+        ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildTopBar(BuildContext context, LanguageProvider lang) {
     return Align(
       alignment: Alignment.centerLeft,
       child: IconButton(
@@ -220,7 +277,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildGeolocationSection() {
+  Widget _buildGeolocationSection(LanguageProvider lang) {
     Color statusColor = Colors.grey;
     IconData statusIcon = Icons.location_off;
 
@@ -228,16 +285,22 @@ class _RegisterPageState extends State<RegisterPage> {
       statusColor = Colors.green;
       statusIcon = Icons.check_circle;
     } else if (_locationMessage.contains('Error') ||
-        _locationMessage.contains('denied')) {
+        _locationMessage.contains('denied') ||
+        _locationMessage.contains('disabled')) {
       statusColor = Colors.red;
       statusIcon = Icons.error_outline;
-    } else if (_locationMessage.contains('Requesting')) {
+    } else if (_locationMessage.contains('Requesting') ||
+        _locationMessage
+            .contains(lang.tr('gps_requesting', category: 'auth'))) {
       statusColor = kPrimaryBlue;
       statusIcon = Icons.info_outline;
     }
 
     String displayCoordinates = _currentPosition != null
-        ? 'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}, Lon: ${_currentPosition!.longitude.toStringAsFixed(6)}'
+        ? lang.trParams('gps_coordinates', category: 'auth', params: {
+            'lat': _currentPosition!.latitude.toStringAsFixed(6),
+            'lon': _currentPosition!.longitude.toStringAsFixed(6),
+          })
         : _locationMessage;
 
     return Column(
@@ -249,9 +312,9 @@ class _RegisterPageState extends State<RegisterPage> {
           child: ElevatedButton.icon(
             onPressed: _determinePosition,
             icon: const Icon(Icons.gps_fixed, color: Colors.white, size: 20),
-            label: const Text(
-              'Get My Current GPS Location',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+            label: Text(
+              lang.tr('gps_button', category: 'auth'),
+              style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimaryBlue,
@@ -284,13 +347,13 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildRoleSelection() {
+  Widget _buildRoleSelection(LanguageProvider lang) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'I want to:',
-          style: TextStyle(
+        Text(
+          lang.tr('role_title', category: 'auth'),
+          style: const TextStyle(
             fontFamily: kAppFont,
             color: kDarkTextColor,
             fontSize: 16,
@@ -302,8 +365,8 @@ class _RegisterPageState extends State<RegisterPage> {
           children: [
             Expanded(
               child: RoleOption(
-                title: 'Find Services',
-                subtitle: 'I need help with tasks',
+                title: lang.tr('role_client', category: 'auth'),
+                subtitle: lang.tr('role_client_desc', category: 'auth'),
                 icon: Icons.person_outline,
                 isSelected: _role == 'client',
                 onTap: () {
@@ -316,8 +379,8 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RoleOption(
-                title: 'Offer Services',
-                subtitle: 'I provide services',
+                title: lang.tr('role_provider', category: 'auth'),
+                subtitle: lang.tr('role_provider_desc', category: 'auth'),
                 icon: Icons.business_center_outlined,
                 isSelected: _role == 'provider',
                 onTap: () {
@@ -333,262 +396,311 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  InputDecoration _buildAestheticInputDecoration(
+      String hint, LanguageProvider lang) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: kMutedTextColor, fontFamily: kAppFont),
+      filled: true,
+      fillColor: kInputFillColor.withOpacity(0.5),
+      contentPadding:
+          const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: kPrimaryBlue, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Get the real AuthViewModel to access isLoading state
     final authViewModel = Provider.of<AuthViewModel>(context);
 
-    return Scaffold(
-      backgroundColor: kLightBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: kHorizontalPadding,
-              vertical: 20,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Top Bar (Back Button)
-                _buildTopBar(context),
-
-                // 2. Logo Placement (Centered and separate)
-                const SizedBox(height: 100),
-                Center(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 150,
-                    height: 150,
-                  ),
+    return Consumer<LanguageProvider>(
+      builder: (context, lang, child) {
+        return Scaffold(
+          backgroundColor: kLightBackgroundColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: kHorizontalPadding,
+                  vertical: 20,
                 ),
-                const SizedBox(height: 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Top Bar (Back Button)
+                    _buildTopBar(context, lang),
 
-                // 3. Main Content Card
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 5,
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+                    // 2. Logo Placement (Centered and separate)
+                    const SizedBox(height: 100),
+                    Center(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 150,
+                        height: 150,
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Create Account',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                          color: kDarkTextColor,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          fontFamily: kAppFont,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Start your journey with us!',
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                          color: kMutedTextColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          fontFamily: kAppFont,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
+                    ),
+                    const SizedBox(height: 30),
 
-                      // Registration Form
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            // Name Field
-                            TextFormField(
-                              decoration:
-                                  buildAestheticInputDecoration('Full Name'),
-                              keyboardType: TextInputType.name,
-                              textCapitalization: TextCapitalization.words,
-                              style: const TextStyle(
-                                fontFamily: kAppFont,
-                                color: kDarkTextColor,
-                              ),
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter your name'
-                                  : null,
-                              onSaved: (value) => _name = value!,
+                    // 3. Main Content Card
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 5,
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            lang.tr('register_title', category: 'auth'),
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(
+                              color: kDarkTextColor,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: kAppFont,
                             ),
-                            const SizedBox(height: 16),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            lang.tr('register_subtitle', category: 'auth'),
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(
+                              color: kMutedTextColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              fontFamily: kAppFont,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
 
-                            // Email Field
-                            TextFormField(
-                              decoration: buildAestheticInputDecoration(
-                                  'Email Address'),
-                              keyboardType: TextInputType.emailAddress,
-                              style: const TextStyle(
-                                fontFamily: kAppFont,
-                                color: kDarkTextColor,
-                              ),
-                              validator: (value) =>
-                                  value!.isEmpty || !value.contains('@')
-                                      ? 'Please enter a valid email address'
+                          // Registration Form
+                          Form(
+                            key: _formKey,
+                            child: Column(
+                              children: [
+                                // Name Field
+                                TextFormField(
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('full_name_hint', category: 'auth'),
+                                    lang,
+                                  ),
+                                  keyboardType: TextInputType.name,
+                                  textCapitalization: TextCapitalization.words,
+                                  style: const TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: kDarkTextColor,
+                                  ),
+                                  validator: (value) => value!.isEmpty
+                                      ? lang.tr('validation_name_required',
+                                          category: 'auth')
                                       : null,
-                              onSaved: (value) => _email = value!,
+                                  onSaved: (value) => _name = value!,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Email Field
+                                TextFormField(
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('email_hint_login',
+                                        category: 'auth'),
+                                    lang,
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  style: const TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: kDarkTextColor,
+                                  ),
+                                  validator: (value) {
+                                    if (value!.isEmpty) {
+                                      return lang.tr(
+                                          'validation_email_required',
+                                          category: 'auth');
+                                    }
+                                    if (!value.contains('@') ||
+                                        !value.contains('.')) {
+                                      return lang.tr('validation_email_invalid',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) => _email = value!,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Phone Field
+                                TextFormField(
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('phone_number_hint',
+                                        category: 'auth'),
+                                    lang,
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                  style: const TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: kDarkTextColor,
+                                  ),
+                                  validator: (value) => value!.isEmpty
+                                      ? lang.tr('validation_phone_required',
+                                          category: 'auth')
+                                      : null,
+                                  onSaved: (value) => _phone = value!,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Address Field
+                                TextFormField(
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('address_hint', category: 'auth'),
+                                    lang,
+                                  ),
+                                  keyboardType: TextInputType.streetAddress,
+                                  maxLines: 2,
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
+                                  style: const TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: kDarkTextColor,
+                                  ),
+                                  validator: (value) {
+                                    if (value!.isEmpty && _latitude == null) {
+                                      return lang.tr('gps_or_address',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) => _address = value!,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // GPS Location Section
+                                _buildGeolocationSection(lang),
+                                const SizedBox(height: 16),
+
+                                // Role Selection
+                                _buildRoleSelection(lang),
+                                const SizedBox(height: 16),
+
+                                // Password Field
+                                TextFormField(
+                                  controller: _passwordController,
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('password_hint', category: 'auth'),
+                                    lang,
+                                  ),
+                                  obscureText: true,
+                                  style: const TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: kDarkTextColor,
+                                  ),
+                                  validator: (value) {
+                                    if (value!.isEmpty) {
+                                      return lang.tr(
+                                          'validation_password_required',
+                                          category: 'auth');
+                                    }
+                                    if (value.length < 6) {
+                                      return lang.tr(
+                                          'validation_password_min_length',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) => _password = value!,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Confirm Password Field
+                                TextFormField(
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('confirm_password_hint',
+                                        category: 'auth'),
+                                    lang,
+                                  ),
+                                  obscureText: true,
+                                  style: const TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: kDarkTextColor,
+                                  ),
+                                  validator: (value) {
+                                    if (value!.isEmpty) {
+                                      return lang.tr(
+                                          'validation_password_confirm_required',
+                                          category: 'auth');
+                                    }
+                                    if (value != _passwordController.text) {
+                                      return lang.tr(
+                                          'validation_password_mismatch',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
+                                ),
+
+                                const SizedBox(height: 24),
+
+                                // Register Button
+                                RegisterButton(
+                                  isLoading: authViewModel.isLoading,
+                                  onPressed: _submitRegistration,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
+                          ),
 
-                            // Phone Field
-                            TextFormField(
-                              decoration:
-                                  buildAestheticInputDecoration('Phone Number'),
-                              keyboardType: TextInputType.phone,
-                              style: const TextStyle(
-                                fontFamily: kAppFont,
-                                color: kDarkTextColor,
-                              ),
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter your phone number'
-                                  : null,
-                              onSaved: (value) => _phone = value!,
-                            ),
-                            const SizedBox(height: 16),
+                          const SizedBox(height: 30),
+                          const OrDivider(),
 
-                            // Address Field
-                            TextFormField(
-                              decoration: buildAestheticInputDecoration(
-                                  'Full Address (Street, City, Postal Code)'),
-                              keyboardType: TextInputType.streetAddress,
-                              maxLines: 2,
-                              textCapitalization: TextCapitalization.sentences,
-                              style: const TextStyle(
-                                fontFamily: kAppFont,
-                                color: kDarkTextColor,
-                              ),
-                              validator: (value) => value!.isEmpty &&
-                                      _latitude == null
-                                  ? 'Please enter your address or get your GPS location'
-                                  : null,
-                              onSaved: (value) => _address = value!,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // GPS Location Section
-                            _buildGeolocationSection(),
-                            const SizedBox(height: 16),
-
-                            // Role Selection
-                            _buildRoleSelection(),
-                            const SizedBox(height: 16),
-
-                            // Password Field
-                            TextFormField(
-                              controller: _passwordController,
-                              decoration:
-                                  buildAestheticInputDecoration('Password'),
-                              obscureText: true,
-                              style: const TextStyle(
-                                fontFamily: kAppFont,
-                                color: kDarkTextColor,
-                              ),
-                              validator: (value) => value!.length < 6
-                                  ? 'Password must be at least 6 characters'
-                                  : null,
-                              onSaved: (value) => _password = value!,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Confirm Password Field
-                            TextFormField(
-                              decoration: buildAestheticInputDecoration(
-                                  'Confirm Password'),
-                              obscureText: true,
-                              style: const TextStyle(
-                                fontFamily: kAppFont,
-                                color: kDarkTextColor,
-                              ),
-                              validator: (value) {
-                                if (value!.isEmpty) {
-                                  return 'Please confirm your password';
-                                }
-                                if (value != _passwordController.text) {
-                                  return 'Passwords do not match';
-                                }
-                                return null;
-                              },
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Register Button - Use real loading state from AuthViewModel
-                            RegisterButton(
-                              isLoading: authViewModel.isLoading,
-                              onPressed: _submitRegistration,
-                            ),
-                          ],
-                        ),
+                          const SizedBox(height: 20),
+                          SocialSignInRow(
+                            onGooglePressed: _signInWithGoogle,
+                            onApplePressed: _signInWithApple,
+                            isLoading: authViewModel.isLoading,
+                          ),
+                        ],
                       ),
+                    ),
 
-                      const SizedBox(height: 30),
-                      const OrDivider(),
+                    const SizedBox(height: 40),
 
-                      const SizedBox(height: 20),
-                      SocialSignInRow(
-                        onGooglePressed: _signInWithGoogle,
-                        onApplePressed: _signInWithApple,
-                        isLoading: authViewModel.isLoading,
-                      ),
-                    ],
-                  ),
+                    // Sign In Link
+                    SignInLink(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-
-                const SizedBox(height: 40),
-
-                // Sign In Link
-                SignInLink(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-}
-
-InputDecoration buildAestheticInputDecoration(String label) {
-  return InputDecoration(
-    hintText: label,
-    hintStyle: const TextStyle(color: kMutedTextColor, fontFamily: kAppFont),
-    filled: true,
-    fillColor: kInputFillColor.withOpacity(0.5),
-    contentPadding:
-        const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide.none,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: kPrimaryBlue, width: 2),
-    ),
-  );
 }

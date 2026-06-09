@@ -11,6 +11,8 @@ import 'package:service_app/screens/chat/disscussion/disscussion_page.dart'
     hide Widget;
 import 'package:intl/intl.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'dart:ui' as ui;
 
 // Cache for image validity checks
 final Map<String, bool> _imageValidityCache = {};
@@ -170,11 +172,15 @@ Widget buildChatTile(
   String? profileImageUrl,
   required VoidCallback onTap,
 }) {
+  final languageProvider =
+      Provider.of<LanguageProvider>(context, listen: false);
   final bool isUnread = unreadCount > 0;
   final bool isOnline = chat.providerId.hashCode % 3 == 0;
-  final String lastMessageText =
-      chat.lastMessage.isEmpty ? "Démarrer la discussion..." : chat.lastMessage;
-  final String formattedTime = _formatTimestamp(chat.lastMessageTime.toDate());
+  final String lastMessageText = chat.lastMessage.isEmpty
+      ? languageProvider.tr('start_discussion', category: 'chat')
+      : chat.lastMessage;
+  final String formattedTime =
+      _formatTimestamp(chat.lastMessageTime.toDate(), languageProvider);
 
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -362,14 +368,14 @@ Widget buildChatTile(
   );
 }
 
-String _formatTimestamp(DateTime timestamp) {
+String _formatTimestamp(DateTime timestamp, LanguageProvider lang) {
   final now = DateTime.now();
   final difference = now.difference(timestamp);
 
   if (difference.inDays == 0) {
     return DateFormat('HH:mm').format(timestamp);
   } else if (difference.inDays == 1) {
-    return "Hier";
+    return lang.tr('yesterday', category: 'chat');
   } else if (difference.inDays < 7) {
     return DateFormat('EEEE').format(timestamp).substring(0, 3);
   } else {
@@ -497,9 +503,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } catch (e) {
       print('❌ Refresh error: $e');
       if (mounted) {
+        final languageProvider =
+            Provider.of<LanguageProvider>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erreur d\'actualisation'),
+            content: Text(
+              languageProvider.tr('refresh_error', category: 'chat'),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -528,9 +538,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     String providerId,
     String providerName,
   ) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     if (widget.userId == providerId) {
-      _showErrorDialog('Action non autorisée',
-          'Vous ne pouvez pas créer une discussion avec vous-même.');
+      _showErrorDialog(
+        languageProvider.tr('action_not_allowed', category: 'chat'),
+        languageProvider.tr('cannot_chat_self', category: 'chat'),
+      );
       return;
     }
 
@@ -543,7 +558,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       if (chatId != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Discussion créée avec $providerName!'),
+            content: Text(
+              languageProvider.trParams(
+                'chat_created',
+                category: 'chat',
+                params: {'name': providerName},
+              ),
+            ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -552,8 +573,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur lors de la création de la discussion'),
+          SnackBar(
+            content: Text(
+              languageProvider.tr('chat_creation_error', category: 'chat'),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -561,7 +584,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }).catchError((error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur: ${error.toString()}'),
+          content: Text(
+            languageProvider.trParams(
+              'error_prefix',
+              category: 'chat',
+              params: {'error': error.toString()},
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -569,45 +598,60 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _showErrorDialog(String title, String message) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: Colors.red.shade700,
-            fontWeight: FontWeight.w600,
+      builder: (context) => Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: Colors.blue.shade700,
-                fontWeight: FontWeight.w600,
-              ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.red.shade700,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Exo2',
             ),
           ),
-        ],
+          content: Text(
+            message,
+            style: const TextStyle(fontFamily: 'Exo2'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                languageProvider.tr('ok', category: 'chat'),
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Exo2',
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStoriesSection(List<ChatModel> chats) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     final displayContacts = chats
         .where((chat) => chat.getOtherParticipantId(widget.userId).isNotEmpty)
         .take(6)
         .toList();
 
     return Container(
-      height: 130, // Increased height to prevent overflow
+      height: 130,
       margin: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,11 +659,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
-              'Contacts récents',
+              languageProvider.tr('recent_contacts', category: 'chat'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey.shade700,
+                fontFamily: 'Exo2',
               ),
             ),
           ),
@@ -644,11 +689,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           Container(
                             width: 70,
                             child: Text(
-                              "Rechercher",
+                              languageProvider.tr('search', category: 'chat'),
                               style: TextStyle(
                                 color: Colors.grey.shade700,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
+                                fontFamily: 'Exo2',
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -663,7 +709,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
                 final chat = displayContacts[index - 1];
                 final otherUserId = chat.getOtherParticipantId(widget.userId);
-                final contactName = _contactNames[otherUserId] ?? 'Contact';
+                final contactName = _contactNames[otherUserId] ??
+                    languageProvider.tr('contact', category: 'chat');
                 final imageUrl = _profileImages[otherUserId] ?? '';
 
                 return Padding(
@@ -681,6 +728,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             color: Colors.grey.shade700,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
+                            fontFamily: 'Exo2',
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -743,6 +791,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   Widget _buildLoadingState() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -765,11 +815,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 20),
           Text(
-            'Chargement des discussions...',
+            languageProvider.tr('loading_chats', category: 'chat'),
             style: TextStyle(
               color: Colors.grey.shade600,
               fontSize: 16,
               fontWeight: FontWeight.w500,
+              fontFamily: 'Exo2',
             ),
           ),
         ],
@@ -778,6 +829,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   Widget _buildErrorState() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -799,20 +852,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 20),
             Text(
-              'Erreur de chargement',
+              languageProvider.tr('loading_error', category: 'chat'),
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.red.shade400,
+                fontFamily: 'Exo2',
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              _errorMessage ?? 'Une erreur est survenue',
+              _errorMessage ??
+                  languageProvider.tr('error_occurred', category: 'chat'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade600,
+                fontFamily: 'Exo2',
               ),
             ),
             const SizedBox(height: 20),
@@ -828,7 +884,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
                 elevation: 2,
               ),
-              child: const Text('Réessayer'),
+              child: Text(
+                languageProvider.tr('retry', category: 'chat'),
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
             ),
           ],
         ),
@@ -837,6 +896,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   Widget _buildEmptyChatState() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -872,19 +933,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 24),
             Text(
-              'Aucune discussion',
+              languageProvider.tr('no_chats', category: 'chat'),
               style: TextStyle(
                 color: Colors.grey.shade800,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
+                fontFamily: 'Exo2',
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              'Commencez une nouvelle conversation',
+              languageProvider.tr('start_new_conversation', category: 'chat'),
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 14,
+                fontFamily: 'Exo2',
               ),
               textAlign: TextAlign.center,
             ),
@@ -902,12 +965,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 elevation: 3,
                 shadowColor: Colors.blue.withOpacity(0.3),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.add, size: 20),
-                  SizedBox(width: 8),
-                  Text('Nouvelle discussion'),
+                  const Icon(Icons.add, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    languageProvider.tr('new_chat', category: 'chat'),
+                    style: const TextStyle(fontFamily: 'Exo2'),
+                  ),
                 ],
               ),
             ),
@@ -953,275 +1019,299 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return ChangeNotifierProvider(
       create: (context) => _chatViewModel,
       child: Consumer<ChatViewModel>(
         builder: (context, chatViewModel, child) {
-          return Scaffold(
-            body: SafeArea(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color.fromARGB(255, 12, 94, 153),
-                      Color(0xFF4A6FDC),
-                      Color(0xFF667EEA),
-                      Color(0xFF764BA2),
-                    ],
+          return Directionality(
+            textDirection: languageProvider.isRtl
+                ? ui.TextDirection.rtl
+                : ui.TextDirection.ltr,
+            child: Scaffold(
+              body: SafeArea(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color.fromARGB(255, 12, 94, 153),
+                        Color(0xFF4A6FDC),
+                        Color(0xFF667EEA),
+                        Color(0xFF764BA2),
+                      ],
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    // Beautiful header with gradient background
-                    Container(
-                      padding: EdgeInsets.only(
-                        top: 10,
-                        left: 25,
-                        right: 25,
-                        bottom: 20,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Discussions",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
-                                      fontFamily: 'Exo2',
+                  child: Column(
+                    children: [
+                      // Beautiful header with gradient background
+                      Container(
+                        padding: EdgeInsets.only(
+                          top: 10,
+                          left: 25,
+                          right: 25,
+                          bottom: 20,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      languageProvider.tr('discussions',
+                                          category: 'chat'),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                        fontFamily: 'Exo2',
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    "Messages récents",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.white.withOpacity(0.2),
-                                      Colors.white.withOpacity(0.1),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      languageProvider.tr('recent_messages',
+                                          category: 'chat'),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        fontFamily: 'Exo2',
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: IconButton(
-                                  icon: Icon(
-                                    Icons.refresh,
-                                    color: Colors.white,
-                                    size: 24,
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withOpacity(0.2),
+                                        Colors.white.withOpacity(0.1),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                  onPressed: _refreshData,
+                                  child: IconButton(
+                                    icon: const Icon(
+                                      Icons.refresh,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                    onPressed: _refreshData,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                      ),
-                    ),
-
-                    // Main content
-                    Expanded(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(40),
-                            topRight: Radius.circular(40),
-                          ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                          ],
                         ),
-                        child: SmartRefresher(
-                          controller: _refreshController,
-                          onRefresh: _onRefresh,
-                          enablePullDown: true,
-                          enablePullUp: false,
-                          header: ClassicHeader(
-                            height: 60,
-                            refreshStyle: RefreshStyle.Follow,
-                            completeIcon:
-                                const Icon(Icons.check, color: Colors.green),
-                            failedIcon:
-                                const Icon(Icons.error, color: Colors.red),
-                            textStyle: const TextStyle(color: Colors.grey),
-                            refreshingText: 'Actualisation...',
-                            completeText: 'Actualisé',
-                            failedText: 'Échec',
-                            idleText: 'Tirer pour actualiser',
-                            releaseText: 'Relâcher pour actualiser',
+                      ),
+
+                      // Main content
+                      Expanded(
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(40),
+                              topRight: Radius.circular(40),
+                            ),
                           ),
-                          child: StreamBuilder<List<ChatModel>>(
-                            stream: chatViewModel.userChatsStream,
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return _buildLoadingState();
-                              }
+                          child: SmartRefresher(
+                            controller: _refreshController,
+                            onRefresh: _onRefresh,
+                            enablePullDown: true,
+                            enablePullUp: false,
+                            header: ClassicHeader(
+                              height: 60,
+                              refreshStyle: RefreshStyle.Follow,
+                              completeIcon:
+                                  const Icon(Icons.check, color: Colors.green),
+                              failedIcon:
+                                  const Icon(Icons.error, color: Colors.red),
+                              textStyle: const TextStyle(
+                                  color: Colors.grey, fontFamily: 'Exo2'),
+                              refreshingText: languageProvider.tr('refreshing',
+                                  category: 'chat'),
+                              completeText: languageProvider.tr('refreshed',
+                                  category: 'chat'),
+                              failedText: languageProvider.tr('failed',
+                                  category: 'chat'),
+                              idleText: languageProvider.tr('pull_to_refresh',
+                                  category: 'chat'),
+                              releaseText: languageProvider
+                                  .tr('release_to_refresh', category: 'chat'),
+                            ),
+                            child: StreamBuilder<List<ChatModel>>(
+                              stream: chatViewModel.userChatsStream,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return _buildLoadingState();
+                                }
 
-                              if (snapshot.hasError) {
-                                return _buildErrorState();
-                              }
+                                if (snapshot.hasError) {
+                                  return _buildErrorState();
+                                }
 
-                              final chats = snapshot.data ?? [];
+                                final chats = snapshot.data ?? [];
 
-                              if (chats.isEmpty) {
-                                return _buildEmptyChatState();
-                              }
+                                if (chats.isEmpty) {
+                                  return _buildEmptyChatState();
+                                }
 
-                              return CustomScrollView(
-                                slivers: [
-                                  // Stories section (now includes search functionality)
-                                  SliverToBoxAdapter(
-                                    child: _buildStoriesSection(chats),
-                                  ),
+                                return CustomScrollView(
+                                  slivers: [
+                                    // Stories section
+                                    SliverToBoxAdapter(
+                                      child: _buildStoriesSection(chats),
+                                    ),
 
-                                  // Divider
-                                  SliverToBoxAdapter(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20),
-                                      child: Divider(
-                                        color: Colors.grey.shade200,
-                                        thickness: 1,
+                                    // Divider
+                                    SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20),
+                                        child: Divider(
+                                          color: Colors.grey.shade200,
+                                          thickness: 1,
+                                        ),
                                       ),
                                     ),
-                                  ),
 
-                                  // Chat list title
-                                  SliverToBoxAdapter(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20, vertical: 10),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            'Toutes les discussions',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey.shade700,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue.shade50,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              '${chats.length}',
+                                    // Chat list title
+                                    SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 10),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              languageProvider.tr(
+                                                  'all_discussions',
+                                                  category: 'chat'),
                                               style: TextStyle(
-                                                color: Colors.blue.shade700,
-                                                fontSize: 12,
+                                                fontSize: 16,
                                                 fontWeight: FontWeight.w600,
+                                                color: Colors.grey.shade700,
+                                                fontFamily: 'Exo2',
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                '${chats.length}',
+                                                style: TextStyle(
+                                                  color: Colors.blue.shade700,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: 'Exo2',
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
 
-                                  // Chat list
-                                  SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      (context, index) {
-                                        final chat = chats[index];
-                                        final otherUserId =
-                                            chat.getOtherParticipantId(
-                                                widget.userId);
-                                        final contactName =
-                                            _contactNames[otherUserId] ??
-                                                'Contact';
-                                        final profileImageUrl =
-                                            _profileImages[otherUserId] ?? '';
+                                    // Chat list
+                                    SliverList(
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                          final chat = chats[index];
+                                          final otherUserId =
+                                              chat.getOtherParticipantId(
+                                                  widget.userId);
+                                          final contactName =
+                                              _contactNames[otherUserId] ??
+                                                  languageProvider.tr('contact',
+                                                      category: 'chat');
+                                          final profileImageUrl =
+                                              _profileImages[otherUserId] ?? '';
 
-                                        return StreamBuilder<int>(
-                                          stream: _chatViewModel
-                                              .getUnreadCount(chat.chatId),
-                                          builder: (context, unreadSnapshot) {
-                                            final unreadCount =
-                                                unreadSnapshot.data ?? 0;
+                                          return StreamBuilder<int>(
+                                            stream: _chatViewModel
+                                                .getUnreadCount(chat.chatId),
+                                            builder: (context, unreadSnapshot) {
+                                              final unreadCount =
+                                                  unreadSnapshot.data ?? 0;
 
-                                            return buildChatTile(
-                                              context,
-                                              chat,
-                                              widget.userId,
-                                              unreadCount: unreadCount,
-                                              contactName: contactName,
-                                              profileImageUrl: profileImageUrl,
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        DiscussionPage(
-                                                      contactName: contactName,
-                                                      isOnline: true,
-                                                      chatId: chat.chatId,
-                                                      currentUserId:
-                                                          widget.userId,
-                                                      chatViewModel:
-                                                          _chatViewModel,
-                                                      profileImageUrl:
-                                                          profileImageUrl,
+                                              return buildChatTile(
+                                                context,
+                                                chat,
+                                                widget.userId,
+                                                unreadCount: unreadCount,
+                                                contactName: contactName,
+                                                profileImageUrl:
+                                                    profileImageUrl,
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          DiscussionPage(
+                                                        contactName:
+                                                            contactName,
+                                                        isOnline: true,
+                                                        chatId: chat.chatId,
+                                                        currentUserId:
+                                                            widget.userId,
+                                                        chatViewModel:
+                                                            _chatViewModel,
+                                                        profileImageUrl:
+                                                            profileImageUrl,
+                                                      ),
                                                     ),
-                                                  ),
-                                                );
-                                              },
-                                            );
-                                          },
-                                        );
-                                      },
-                                      childCount: chats.length,
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          );
+                                        },
+                                        childCount: chats.length,
+                                      ),
                                     ),
-                                  ),
 
-                                  // Add some bottom padding
-                                  SliverToBoxAdapter(
-                                    child: SizedBox(height: 80),
-                                  ),
-                                ],
-                              );
-                            },
+                                    // Add some bottom padding
+                                    SliverToBoxAdapter(
+                                      child: SizedBox(height: 80),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-            // Removed the floating action button
           );
         },
       ),
@@ -1277,10 +1367,13 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
   @override
   void initState() {
     super.initState();
+    // No providers are loaded - matches original working code
   }
 
   Widget _buildProviderCard(Map<String, dynamic> provider, String? photoUrl,
       String? name, String? profession) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
@@ -1291,10 +1384,11 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: _buildProviderAvatar(photoUrl, name),
         title: Text(
-          name ?? 'Unknown',
+          name ?? languageProvider.tr('unknown', category: 'chat'),
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 16,
+            fontFamily: 'Exo2',
           ),
         ),
         subtitle: Column(
@@ -1306,6 +1400,7 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 12,
+                  fontFamily: 'Exo2',
                 ),
               ),
             Text(
@@ -1313,6 +1408,7 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
               style: TextStyle(
                 color: Colors.grey.shade500,
                 fontSize: 12,
+                fontFamily: 'Exo2',
               ),
             ),
           ],
@@ -1327,17 +1423,19 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Text(
-            'Discuter',
-            style: TextStyle(
+          child: Text(
+            languageProvider.tr('chat', category: 'chat'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
+              fontFamily: 'Exo2',
             ),
           ),
         ),
         onTap: () {
-          widget.onCreateChat(provider['id']!, name ?? 'Prestataire');
+          widget.onCreateChat(provider['id']!,
+              name ?? languageProvider.tr('provider', category: 'chat'));
         },
       ),
     );
@@ -1365,6 +1463,7 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 18,
+              fontFamily: 'Exo2',
             ),
           ),
         ),
@@ -1394,6 +1493,7 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
+                  fontFamily: 'Exo2',
                 ),
               ),
             )
@@ -1415,6 +1515,7 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        fontFamily: 'Exo2',
                       ),
                     ),
                   );
@@ -1432,124 +1533,145 @@ class _ProviderSelectionModalState extends State<_ProviderSelectionModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Choisir un prestataire',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: kPrimaryBlue,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Chargement des prestataires...'),
-                      ],
-                    ),
-                  )
-                : _errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline,
-                                color: Colors.red, size: 50),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Erreur de chargement',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      )
-                    : _providers.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.people_outline,
-                                    size: 60, color: Colors.grey),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Aucun prestataire disponible',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Aucun prestataire n\'est inscrit sur la plateforme pour le moment.',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _providers.length,
-                            itemBuilder: (context, index) {
-                              final provider = _providers[index];
-                              final String? photoUrl = provider['photoUrl'];
-                              final String? name = provider['name'];
-                              final String? profession = provider['profession'];
+    final languageProvider = Provider.of<LanguageProvider>(context);
 
-                              return _buildProviderCard(
-                                  provider, photoUrl, name, profession);
-                            },
-                          ),
+    return Directionality(
+      textDirection:
+          languageProvider.isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-        ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    languageProvider.tr('choose_provider', category: 'chat'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: kPrimaryBlue,
+                      fontFamily: 'Exo2',
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(
+                            languageProvider.tr('loading_providers',
+                                category: 'chat'),
+                            style: const TextStyle(fontFamily: 'Exo2'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _errorMessage != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline,
+                                  color: Colors.red, size: 50),
+                              const SizedBox(height: 16),
+                              Text(
+                                languageProvider.tr('loading_error',
+                                    category: 'chat'),
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Exo2'),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Colors.grey, fontFamily: 'Exo2'),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+                        )
+                      : _providers.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.people_outline,
+                                      size: 60, color: Colors.grey),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    languageProvider.tr(
+                                        'no_providers_available',
+                                        category: 'chat'),
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Exo2'),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    languageProvider.tr('no_providers_message',
+                                        category: 'chat'),
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontFamily: 'Exo2'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _providers.length,
+                              itemBuilder: (context, index) {
+                                final provider = _providers[index];
+                                final String? photoUrl = provider['photoUrl'];
+                                final String? name = provider['name'];
+                                final String? profession =
+                                    provider['profession'];
+
+                                return _buildProviderCard(
+                                    provider, photoUrl, name, profession);
+                              },
+                            ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1631,7 +1753,7 @@ class _SearchModalState extends State<_SearchModal> {
           return contactName.toLowerCase().contains(query);
         }).toList();
 
-        // Filter providers
+        // Filter providers - but _allProviders is always empty in original code
         _filteredProviders = _allProviders.where((provider) {
           final name = provider['name']?.toLowerCase() ?? '';
           final email = provider['email']?.toLowerCase() ?? '';
@@ -1646,6 +1768,7 @@ class _SearchModalState extends State<_SearchModal> {
   }
 
   Widget _buildChatItem(ChatModel chat) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final otherUserId = chat.getOtherParticipantId(widget.userId);
     final contactName = chat.getOtherParticipantName(widget.userId);
 
@@ -1685,17 +1808,19 @@ class _SearchModalState extends State<_SearchModal> {
             style: const TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 15,
+              fontFamily: 'Exo2',
             ),
           ),
           subtitle: Text(
             chat.lastMessage.isEmpty
-                ? "Démarrer la discussion..."
+                ? languageProvider.tr('start_discussion', category: 'chat')
                 : chat.lastMessage,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: Colors.grey.shade600,
               fontSize: 13,
+              fontFamily: 'Exo2',
             ),
           ),
           trailing: Icon(
@@ -1714,6 +1839,7 @@ class _SearchModalState extends State<_SearchModal> {
   }
 
   Widget _buildProviderItem(Map<String, dynamic> provider) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final String? photoUrl = provider['photoUrl'];
     final String? name = provider['name'];
     final String? profession = provider['profession'];
@@ -1744,10 +1870,11 @@ class _SearchModalState extends State<_SearchModal> {
               ),
       ),
       title: Text(
-        name ?? 'Prestataire',
+        name ?? languageProvider.tr('provider', category: 'chat'),
         style: const TextStyle(
           fontWeight: FontWeight.w500,
           fontSize: 15,
+          fontFamily: 'Exo2',
         ),
       ),
       subtitle: Column(
@@ -1759,6 +1886,7 @@ class _SearchModalState extends State<_SearchModal> {
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 13,
+                fontFamily: 'Exo2',
               ),
             ),
           Text(
@@ -1766,6 +1894,7 @@ class _SearchModalState extends State<_SearchModal> {
             style: TextStyle(
               color: Colors.grey.shade500,
               fontSize: 12,
+              fontFamily: 'Exo2',
             ),
           ),
         ],
@@ -1777,193 +1906,218 @@ class _SearchModalState extends State<_SearchModal> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'Nouveau',
+          languageProvider.tr('new', category: 'chat'),
           style: TextStyle(
             color: Colors.blue.shade700,
             fontSize: 11,
             fontWeight: FontWeight.w600,
+            fontFamily: 'Exo2',
           ),
         ),
       ),
       onTap: () => widget.onCreateNewChat(
         provider['id']!,
-        name ?? 'Prestataire',
+        name ?? languageProvider.tr('provider', category: 'chat'),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Rechercher une discussion',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: kPrimaryBlue,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
+    return Directionality(
+      textDirection:
+          languageProvider.isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.grey.shade200,
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.search, color: Colors.grey.shade500, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher par nom, email ou profession...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                        ),
-                        border: InputBorder.none,
-                      ),
-                      style: TextStyle(
-                        color: Colors.grey.shade800,
-                        fontSize: 14,
-                      ),
-                      autofocus: true,
+                  Text(
+                    languageProvider.tr('search_discussion', category: 'chat'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: kPrimaryBlue,
+                      fontFamily: 'Exo2',
                     ),
                   ),
-                  if (_searchQuery.isNotEmpty)
-                    IconButton(
-                      icon: Icon(Icons.clear,
-                          color: Colors.grey.shade500, size: 20),
-                      onPressed: () {
-                        _searchController.clear();
-                      },
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ],
               ),
             ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Chargement...'),
-                      ],
-                    ),
-                  )
-                : (_filteredChats.isEmpty && _filteredProviders.isEmpty)
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 60,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchQuery.isEmpty
-                                  ? 'Aucune discussion ou prestataire disponible'
-                                  : 'Aucun résultat pour "$_searchQuery"',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey.shade600,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: languageProvider.tr('search_hint',
+                              category: 'chat'),
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontFamily: 'Exo2',
+                          ),
+                          border: InputBorder.none,
                         ),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.all(16),
+                        style: TextStyle(
+                          color: Colors.grey.shade800,
+                          fontSize: 14,
+                          fontFamily: 'Exo2',
+                        ),
+                        autofocus: true,
+                      ),
+                    ),
+                    if (_searchQuery.isNotEmpty)
+                      IconButton(
+                        icon: Icon(Icons.clear,
+                            color: Colors.grey.shade500, size: 20),
+                        onPressed: () {
+                          _searchController.clear();
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (_filteredChats.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    'Discussions existantes',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ),
-                                ..._filteredChats.map(_buildChatItem),
-                                const SizedBox(height: 16),
-                              ],
-                            ),
-                          if (_filteredProviders.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    'Nouvelle discussion',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ),
-                                ..._filteredProviders.map(_buildProviderItem),
-                              ],
-                            ),
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(
+                            languageProvider.tr('loading', category: 'chat'),
+                            style: const TextStyle(fontFamily: 'Exo2'),
+                          ),
                         ],
                       ),
-          ),
-        ],
+                    )
+                  : (_filteredChats.isEmpty && _filteredProviders.isEmpty)
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 60,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isEmpty
+                                    ? languageProvider.tr(
+                                        'no_chats_or_providers',
+                                        category: 'chat')
+                                    : languageProvider.trParams(
+                                        'no_results_for',
+                                        category: 'chat',
+                                        params: {'query': _searchQuery},
+                                      ),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade600,
+                                  fontFamily: 'Exo2',
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            if (_filteredChats.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      languageProvider.tr('existing_chats',
+                                          category: 'chat'),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey.shade700,
+                                        fontFamily: 'Exo2',
+                                      ),
+                                    ),
+                                  ),
+                                  ..._filteredChats.map(_buildChatItem),
+                                  const SizedBox(height: 16),
+                                ],
+                              ),
+                            if (_filteredProviders.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      languageProvider.tr('new_discussion',
+                                          category: 'chat'),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey.shade700,
+                                        fontFamily: 'Exo2',
+                                      ),
+                                    ),
+                                  ),
+                                  ..._filteredProviders.map(_buildProviderItem),
+                                ],
+                              ),
+                          ],
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

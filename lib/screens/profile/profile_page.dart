@@ -6,15 +6,14 @@ import 'package:service_app/screens/Booking/my_booking_page.dart'
 import 'package:service_app/screens/service/provider_services_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/models/UserModel.dart';
-import 'package:service_app/services/auth_service.dart';
-import 'package:service_app/services/firestore_service.dart';
+import 'package:service_app/Services/auth_service.dart';
+import 'package:service_app/Services/firestore_service.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart'
     hide AuthService;
-import 'package:service_app/screens/profile/profile_constants.dart'
-    hide kDarkTextColor, kPrimaryBlue;
 import 'package:service_app/screens/profile/settings/settings_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/utils/image_utils.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   final UserModel user;
@@ -39,10 +38,44 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadUserStats() async {
     try {
-      final stats = await _firestoreService.getUserStats(widget.user.uid);
+      // Get user's rating from ratings collection
+      final ratings = await _firestoreService.getUserRatings(widget.user.uid);
+      double averageRating = 0;
+
+      if (ratings.isNotEmpty) {
+        final totalRating =
+            ratings.fold(0.0, (sum, rating) => sum + rating['rating']);
+        averageRating = totalRating / ratings.length;
+      }
+
+      // Get total jobs from bookings collection
+      final bookingsAsProvider =
+          await _firestoreService.getBookingsByProvider(widget.user.uid);
+      final bookingsAsClient =
+          await _firestoreService.getBookingsByClient(widget.user.uid);
+
+      int totalJobs = widget.user.isProvider
+          ? bookingsAsProvider.length
+          : bookingsAsClient.length;
+
+      // Get completed jobs
+      int completedJobs = widget.user.isProvider
+          ? bookingsAsProvider
+              .where((booking) => booking['status'] == 'completed')
+              .length
+          : bookingsAsClient
+              .where((booking) => booking['status'] == 'completed')
+              .length;
+
       if (mounted) {
         setState(() {
-          _userStats = stats;
+          _userStats = {
+            'address': widget.user.address,
+            'totalJobs': totalJobs,
+            'rating': averageRating,
+            'completedJobs': completedJobs,
+            'averageRating': averageRating,
+          };
         });
       }
     } catch (e) {
@@ -63,6 +96,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch LanguageProvider for real-time changes
+    final languageProvider = context.watch<LanguageProvider>();
+
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, child) {
         // Use the latest user from AuthViewModel or fallback to initial user
@@ -70,46 +106,48 @@ class _ProfilePageState extends State<ProfilePage> {
         final bool isProvider = currentUser.isProvider;
 
         return Scaffold(
-          backgroundColor: Colors.white, // Changed to white
+          backgroundColor: Colors.white,
           body: Stack(
             children: [
               SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Simple App Bar (back button removed)
-                    _buildAppBar(context),
+                    // App Bar with Settings
+                    _buildAppBar(context, languageProvider),
 
                     // Profile Header
                     _buildProfileHeader(currentUser),
 
-                    // User Info Section
-                    _buildUserInfoSection(currentUser),
+                    // User Info Section with translations
+                    _buildUserInfoSection(currentUser, languageProvider),
 
-                    // Statistics Row
-                    _buildStatisticsRow(currentUser),
+                    // Statistics Row with translations
+                    _buildStatisticsRow(currentUser, languageProvider),
 
                     // Settings Section
                     _buildSettingsSection(context),
 
                     // Role Switch Button
                     _buildRoleSwitchSection(
-                        context, currentUser, authViewModel),
+                        context, currentUser, authViewModel, languageProvider),
 
                     // My Services Tile (only for providers)
-                    if (isProvider) _buildMyServicesTile(context),
+                    if (isProvider)
+                      _buildMyServicesTile(context, languageProvider),
 
-                    // My Bookings Tile (only for providers) - ADDED SECTION
-                    if (isProvider) _buildMyBookingsTile(context),
+                    // My Bookings Tile - Shows for all users
+                    _buildMyBookingsTile(context, isProvider, languageProvider),
 
                     const SizedBox(height: 20),
 
-                    // Dynamic Info Card
-                    _buildRoleOrAddressCard(currentUser, isProvider),
+                    // Dynamic Info Card with translations
+                    _buildRoleOrAddressCard(
+                        currentUser, isProvider, languageProvider),
 
                     const SizedBox(height: 15),
 
-                    // Logout Button
-                    _buildLogoutButton(context),
+                    // Logout Button with translations
+                    _buildLogoutButton(context, languageProvider),
 
                     const SizedBox(height: 40),
                   ],
@@ -122,8 +160,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   color: Colors.black54,
                   child: const Center(
                     child: CircularProgressIndicator(
-                      color: Color.fromARGB(
-                          255, 12, 94, 153), // Changed to ChatScreen blue
+                      color: Color.fromARGB(255, 12, 94, 153),
                     ),
                   ),
                 ),
@@ -134,93 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // =================== ADDED METHOD: My Bookings Tile ===================
-  Widget _buildMyBookingsTile(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white, // Changed to white
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1), // Changed shadow
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(15),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MyBookingsScreen(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 12, 94, 153)
-                          .withOpacity(0.1), // Changed to ChatScreen blue
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      CupertinoIcons.calendar_today,
-                      color: const Color.fromARGB(
-                          255, 12, 94, 153), // Changed to ChatScreen blue
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "My Bookings",
-                          style: TextStyle(
-                            color: Colors.grey.shade800, // Changed to dark gray
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "View and manage all service requests",
-                          style: TextStyle(
-                            color:
-                                Colors.grey.shade600, // Changed to medium gray
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    CupertinoIcons.chevron_right,
-                    color: Colors.grey.shade500, // Changed to gray
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -232,12 +183,11 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Removed back button - only empty space
-          const SizedBox(width: 40), // Keep space for alignment
+          const SizedBox(width: 40),
           const Text(
             'Profile',
             style: TextStyle(
-              color: Colors.black87, // Changed to black
+              color: Colors.black87,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -253,7 +203,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white, // Changed to white
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
@@ -265,8 +215,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: Icon(
                 Icons.settings_outlined,
-                color: const Color.fromARGB(
-                    255, 12, 94, 153), // Changed to ChatScreen blue
+                color: const Color.fromARGB(255, 12, 94, 153),
                 size: 24,
               ),
             ),
@@ -286,15 +235,14 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               CircleAvatar(
                 radius: 50,
-                backgroundColor: Colors.white, // Changed to white
+                backgroundColor: Colors.white,
                 backgroundImage: ImageUtils.getImageProvider(user.photoUrl),
                 child: _buildImageLoadingFallback(user),
               ),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color.fromARGB(
-                      255, 12, 94, 153), // Changed to ChatScreen blue
+                  color: const Color.fromARGB(255, 12, 94, 153),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
@@ -310,19 +258,18 @@ class _ProfilePageState extends State<ProfilePage> {
           Text(
             user.name,
             style: const TextStyle(
-              color: Colors.black87, // Changed to black
+              color: Colors.black87,
               fontSize: 24,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
             ),
           ),
           const SizedBox(height: 4),
-          // Use phone or profession as subtitle
           if (user.profession != null && user.profession!.isNotEmpty)
             Text(
               user.profession!,
               style: TextStyle(
-                color: Colors.grey.shade600, // Changed to medium gray
+                color: Colors.grey.shade600,
                 fontSize: 16,
               ),
             )
@@ -330,7 +277,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Text(
               user.phone,
               style: TextStyle(
-                color: Colors.grey.shade600, // Changed to medium gray
+                color: Colors.grey.shade600,
                 fontSize: 16,
               ),
             ),
@@ -338,15 +285,13 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 12, 94, 153)
-                  .withOpacity(0.1), // Changed to ChatScreen blue
+              color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               user.role.toUpperCase(),
               style: TextStyle(
-                color: const Color.fromARGB(
-                    255, 12, 94, 153), // Changed to ChatScreen blue
+                color: const Color.fromARGB(255, 12, 94, 153),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -357,15 +302,17 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildUserInfoSection(UserModel user) {
+  // Build User Info Section - Wrapped to ensure it rebuilds with language
+  Widget _buildUserInfoSection(
+      UserModel user, LanguageProvider languageProvider) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white, // Changed to white
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1), // Changed shadow
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -417,8 +364,7 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Icon(
             icon,
-            color: const Color.fromARGB(
-                255, 12, 94, 153), // Changed to ChatScreen blue
+            color: const Color.fromARGB(255, 12, 94, 153),
             size: 24,
           ),
           const SizedBox(width: 16),
@@ -429,7 +375,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.grey.shade600, // Changed to medium gray
+                    color: Colors.grey.shade600,
                     fontSize: 14,
                   ),
                 ),
@@ -437,7 +383,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   value,
                   style: const TextStyle(
-                    color: Colors.black87, // Changed to black
+                    color: Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -459,7 +405,101 @@ class _ProfilePageState extends State<ProfilePage> {
         ));
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  // My Bookings Tile - Updated for real-time language
+  Widget _buildMyBookingsTile(BuildContext context, bool isProvider,
+      LanguageProvider languageProvider) {
+    final String title = languageProvider.tr('myBookings', category: 'common');
+    final String subtitle = isProvider
+        ? languageProvider.tr('viewManageRequests', category: 'common')
+        : languageProvider.tr('viewManageBookings', category: 'common');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(15),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyBookingsScreen(),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 12, 94, 153)
+                          .withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      CupertinoIcons.calendar_today,
+                      color: const Color.fromARGB(255, 12, 94, 153),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: Colors.grey.shade800,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.chevron_right,
+                    color: Colors.grey.shade500,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Logout Button - Updated for real-time language
+  Widget _buildLogoutButton(
+      BuildContext context, LanguageProvider languageProvider) {
+    final String logoutText = languageProvider.tr('logout', category: 'common');
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
@@ -483,14 +523,14 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           elevation: 0,
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.logout, size: 20),
             SizedBox(width: 8),
             Text(
-              'Sign Out',
-              style: TextStyle(
+              logoutText,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -501,9 +541,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // KEEP ALL EXISTING METHODS BELOW - Only design changes above
-  // ============================================================
-
   Widget _buildImageLoadingFallback(UserModel user) {
     return FutureBuilder<bool>(
       future: _checkImageValidity(user.photoUrl),
@@ -512,8 +549,7 @@ class _ProfilePageState extends State<ProfilePage> {
           return CircularProgressIndicator(
             strokeWidth: 2,
             valueColor: AlwaysStoppedAnimation<Color>(
-              const Color.fromARGB(
-                  255, 12, 94, 153), // Changed to ChatScreen blue
+              const Color.fromARGB(255, 12, 94, 153),
             ),
           );
         }
@@ -546,37 +582,41 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildFallbackAvatar(UserModel user) {
     return CircleAvatar(
       radius: 50,
-      backgroundColor: Colors.white, // Changed to white
+      backgroundColor: Colors.white,
       child: user.name.isNotEmpty
           ? Text(
               user.name[0].toUpperCase(),
               style: TextStyle(
                 fontSize: 36,
-                color: const Color.fromARGB(
-                    255, 12, 94, 153), // Changed to ChatScreen blue
+                color: const Color.fromARGB(255, 12, 94, 153),
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Exo2',
               ),
             )
           : Icon(
               CupertinoIcons.person_fill,
-              color: const Color.fromARGB(
-                  255, 12, 94, 153), // Changed to ChatScreen blue
+              color: const Color.fromARGB(255, 12, 94, 153),
               size: 60,
             ),
     );
   }
 
-  Widget _buildMyServicesTile(BuildContext context) {
+  // My Services Tile - Updated for real-time language
+  Widget _buildMyServicesTile(
+      BuildContext context, LanguageProvider languageProvider) {
+    final String title = languageProvider.tr('myServices', category: 'common');
+    final String subtitle =
+        languageProvider.tr('manageServices', category: 'common');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white, // Changed to white
+          color: Colors.white,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1), // Changed shadow
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -600,13 +640,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color.fromARGB(255, 12, 94, 153)
-                          .withOpacity(0.1), // Changed to ChatScreen blue
+                          .withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       CupertinoIcons.wrench_fill,
-                      color: const Color.fromARGB(
-                          255, 12, 94, 153), // Changed to ChatScreen blue
+                      color: const Color.fromARGB(255, 12, 94, 153),
                       size: 24,
                     ),
                   ),
@@ -616,9 +655,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "My Services",
+                          title,
                           style: TextStyle(
-                            color: Colors.grey.shade800, // Changed to dark gray
+                            color: Colors.grey.shade800,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Exo2',
@@ -626,10 +665,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "Manage your offered services and prices",
+                          subtitle,
                           style: TextStyle(
-                            color:
-                                Colors.grey.shade600, // Changed to medium gray
+                            color: Colors.grey.shade600,
                             fontSize: 12,
                           ),
                         ),
@@ -638,7 +676,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Icon(
                     CupertinoIcons.chevron_right,
-                    color: Colors.grey.shade500, // Changed to gray
+                    color: Colors.grey.shade500,
                     size: 20,
                   ),
                 ],
@@ -650,16 +688,25 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildRoleSwitchSection(
-      BuildContext context, UserModel user, AuthViewModel authViewModel) {
+  // Role Switch Section - Updated for real-time language
+  Widget _buildRoleSwitchSection(BuildContext context, UserModel user,
+      AuthViewModel authViewModel, LanguageProvider languageProvider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: _buildRoleSwitchButton(context, user, authViewModel),
+      child: _buildRoleSwitchButton(
+          context, user, authViewModel, languageProvider),
     );
   }
 
-  Widget _buildRoleSwitchButton(
-      BuildContext context, UserModel user, AuthViewModel authViewModel) {
+  // Role Switch Button - Updated for real-time language
+  Widget _buildRoleSwitchButton(BuildContext context, UserModel user,
+      AuthViewModel authViewModel, LanguageProvider languageProvider) {
+    final String switchText =
+        languageProvider.tr('switchRole', category: 'common');
+    final String tapToChangeText =
+        languageProvider.tr('tapToChangeRole', category: 'common');
+    final String targetRole = user.isProvider ? 'Client' : 'Provider';
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -667,17 +714,14 @@ class _ProfilePageState extends State<ProfilePage> {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            const Color.fromARGB(255, 12, 94, 153)
-                .withOpacity(0.9), // Changed to ChatScreen blue
-            const Color(0xFF4A6FDC)
-                .withOpacity(0.9), // Gradient matches ChatScreen
+            const Color.fromARGB(255, 12, 94, 153).withOpacity(0.9),
+            const Color(0xFF4A6FDC).withOpacity(0.9),
           ],
         ),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 12, 94, 153)
-                .withOpacity(0.3), // Changed to ChatScreen blue
+            color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -689,7 +733,8 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(15),
           onTap: _isSwitchingRole
               ? null
-              : () => _showRoleSwitchDialog(context, user, authViewModel),
+              : () => _showRoleSwitchDialog(
+                  context, user, authViewModel, languageProvider),
           child: Container(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -714,7 +759,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Switch to ${user.isProvider ? 'Client' : 'Provider'}',
+                      '$switchText $targetRole',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -724,7 +769,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Tap to change your role',
+                      tapToChangeText,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 12,
@@ -757,11 +802,22 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showRoleSwitchDialog(
-      BuildContext context, UserModel user, AuthViewModel authViewModel) {
+  // Show Role Switch Dialog - Updated for real-time language
+  void _showRoleSwitchDialog(BuildContext context, UserModel user,
+      AuthViewModel authViewModel, LanguageProvider languageProvider) {
     final String newRole = user.isProvider ? 'client' : 'provider';
     final String currentRole = user.role.toUpperCase();
     final String targetRole = newRole.toUpperCase();
+
+    final String title =
+        languageProvider.tr('switchRoleQuestion', category: 'common');
+    final String description =
+        languageProvider.tr('aboutToSwitch', category: 'common');
+    final String descriptionDetail = user.isProvider
+        ? languageProvider.tr('asClient', category: 'common')
+        : languageProvider.tr('asProvider', category: 'common');
+    final String cancelBtn = languageProvider.tr('cancel', category: 'common');
+    final String switchBtn = languageProvider.tr('switch', category: 'common');
 
     showDialog(
       context: context,
@@ -775,7 +831,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Container(
             padding: const EdgeInsets.all(25),
             decoration: BoxDecoration(
-              color: Colors.white, // Changed to white
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -792,16 +848,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 12, 94, 153)
-                        .withOpacity(0.1), // Changed to ChatScreen blue
+                    color:
+                        const Color.fromARGB(255, 12, 94, 153).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     user.isProvider
                         ? CupertinoIcons.person_fill
                         : CupertinoIcons.briefcase_fill,
-                    color: const Color.fromARGB(
-                        255, 12, 94, 153), // Changed to ChatScreen blue
+                    color: const Color.fromARGB(255, 12, 94, 153),
                     size: 32,
                   ),
                 ),
@@ -809,9 +864,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 // Title
                 Text(
-                  'Switch Role?',
+                  title,
                   style: TextStyle(
-                    color: Colors.black87, // Changed to black
+                    color: Colors.black87,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Exo2',
@@ -821,10 +876,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 // Description
                 Text(
-                  'You are about to switch from $currentRole to $targetRole mode.',
+                  '$description $currentRole to $targetRole.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.grey.shade600, // Changed to medium gray
+                    color: Colors.grey.shade600,
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -836,29 +891,26 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: const Color.fromARGB(255, 12, 94, 153)
-                        .withOpacity(0.05), // Changed to ChatScreen blue
+                        .withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: const Color.fromARGB(255, 12, 94, 153)
-                          .withOpacity(0.2), // Changed to ChatScreen blue
+                          .withOpacity(0.2),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         CupertinoIcons.info_circle_fill,
-                        color: const Color.fromARGB(
-                            255, 12, 94, 153), // Changed to ChatScreen blue
+                        color: const Color.fromARGB(255, 12, 94, 153),
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          user.isProvider
-                              ? 'As a Client, you can request services from providers.'
-                              : 'As a Provider, you can offer services and get hired.',
+                          descriptionDetail,
                           style: TextStyle(
-                            color: Colors.black87, // Changed to black
+                            color: Colors.black87,
                             fontSize: 12,
                             height: 1.3,
                           ),
@@ -877,19 +929,16 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor:
-                              Colors.grey.shade600, // Changed to medium gray
-                          side: BorderSide(
-                              color: Colors
-                                  .grey.shade300), // Changed to light gray
+                          foregroundColor: Colors.grey.shade600,
+                          side: BorderSide(color: Colors.grey.shade300),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
+                        child: Text(
+                          cancelBtn,
+                          style: const TextStyle(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -902,12 +951,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: ElevatedButton(
                         onPressed: () async {
                           Navigator.of(context).pop();
-                          await _switchUserRole(
-                              context, user, newRole, authViewModel);
+                          await _switchUserRole(context, user, newRole,
+                              authViewModel, languageProvider);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(
-                              255, 12, 94, 153), // Changed to ChatScreen blue
+                          backgroundColor:
+                              const Color.fromARGB(255, 12, 94, 153),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -923,9 +972,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               size: 18,
                             ),
                             const SizedBox(width: 6),
-                            const Text(
-                              'Switch',
-                              style: TextStyle(
+                            Text(
+                              switchBtn,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -943,8 +992,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _switchUserRole(BuildContext context, UserModel user,
-      String newRole, AuthViewModel authViewModel) async {
+  // Switch User Role - Updated for real-time language messages
+  Future<void> _switchUserRole(
+      BuildContext context,
+      UserModel user,
+      String newRole,
+      AuthViewModel authViewModel,
+      LanguageProvider languageProvider) async {
     try {
       setState(() {
         _isSwitchingRole = true;
@@ -962,12 +1016,13 @@ class _ProfilePageState extends State<ProfilePage> {
           _isSwitchingRole = false;
         });
 
-        // Show success message
+        // Show success message - Gets translated text in real-time
+        final successMsg =
+            languageProvider.tr('roleSwitchSuccess', category: 'common');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('Role switched to ${newRole.toUpperCase()} successfully!'),
-            backgroundColor: Colors.green, // Changed to green
+            content: Text(successMsg),
+            backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -980,11 +1035,13 @@ class _ProfilePageState extends State<ProfilePage> {
           _isSwitchingRole = false;
         });
 
-        // Show error message
+        // Show error message - Gets translated text in real-time
+        final errorMsg =
+            languageProvider.tr('failedSwitch', category: 'common');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to switch role: $e'),
-            backgroundColor: Colors.red, // Changed to red
+            content: Text('$errorMsg: $e'),
+            backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -992,21 +1049,30 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Widget _buildStatisticsRow(UserModel user) {
+  // Statistics Row - Updated for real-time language
+  Widget _buildStatisticsRow(
+      UserModel user, LanguageProvider languageProvider) {
     final int totalJobs = _userStats?['totalJobs'] ?? user.totalJobs;
     final double rating = _userStats?['rating'] ?? user.rating;
     final int completedJobs = _userStats?['completedJobs'] ?? 0;
+
+    final String totalJobsLabel =
+        languageProvider.tr('totalJobs', category: 'common');
+    final String ratingLabel =
+        languageProvider.tr('rating', category: 'common');
+    final String completedLabel =
+        languageProvider.tr('completed', category: 'common');
 
     Widget statItem(String label, dynamic value, IconData icon) {
       return Expanded(
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white, // Changed to white
+            color: Colors.white,
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1), // Changed shadow
+                color: Colors.black.withOpacity(0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1015,24 +1081,25 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             children: [
               Icon(icon,
-                  color: const Color.fromARGB(255, 12, 94, 153),
-                  size: 24), // Changed to ChatScreen blue
+                  color: const Color.fromARGB(255, 12, 94, 153), size: 24),
               const SizedBox(height: 8),
               Text(
-                value.toString(),
+                label == ratingLabel
+                    ? (value is double
+                        ? value.toStringAsFixed(1)
+                        : value.toString())
+                    : value.toString(),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(
-                      255, 12, 94, 153), // Changed to ChatScreen blue
+                  color: Color.fromARGB(255, 12, 94, 153),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 12, color: Colors.black87), // Changed to black
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
               ),
             ],
           ),
@@ -1044,44 +1111,43 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(
         children: [
-          statItem("Total Jobs", totalJobs, CupertinoIcons.briefcase_fill),
+          statItem(totalJobsLabel, totalJobs, CupertinoIcons.briefcase_fill),
           const SizedBox(width: 10),
-          statItem(
-              "Rating", rating.toStringAsFixed(1), CupertinoIcons.star_fill),
+          statItem(ratingLabel, rating, CupertinoIcons.star_fill),
           const SizedBox(width: 10),
-          statItem("Completed", completedJobs,
+          statItem(completedLabel, completedJobs,
               CupertinoIcons.checkmark_alt_circle_fill),
         ],
       ),
     );
   }
 
-  /// Builds the information card based on user address availability or role.
-  Widget _buildRoleOrAddressCard(UserModel profile, bool isProvider) {
+  // Role or Address Card - Updated for real-time language
+  Widget _buildRoleOrAddressCard(
+      UserModel profile, bool isProvider, LanguageProvider languageProvider) {
     String title;
     String content;
     IconData icon;
 
-    // Use Firebase address if available, otherwise use profile address
     final String userAddress = _userStats?['address'] ?? profile.address;
 
     if (userAddress.isNotEmpty) {
-      title = "Address";
+      title = languageProvider.tr('address', category: 'common');
       content = userAddress;
       icon = CupertinoIcons.location_solid;
     } else if (isProvider) {
-      title = "My Role";
-      content = "You are registered as a Service Provider.";
+      title = languageProvider.tr('myRole', category: 'common');
+      content = languageProvider.tr('registeredAsProvider', category: 'common');
       icon = CupertinoIcons.briefcase_fill;
     } else {
-      title = "My Role";
-      content = "You are registered as a Client.";
+      title = languageProvider.tr('myRole', category: 'common');
+      content = languageProvider.tr('registeredAsClient', category: 'common');
       icon = CupertinoIcons.person_alt_circle_fill;
     }
     return _buildInfoCard(title: title, content: content, icon: icon);
   }
 
-  /// Standardized card container for displaying information.
+  // Info Card - Static (only title and content change)
   Widget _buildInfoCard({
     required String title,
     required String content,
@@ -1092,11 +1158,11 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white, // Changed to white
+          color: Colors.white,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1), // Changed shadow
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -1108,14 +1174,12 @@ class _ProfilePageState extends State<ProfilePage> {
             Row(
               children: [
                 Icon(icon,
-                    color: const Color.fromARGB(255, 12, 94, 153),
-                    size: 20), // Changed to ChatScreen blue
+                    color: const Color.fromARGB(255, 12, 94, 153), size: 20),
                 const SizedBox(width: 8),
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Color.fromARGB(
-                        255, 12, 94, 153), // Changed to ChatScreen blue
+                    color: Color.fromARGB(255, 12, 94, 153),
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1129,7 +1193,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Text(
               content,
               style: const TextStyle(
-                color: Colors.black87, // Changed to black
+                color: Colors.black87,
                 fontSize: 14,
                 height: 1.5,
               ),

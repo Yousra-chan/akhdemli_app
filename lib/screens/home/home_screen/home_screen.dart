@@ -3,19 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui' as ui;
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/CategoryModel.dart';
-import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/models/UserModel.dart';
-import 'package:service_app/screens/home/home_screen/categories_section.dart';
 import 'package:service_app/screens/home/home_screen/create_service_button.dart';
 import 'package:service_app/screens/home/home_screen/subcategories_page.dart';
 import 'package:service_app/services/firebase_service.dart';
-import 'package:service_app/screens/home/providers_list/provider_detail_page.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/screens/service/create_service.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'home_constants.dart';
 
 class HomePage extends StatefulWidget {
@@ -148,6 +147,9 @@ class _HomePageState extends State<HomePage>
   // Navigation Methods
   void _onCategorySelected(CategoryModel category) {
     HapticFeedback.lightImpact();
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -175,18 +177,26 @@ class _HomePageState extends State<HomePage>
   }
 
   void _navigateToAllProviders() {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProvidersListPage(
-          categoryName: 'All',
-          subCategoryName: 'All Services',
+          categoryName:
+              languageProvider.tr('all_categories', category: 'home_page'),
+          subCategoryName:
+              languageProvider.tr('all_services', category: 'home_page'),
         ),
       ),
     );
   }
 
   void _showSearchResults() {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     if (_searchQuery.isEmpty) {
       _navigateToAllProviders();
       return;
@@ -196,7 +206,8 @@ class _HomePageState extends State<HomePage>
       context,
       MaterialPageRoute(
         builder: (context) => ProvidersListPage(
-          categoryName: 'Search',
+          categoryName:
+              languageProvider.tr('search_results', category: 'home_page'),
           subCategoryName: _searchQuery,
         ),
       ),
@@ -209,34 +220,49 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kLightBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  children: [
-                    _buildCategoriesSection(),
-                    const SizedBox(height: 80), // Space for the bottom button
-                  ],
-                ),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Directionality(
+          textDirection: languageProvider.isRtl
+              ? ui.TextDirection.rtl
+              : ui.TextDirection.ltr,
+          child: Scaffold(
+            backgroundColor: kLightBackgroundColor,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(languageProvider),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        children: [
+                          _buildCategoriesSection(languageProvider),
+                          const SizedBox(height: 80),
+                        ],
+                      ),
+                    ),
+                  ),
+                  CreateServiceButton(
+                    onPressed: _navigateToServiceCreation,
+                    isProvider: _currentUser?.isProvider ?? false,
+                  ),
+                ],
               ),
             ),
-            CreateServiceButton(
-              onPressed: _navigateToServiceCreation,
-              isProvider: _currentUser?.isProvider ?? false,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(LanguageProvider lang) {
+    final userName = _currentUser?.name?.split(' ').first;
+    final greeting = userName != null && userName.isNotEmpty
+        ? lang.trParams('hello_user',
+            category: 'home_page', params: {'name': userName})
+        : lang.tr('hello_guest', category: 'home_page');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
@@ -266,18 +292,16 @@ class _HomePageState extends State<HomePage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // This row contains both the welcome text and notification button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome text section
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hello, ${_currentUser?.name?.split(' ').first ?? 'Guest'}!',
+                      greeting,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -287,7 +311,7 @@ class _HomePageState extends State<HomePage>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Find the best service providers near you',
+                      lang.tr('find_service_providers', category: 'home_page'),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
@@ -297,14 +321,9 @@ class _HomePageState extends State<HomePage>
                   ],
                 ),
               ),
-
-              // Notification button
               _buildNotificationIcon(),
             ],
           ),
-
-          const SizedBox(height: 20),
-          _buildSearchBar(),
         ],
       ),
     );
@@ -357,52 +376,14 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildSearchBar() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              onSubmitted: (_) => _showSearchResults(),
-              decoration: InputDecoration(
-                hintText: 'Search services...',
-                hintStyle: TextStyle(color: kMutedTextColor),
-                prefixIcon: Icon(Icons.search, color: kPrimaryBlue),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoriesSection() {
+  Widget _buildCategoriesSection(LanguageProvider lang) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Categories',
+            lang.tr('categories', category: 'home_page'),
             style: TextStyle(
               color: kDarkTextColor,
               fontSize: 22,
@@ -412,33 +393,34 @@ class _HomePageState extends State<HomePage>
           ),
           const SizedBox(height: 16),
           if (_isLoadingCategories)
-            _buildLoadingCategories()
+            _buildLoadingCategories(lang)
           else if (_categories.isEmpty)
-            _buildEmptyCategories()
+            _buildEmptyCategories(lang)
           else
-            _buildCategoriesGrid(),
+            _buildCategoriesGrid(lang),
         ],
       ),
     );
   }
 
-  Widget _buildCategoriesGrid() {
+  Widget _buildCategoriesGrid(LanguageProvider lang) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, // 3 items per row
+        crossAxisCount: 3,
         crossAxisSpacing: 20,
         mainAxisSpacing: 20,
-        childAspectRatio: 0.9, // Width/Height ratio
+        childAspectRatio: 0.9,
       ),
       itemCount: _categories.length,
       itemBuilder: (context, index) =>
-          _buildCategoryItem(_categories[index], index),
+          _buildCategoryItem(_categories[index], index, lang),
     );
   }
 
-  Widget _buildCategoryItem(CategoryModel category, int index) {
+  Widget _buildCategoryItem(
+      CategoryModel category, int index, LanguageProvider lang) {
     return GestureDetector(
       onTap: () => _onCategorySelected(category),
       child: Container(
@@ -467,7 +449,7 @@ class _HomePageState extends State<HomePage>
             ),
             const SizedBox(height: 10),
             Text(
-              category.name,
+              getTranslatedCategoryName(category.name, lang),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: kDarkTextColor,
@@ -484,7 +466,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildLoadingCategories() {
+  Widget _buildLoadingCategories(LanguageProvider lang) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -494,7 +476,7 @@ class _HomePageState extends State<HomePage>
         mainAxisSpacing: 20,
         childAspectRatio: 0.9,
       ),
-      itemCount: 6, // Show 6 shimmer items
+      itemCount: 6,
       itemBuilder: (context, index) => _buildShimmerCategory(),
     );
   }
@@ -526,13 +508,13 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildEmptyCategories() {
+  Widget _buildEmptyCategories(LanguageProvider lang) {
     return SizedBox(
       height: 300,
       child: Center(
-        child: const _EmptyState(
+        child: _EmptyState(
           icon: Icons.category_outlined,
-          message: 'No services available',
+          message: lang.tr('no_services_available', category: 'home_page'),
         ),
       ),
     );
@@ -540,11 +522,11 @@ class _HomePageState extends State<HomePage>
 
   List<Color> _getCategoryColors(int index) {
     const colorSchemes = [
-      [Color(0xFF667EEA), Color(0xFF764BA2)], // Purple
-      [Color(0xFF4FACFE), Color(0xFF00F2FE)], // Blue
-      [Color(0xFF43E97B), Color(0xFF38F9D7)], // Green
-      [Color(0xFFFA709A), Color(0xFFFEE140)], // Pink/Yellow
-      [Color(0xFFF093FB), Color(0xFFF5576C)], // Purple/Red
+      [Color(0xFF667EEA), Color(0xFF764BA2)],
+      [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+      [Color(0xFF43E97B), Color(0xFF38F9D7)],
+      [Color(0xFFFA709A), Color(0xFFFEE140)],
+      [Color(0xFFF093FB), Color(0xFFF5576C)],
     ];
     return colorSchemes[index % colorSchemes.length];
   }

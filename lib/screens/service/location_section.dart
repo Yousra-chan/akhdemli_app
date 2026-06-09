@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:provider/provider.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:flutter/services.dart'; // Add this for Clipboard
 
 class LocationSection extends StatefulWidget {
   final Function(String, double?, double?)? onLocationUpdated;
@@ -52,7 +55,12 @@ class _LocationSectionState extends State<LocationSection> {
 
   // Location Logic
   Future<bool> _getCurrentLocation() async {
-    if (!await _checkLocationPermission()) return false;
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
+    if (!await _checkLocationPermission()) {
+      _showLocationPermissionDialog();
+      return false;
+    }
 
     setState(() => _isGettingLocation = true);
 
@@ -71,11 +79,54 @@ class _LocationSectionState extends State<LocationSection> {
         return true;
       }
     } catch (e) {
-      // Handle error silently
+      _showErrorSnackBar(lang.tr('location_error', category: 'service'));
     } finally {
       setState(() => _isGettingLocation = false);
     }
     return false;
+  }
+
+  void _showLocationPermissionDialog() {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(lang.tr('location_permission_title', category: 'service')),
+        content:
+            Text(lang.tr('location_permission_message', category: 'service')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+                lang.tr('location_permission_cancel', category: 'service')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Geolocator.openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+            ),
+            child: Text(
+              lang.tr('location_permission_enable', category: 'service'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _updateLocationData(
@@ -94,12 +145,22 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   Future<bool> _checkLocationPermission() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return false;
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
+      _showErrorSnackBar(
+          lang.tr('location_service_disabled', category: 'service'));
+      return false;
+    }
 
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return false;
+      if (permission == LocationPermission.denied) {
+        final lang = Provider.of<LanguageProvider>(context, listen: false);
+        _showErrorSnackBar(
+            lang.tr('location_permission_denied', category: 'service'));
+        return false;
+      }
     }
 
     return permission != LocationPermission.deniedForever;
@@ -115,8 +176,25 @@ class _LocationSectionState extends State<LocationSection> {
     return parts.join(', ');
   }
 
+  Future<void> _copyToClipboard(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(lang.tr('location_copied', category: 'service')),
+        duration: const Duration(seconds: 2),
+        backgroundColor: _successColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   // UI Components
   Widget _buildHeader() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return Row(
       children: [
         Icon(
@@ -126,7 +204,7 @@ class _LocationSectionState extends State<LocationSection> {
         ),
         const SizedBox(width: 12),
         Text(
-          'Location',
+          lang.tr('location_section_title', category: 'service'),
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -138,6 +216,8 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   Widget _buildLocationButton() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return GestureDetector(
       onTap: _isGettingLocation ? null : _getCurrentLocation,
       child: Container(
@@ -190,10 +270,10 @@ class _LocationSectionState extends State<LocationSection> {
                 children: [
                   Text(
                     _isGettingLocation
-                        ? 'Getting location...'
+                        ? lang.tr('location_getting', category: 'service')
                         : _currentPosition != null
-                            ? 'Location found'
-                            : 'Detect location',
+                            ? lang.tr('location_found', category: 'service')
+                            : lang.tr('location_detect', category: 'service'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -211,6 +291,8 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   Widget _buildAddressField() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -232,7 +314,7 @@ class _LocationSectionState extends State<LocationSection> {
               controller: _locationController,
               readOnly: true,
               decoration: InputDecoration(
-                hintText: 'Address',
+                hintText: lang.tr('location_address_hint', category: 'service'),
                 border: InputBorder.none,
                 hintStyle: TextStyle(
                   color: _textPrimary.withOpacity(0.4),
@@ -248,6 +330,7 @@ class _LocationSectionState extends State<LocationSection> {
             IconButton(
               icon: Icon(Icons.copy, size: 18, color: _primaryColor),
               onPressed: () => _copyToClipboard(_locationController.text),
+              tooltip: lang.tr('location_copy', category: 'service'),
             ),
           const SizedBox(width: 8),
         ],
@@ -256,18 +339,29 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   Widget _buildCoordinates() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     if (!widget.showCoordinates) return const SizedBox.shrink();
 
     return Row(
       children: [
-        _buildCoordinateItem('Lat', _latitudeController.text),
+        _buildCoordinateItem(
+          lang.tr('location_coordinate_lat', category: 'service'),
+          _latitudeController.text,
+          lang,
+        ),
         const SizedBox(width: 8),
-        _buildCoordinateItem('Lng', _longitudeController.text),
+        _buildCoordinateItem(
+          lang.tr('location_coordinate_lng', category: 'service'),
+          _longitudeController.text,
+          lang,
+        ),
       ],
     );
   }
 
-  Widget _buildCoordinateItem(String label, String value) {
+  Widget _buildCoordinateItem(
+      String label, String value, LanguageProvider lang) {
     return Expanded(
       child: Container(
         height: 48,
@@ -288,7 +382,9 @@ class _LocationSectionState extends State<LocationSection> {
             ),
             Expanded(
               child: Text(
-                value.isEmpty ? '--' : value,
+                value.isEmpty
+                    ? lang.tr('location_coordinate_empty', category: 'service')
+                    : value,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -303,10 +399,6 @@ class _LocationSectionState extends State<LocationSection> {
     );
   }
 
-  void _copyToClipboard(String text) {
-    // Add clipboard implementation here
-  }
-
   @override
   void dispose() {
     _locationController.dispose();
@@ -317,20 +409,24 @@ class _LocationSectionState extends State<LocationSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildHeader(),
-        const SizedBox(height: 16),
-        _buildLocationButton(),
-        const SizedBox(height: 12),
-        _buildAddressField(),
-        if (widget.showCoordinates) ...[
-          const SizedBox(height: 12),
-          _buildCoordinates(),
-        ],
-      ],
+    return Consumer<LanguageProvider>(
+      builder: (context, lang, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 16),
+            _buildLocationButton(),
+            const SizedBox(height: 12),
+            _buildAddressField(),
+            if (widget.showCoordinates) ...[
+              const SizedBox(height: 12),
+              _buildCoordinates(),
+            ],
+          ],
+        );
+      },
     );
   }
 }

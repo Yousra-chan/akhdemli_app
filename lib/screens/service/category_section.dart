@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
 
 class CategorySection extends StatefulWidget {
@@ -26,7 +28,6 @@ class _CategorySectionState extends State<CategorySection> {
   }
 
   void _loadCategories() {
-    // Use a post-frame callback to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _categories = defaultCategories;
@@ -46,16 +47,16 @@ class _CategorySectionState extends State<CategorySection> {
     widget.onCategorySelected(category);
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(LanguageProvider lang) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Service Category',
-              style: TextStyle(
+            Text(
+              lang.tr('category_section_title', category: 'service'),
+              style: const TextStyle(
                 color: kDarkTextColor,
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
@@ -71,7 +72,9 @@ class _CategorySectionState extends State<CategorySection> {
                 border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
               ),
               child: Text(
-                '${_categories.length}',
+                lang.trParams('total_categories',
+                    category: 'service',
+                    params: {'count': _categories.length.toString()}),
                 style: const TextStyle(
                   color: kPrimaryBlue,
                   fontSize: 14,
@@ -83,9 +86,9 @@ class _CategorySectionState extends State<CategorySection> {
           ],
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Choose the best category for your service',
-          style: TextStyle(
+        Text(
+          lang.tr('category_section_desc', category: 'service'),
+          style: const TextStyle(
             color: kMutedTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -96,7 +99,7 @@ class _CategorySectionState extends State<CategorySection> {
     );
   }
 
-  Widget _buildCategoriesList() {
+  Widget _buildCategoriesList(LanguageProvider lang) {
     return SizedBox(
       height: 120,
       child: ListView.builder(
@@ -112,7 +115,7 @@ class _CategorySectionState extends State<CategorySection> {
               right: 16,
               left: index == 0 ? 0 : 0,
             ),
-            child: _buildCategoryItem(category, color, isSelected, index),
+            child: _buildCategoryItem(category, color, isSelected, index, lang),
           );
         },
       ),
@@ -124,6 +127,7 @@ class _CategorySectionState extends State<CategorySection> {
     Color color,
     bool isSelected,
     int index,
+    LanguageProvider lang,
   ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -168,9 +172,7 @@ class _CategorySectionState extends State<CategorySection> {
           ),
           const SizedBox(height: 8),
           Text(
-            category.name.length > 12
-                ? '${category.name.substring(0, 10)}...'
-                : category.name,
+            category.getTranslatedName(lang),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isSelected ? color : kDarkTextColor,
@@ -179,6 +181,7 @@ class _CategorySectionState extends State<CategorySection> {
               fontFamily: 'Exo2',
             ),
             maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -187,16 +190,20 @@ class _CategorySectionState extends State<CategorySection> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 24),
-          _buildCategoriesList(),
-        ],
-      ),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(languageProvider),
+              const SizedBox(height: 24),
+              _buildCategoriesList(languageProvider),
+            ],
+          ),
+        );
+      },
     );
   }
 }

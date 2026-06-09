@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
 
 class SubcategorySection extends StatefulWidget {
@@ -20,6 +22,17 @@ class SubcategorySection extends StatefulWidget {
 class _SubcategorySectionState extends State<SubcategorySection> {
   String? _selectedSubcategoryId;
 
+  @override
+  void didUpdateWidget(SubcategorySection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset selection when category changes
+    if (widget.selectedCategory?.id != oldWidget.selectedCategory?.id) {
+      setState(() {
+        _selectedSubcategoryId = null;
+      });
+    }
+  }
+
   void _selectSubcategory(SubcategoryModel subcategory) {
     setState(() {
       _selectedSubcategoryId = subcategory.id;
@@ -27,16 +40,16 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     widget.onSubcategorySelected(subcategory);
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(LanguageProvider lang) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Service Subcategory',
-              style: TextStyle(
+            Text(
+              lang.tr('service_subcategory', category: 'service'),
+              style: const TextStyle(
                 color: kDarkTextColor,
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
@@ -54,7 +67,12 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                   border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
                 ),
                 child: Text(
-                  '${widget.selectedCategory!.subcategories.length}',
+                  lang.trParams('subcategory_count',
+                      category: 'service',
+                      params: {
+                        'count': widget.selectedCategory!.subcategories.length
+                            .toString()
+                      }),
                   style: const TextStyle(
                     color: kPrimaryBlue,
                     fontSize: 14,
@@ -68,8 +86,17 @@ class _SubcategorySectionState extends State<SubcategorySection> {
         const SizedBox(height: 8),
         Text(
           widget.selectedCategory != null
-              ? 'Choose a specific ${widget.selectedCategory!.name.toLowerCase()} service'
-              : 'Select a category first to see subcategories',
+              ? lang.trParams(
+                  'service_subcategory_desc_select',
+                  category: 'service',
+                  params: {
+                    'category': widget.selectedCategory!
+                        .getTranslatedName(lang)
+                        .toLowerCase()
+                  },
+                )
+              : lang.tr('service_subcategory_desc_no_select',
+                  category: 'service'),
           style: const TextStyle(
             color: kMutedTextColor,
             fontSize: 14,
@@ -81,101 +108,33 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     );
   }
 
-  Widget _buildSubcategoriesList() {
+  Widget _buildSubcategoriesList(LanguageProvider lang) {
     if (widget.selectedCategory == null) {
-      return Container(
-        margin: const EdgeInsets.only(top: 20),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: kLightBackgroundColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                CupertinoIcons.square_grid_2x2,
-                size: 64,
-                color: kMutedTextColor,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Select a Category',
-                style: TextStyle(
-                  color: kDarkTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Choose a category above to see available subcategories',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-            ],
-          ),
-        ),
+      return _buildEmptyState(
+        icon: CupertinoIcons.square_grid_2x2,
+        title: lang.tr('select_category', category: 'service'),
+        message: lang.tr('select_category_desc', category: 'service'),
       );
     }
 
     final subcategories = widget.selectedCategory!.subcategories;
 
     if (subcategories.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.only(top: 20),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: kLightBackgroundColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                CupertinoIcons.infinite,
-                size: 64,
-                color: kMutedTextColor,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No Subcategories',
-                style: TextStyle(
-                  color: kDarkTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'No subcategories available for ${widget.selectedCategory!.name}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-            ],
-          ),
+      return _buildEmptyState(
+        icon: CupertinoIcons.infinite,
+        title: lang.tr('no_subcategories', category: 'service'),
+        message: lang.trParams(
+          'no_subcategories_desc',
+          category: 'service',
+          params: {
+            'category': widget.selectedCategory!.getTranslatedName(lang)
+          },
         ),
       );
     }
 
-    // Using horizontal ListView like CategorySection
     return SizedBox(
-      height:
-          140, // Slightly taller than categories to accommodate longer names
+      height: 140,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: subcategories.length,
@@ -189,10 +148,63 @@ class _SubcategorySectionState extends State<SubcategorySection> {
               right: 16,
               left: index == 0 ? 0 : 0,
             ),
-            child:
-                _buildSubcategoryItem(subcategory, colors, isSelected, index),
+            child: _buildSubcategoryItem(
+              subcategory,
+              colors,
+              isSelected,
+              index,
+              lang,
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: kLightBackgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 64,
+              color: kMutedTextColor,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: kDarkTextColor,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Exo2',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: kMutedTextColor,
+                fontSize: 14,
+                fontFamily: 'Exo2',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -202,6 +214,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     List<Color> colors,
     bool isSelected,
     int index,
+    LanguageProvider lang,
   ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -248,9 +261,11 @@ class _SubcategorySectionState extends State<SubcategorySection> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              subcategory.name.length > 12
-                  ? '${subcategory.name.substring(0, 10)}...'
-                  : subcategory.name,
+              subcategory.nameKey.isNotEmpty
+                  ? subcategory.getTranslatedName(lang)
+                  : (subcategory.name.length > 12
+                      ? '${subcategory.name.substring(0, 10)}...'
+                      : subcategory.name),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isSelected ? colors[0] : kDarkTextColor,
@@ -266,7 +281,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     );
   }
 
-  Widget _buildSelectedIndicator() {
+  Widget _buildSelectedIndicator(LanguageProvider lang) {
     if (widget.selectedCategory == null || _selectedSubcategoryId == null) {
       return const SizedBox.shrink();
     }
@@ -304,7 +319,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Subcategory Selected',
+                    lang.tr('subcategory_selected', category: 'service'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -314,7 +329,9 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    selectedSubcategory.name,
+                    selectedSubcategory.nameKey.isNotEmpty
+                        ? selectedSubcategory.getTranslatedName(lang)
+                        : selectedSubcategory.name,
                     style: const TextStyle(
                       fontSize: 13,
                       color: kDarkTextColor,
@@ -356,19 +373,22 @@ class _SubcategorySectionState extends State<SubcategorySection> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 24),
-          _buildSubcategoriesList(),
-          _buildSelectedIndicator(),
-          // Add some bottom padding to ensure no overflow
-          const SizedBox(height: 10),
-        ],
-      ),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(languageProvider),
+              const SizedBox(height: 24),
+              _buildSubcategoriesList(languageProvider),
+              _buildSelectedIndicator(languageProvider),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
     );
   }
 }

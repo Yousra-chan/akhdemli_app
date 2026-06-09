@@ -11,6 +11,7 @@ import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/screens/profile/provider_profile/provider_profile_page.dart';
 import 'package:service_app/screens/search/search_filter_dialog.dart';
 import 'package:service_app/models/ProviderModel.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/services/wilaya_service.dart';
 import 'package:service_app/services/categories_service.dart';
 import 'package:service_app/services/location_service.dart';
@@ -455,6 +456,9 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   void _showNoProvidersMessage(String locationName) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -463,7 +467,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Aucun prestataire trouvé pour $locationName avec ces critères',
+                languageProvider.trParams('no_providers_found',
+                    category: 'search', params: {'location': locationName}),
                 style: TextStyle(fontFamily: 'Exo2'),
               ),
             ),
@@ -480,13 +485,19 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   void _showNoCoordinatesMessage(String locationName) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(Icons.error_outline, color: Colors.white, size: 20),
             SizedBox(width: 12),
-            Text('Impossible de localiser $locationName'),
+            Text(
+              languageProvider.trParams('unable_to_locate',
+                  category: 'search', params: {'location': locationName}),
+            ),
           ],
         ),
         backgroundColor: Colors.redAccent,
@@ -525,6 +536,9 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   Widget _buildProviderInfoSheet(ProviderModel provider) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     return SingleChildScrollView(
       child: Container(
         margin: const EdgeInsets.all(16),
@@ -649,9 +663,10 @@ class _MapSearchPageState extends State<MapSearchPage> {
                                         gradient: kPrimaryGradient,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text(
-                                        'Vérifié',
-                                        style: TextStyle(
+                                      child: Text(
+                                        languageProvider.tr('verified',
+                                            category: 'search'),
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
@@ -698,7 +713,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Localisation',
+                                  languageProvider.tr('location',
+                                      category: 'search'),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: kMediumText,
@@ -737,7 +753,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Description',
+                            languageProvider.tr('description',
+                                category: 'search'),
                             style: TextStyle(
                               fontSize: 13,
                               color: kMediumText,
@@ -786,14 +803,15 @@ class _MapSearchPageState extends State<MapSearchPage> {
                             ),
                             elevation: 0,
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.person_outline, size: 18),
-                              SizedBox(width: 8),
+                              const Icon(Icons.person_outline, size: 18),
+                              const SizedBox(width: 8),
                               Text(
-                                'Voir profil',
-                                style: TextStyle(
+                                languageProvider.tr('view_profile',
+                                    category: 'search'),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   fontFamily: 'Exo2',
@@ -807,10 +825,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            // First close the bottom sheet
                             Navigator.pop(context);
-
-                            // Then start the chat with proper implementation
                             await _startChatWithProvider(provider);
                           },
                           style: ElevatedButton.styleFrom(
@@ -823,14 +838,15 @@ class _MapSearchPageState extends State<MapSearchPage> {
                             elevation: 0,
                             shadowColor: kPrimaryColor.withOpacity(0.3),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.chat_outlined, size: 18),
-                              SizedBox(width: 6),
+                              const Icon(Icons.chat_outlined, size: 18),
+                              const SizedBox(width: 6),
                               Text(
-                                'Contacter',
-                                style: TextStyle(
+                                languageProvider.tr('contact',
+                                    category: 'search'),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   fontFamily: 'Exo2',
@@ -854,14 +870,14 @@ class _MapSearchPageState extends State<MapSearchPage> {
                         side: BorderSide(color: kBorderColor, width: 1.5),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.close, size: 18),
-                        SizedBox(width: 8),
+                        const Icon(Icons.close, size: 18),
+                        const SizedBox(width: 8),
                         Text(
-                          'Fermer',
-                          style: TextStyle(
+                          languageProvider.tr('close', category: 'search'),
+                          style: const TextStyle(
                             fontFamily: 'Exo2',
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -879,10 +895,11 @@ class _MapSearchPageState extends State<MapSearchPage> {
     );
   }
 
-// Updated method to actually create a chat and navigate
   Future<void> _startChatWithProvider(ProviderModel provider) async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
-      // Get current user ID from AuthViewModel
       final authProvider = Provider.of<AuthViewModel>(context, listen: false);
       final currentUser = authProvider.currentUser;
 
@@ -893,7 +910,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
               children: [
                 Icon(Icons.warning, color: Colors.white),
                 const SizedBox(width: 12),
-                const Text('Veuillez vous connecter pour discuter'),
+                Text(languageProvider.tr('login_required_chat',
+                    category: 'search')),
               ],
             ),
             backgroundColor: Colors.orange,
@@ -910,21 +928,21 @@ class _MapSearchPageState extends State<MapSearchPage> {
       final currentUserId = currentUser.uid;
       final providerId = provider.uid ?? '';
 
-      // Validate IDs
       if (currentUserId.isEmpty) {
-        throw Exception('ID utilisateur invalide');
+        throw Exception(
+            languageProvider.tr('invalid_user_id', category: 'search'));
       }
 
       if (providerId.isEmpty) {
-        throw Exception('ID prestataire invalide');
+        throw Exception(
+            languageProvider.tr('invalid_provider_id', category: 'search'));
       }
 
-      // Don't allow chatting with yourself
       if (currentUserId == providerId) {
-        throw Exception('Vous ne pouvez pas discuter avec vous-même');
+        throw Exception(
+            languageProvider.tr('cannot_chat_self', category: 'search'));
       }
 
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -945,13 +963,18 @@ class _MapSearchPageState extends State<MapSearchPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(kPrimaryColor),
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(kPrimaryColor),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Création de la discussion...',
+                  languageProvider.tr('creating_discussion',
+                      category: 'search'),
                   style: TextStyle(
                     fontSize: 12,
                     color: kMediumText,
@@ -964,27 +987,23 @@ class _MapSearchPageState extends State<MapSearchPage> {
       );
 
       try {
-        // Initialize chat view model
         final chatViewModel = ChatViewModel(userId: currentUserId);
-
-        // Create or get chat with provider
         final chatId = await chatViewModel.createChat(
           clientId: currentUserId,
           providerId: providerId,
         );
 
-        // Close loading dialog
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
 
         if (chatId != null && chatId.isNotEmpty) {
-          // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(children: [
                 Icon(Icons.chat_bubble_outline, color: Colors.white, size: 20),
                 const SizedBox(width: 12),
+                Text(languageProvider.tr('chat_created', category: 'search')),
               ]),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
@@ -995,7 +1014,6 @@ class _MapSearchPageState extends State<MapSearchPage> {
             ),
           );
 
-          // Navigate to discussion page
           await Future.delayed(const Duration(milliseconds: 500));
 
           Navigator.push(
@@ -1018,7 +1036,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
                 children: [
                   Icon(Icons.error_outline, color: Colors.white),
                   const SizedBox(width: 12),
-                  const Text('Impossible de démarrer la discussion'),
+                  Text(languageProvider.tr('chat_start_failed',
+                      category: 'search')),
                 ],
               ),
               backgroundColor: Colors.redAccent,
@@ -1030,8 +1049,6 @@ class _MapSearchPageState extends State<MapSearchPage> {
           );
         }
       } catch (e) {
-        print('Error creating chat: $e');
-
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
@@ -1043,7 +1060,10 @@ class _MapSearchPageState extends State<MapSearchPage> {
                 Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Erreur: ${e.toString()}'),
+                  child: Text(
+                    languageProvider.trParams('chat_error',
+                        category: 'search', params: {'error': e.toString()}),
+                  ),
                 ),
               ],
             ),
@@ -1056,14 +1076,16 @@ class _MapSearchPageState extends State<MapSearchPage> {
         );
       }
     } catch (e) {
-      print('Initial error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 12),
-              Text('Erreur initiale: ${e.toString()}'),
+              Text(
+                languageProvider.trParams('initial_error',
+                    category: 'search', params: {'error': e.toString()}),
+              ),
             ],
           ),
           backgroundColor: Colors.redAccent,
@@ -1124,8 +1146,11 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   String _buildSearchHint() {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     if (_currentFilters.isEmpty) {
-      return "Filtrer par wilaya, catégorie...";
+      return languageProvider.tr('filter_hint', category: 'search');
     }
 
     final wilaya = _currentFilters['wilaya'] ?? '';
@@ -1139,7 +1164,9 @@ class _MapSearchPageState extends State<MapSearchPage> {
     } else if (category.isNotEmpty) {
       return "$category • ${distance.toInt()}km";
     } else {
-      return "Filtres actifs • ${distance.toInt()}km";
+      return languageProvider.trParams('active_filters',
+          category: 'search',
+          params: {'distance': distance.toInt().toString()});
     }
   }
 
@@ -1209,44 +1236,51 @@ class _MapSearchPageState extends State<MapSearchPage> {
               children: [
                 SizedBox.expand(
                   child: _isLoadingLocation || _initialCameraPosition == null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: kCardColor,
-                                  borderRadius: BorderRadius.circular(30),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 15,
-                                      spreadRadius: 2,
+                      ? Consumer<LanguageProvider>(
+                          builder: (context, languageProvider, child) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: kCardColor,
+                                      borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 15,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                  valueColor:
-                                      AlwaysStoppedAnimation(kPrimaryColor),
-                                ),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      valueColor:
+                                          AlwaysStoppedAnimation(kPrimaryColor),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    _isLoadingLocation
+                                        ? languageProvider.tr(
+                                            'loading_location',
+                                            category: 'search')
+                                        : languageProvider.tr('loading_map',
+                                            category: 'search'),
+                                    style: TextStyle(
+                                      color: kMediumText,
+                                      fontSize: 16,
+                                      fontFamily: 'Exo2',
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 20),
-                              Text(
-                                _isLoadingLocation
-                                    ? "Chargement de la position..."
-                                    : "Chargement de la carte...",
-                                style: TextStyle(
-                                  color: kMediumText,
-                                  fontSize: 16,
-                                  fontFamily: 'Exo2',
-                                ),
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         )
                       : GoogleMap(
                           mapType: MapType.normal,
@@ -1275,6 +1309,9 @@ class _MapSearchPageState extends State<MapSearchPage> {
                 Consumer<SearchViewModel>(
                   builder: (context, viewModel, child) {
                     if (viewModel.isLoading) {
+                      final languageProvider =
+                          Provider.of<LanguageProvider>(context);
+
                       return Positioned.fill(
                         child: Container(
                           color: Colors.black.withOpacity(0.2),
@@ -1307,7 +1344,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Recherche...',
+                                    languageProvider.tr('searching',
+                                        category: 'search'),
                                     style: TextStyle(
                                       color: kMediumText,
                                       fontSize: 12,
@@ -1428,6 +1466,9 @@ class _MapSearchPageState extends State<MapSearchPage> {
                   builder: (context, viewModel, child) {
                     if (viewModel.error != null &&
                         viewModel.error!.isNotEmpty) {
+                      final languageProvider =
+                          Provider.of<LanguageProvider>(context);
+
                       return Positioned(
                         top: 100,
                         left: 20,
@@ -1483,45 +1524,53 @@ class _MapSearchPageState extends State<MapSearchPage> {
                   Positioned(
                     top: 120,
                     left: 20,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kCardColor,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 15,
-                            spreadRadius: 2,
+                    child: Consumer<LanguageProvider>(
+                      builder: (context, languageProvider, child) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: kPrimaryColor,
-                              shape: BoxShape.circle,
-                            ),
+                          decoration: BoxDecoration(
+                            color: kCardColor,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_markers.length} prestataire${_markers.length > 1 ? 's' : ''}',
-                            style: TextStyle(
-                              color: kDarkText,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Exo2',
-                              fontSize: 14,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                languageProvider.trParams('providers_found',
+                                    category: 'search',
+                                    params: {
+                                      'count': _markers.length.toString()
+                                    }),
+                                style: TextStyle(
+                                  color: kDarkText,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Exo2',
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
               ],
@@ -1535,117 +1584,120 @@ class _MapSearchPageState extends State<MapSearchPage> {
   Widget _buildSearchBar(BuildContext context) {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, statusBarHeight + 10, 20, 14),
-      decoration: BoxDecoration(
-        color: kCardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 5),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(20, statusBarHeight + 10, 20, 14),
+          decoration: BoxDecoration(
+            color: kCardColor,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Removed the back button container
-          Expanded(
-            child: GestureDetector(
-              onTap: _showFilterDialog,
-              child: Container(
-                height: 52,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 12,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: _showFilterDialog,
+                  child: Container(
+                    height: 52,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kBackgroundColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: kBorderColor, width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.search,
+                          color: kMediumText,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Consumer<SearchViewModel>(
+                            builder: (context, viewModel, child) {
+                              return Text(
+                                _buildSearchHint(),
+                                style: TextStyle(
+                                  color: kMediumText,
+                                  fontSize: 15,
+                                  fontFamily: 'Exo2',
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                          ),
+                        ),
+                        if (_currentFilters.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              gradient: kPrimaryGradient,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: kBackgroundColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kBorderColor, width: 1.5),
+                  color: kPrimaryColor,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      CupertinoIcons.search,
-                      color: kMediumText,
+                child: IconButton(
+                  onPressed: _showFilterDialog,
+                  icon: const Icon(
+                    Icons.filter_alt,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+              if (_currentFilters.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: kAccentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: _clearFilters,
+                    icon: Icon(
+                      Icons.close,
+                      color: kAccentColor,
                       size: 20,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Consumer<SearchViewModel>(
-                        builder: (context, viewModel, child) {
-                          return Text(
-                            _buildSearchHint(),
-                            style: TextStyle(
-                              color: kMediumText,
-                              fontSize: 15,
-                              fontFamily: 'Exo2',
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          );
-                        },
-                      ),
-                    ),
-                    if (_currentFilters.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          gradient: kPrimaryGradient,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                      ),
-                  ],
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
-              ),
-            ),
+              ],
+            ],
           ),
-          const SizedBox(width: 12),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: kPrimaryColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              onPressed: _showFilterDialog,
-              icon: const Icon(
-                Icons.filter_alt,
-                color: Colors.white,
-                size: 20,
-              ),
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          if (_currentFilters.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: kAccentColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IconButton(
-                onPressed: _clearFilters,
-                icon: Icon(
-                  Icons.close,
-                  color: kAccentColor,
-                  size: 20,
-                ),
-                padding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }

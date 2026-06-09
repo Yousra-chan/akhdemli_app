@@ -1,0 +1,18 @@
+{
+  "search_services": "البحث عن خدمات...",
+  "basic_service": "خدمة أساسية",
+  "premium_service": "خدمة مميزة",
+  "emergency_service": "خدمة طارئة",
+  "advanced_service": "خدمة متقدمة",
+  "standard_package": "باقة قياسية",
+  "custom_service": "خدمة مخصصة",
+  "service_description": "خدمة {service} من {category}",
+  "no_services_found": "لا توجد خدمات",
+  "loading_services": "جاري تحميل الخدمات...",
+  "clear_search": "مسح البحث",
+  "services_count": "{count} خدمات متاحة",
+  "view_providers": "عرض مقدمي الخدمة",
+  "all_services": "جميع الخدمات",
+  "popular_services": "الخدمات الشائعة",
+  "recommended": "موصى به"
+}

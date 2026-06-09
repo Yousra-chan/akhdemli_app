@@ -1,11 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'dart:ui' as ui;
 import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/screens/chat/chat_screen.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/screens/home/providers_list/provider_card.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class ProvidersListPage extends StatefulWidget {
   final String categoryName;
@@ -46,13 +49,19 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
 
   void _navigateToChatWithProvider(
       BuildContext context, ProviderModel provider) async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     // First, get the current user ID
     final String? currentUserId = await _getCurrentUserId();
 
     if (currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please login to start a chat'),
+          content: Text(
+            languageProvider.tr('please_login',
+                category: 'providers_list_page'),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -63,7 +72,10 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
     if (provider.uid == null || provider.uid!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Cannot start chat: Provider ID is missing'),
+          content: Text(
+            languageProvider.tr('cannot_start_chat',
+                category: 'providers_list_page'),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -74,7 +86,10 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
     if (currentUserId == provider.uid!) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('You cannot start a chat with yourself'),
+          content: Text(
+            languageProvider.tr('cannot_chat_self',
+                category: 'providers_list_page'),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -127,7 +142,13 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start chat: ${e.toString()}'),
+          content: Text(
+            languageProvider.trParams(
+              'failed_to_start_chat',
+              category: 'providers_list_page',
+              params: {'error': e.toString()},
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -292,82 +313,104 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
   }
 
   void _showRatingFilter() {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Filter by Rating',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              ..._ratingFilters.map((filter) {
-                return ListTile(
-                  title: Row(
-                    children: [
-                      Icon(
-                        Icons.star_rounded,
-                        color: filter == 'all'
-                            ? Colors.grey
-                            : Colors.amber.shade600,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        filter == 'all' ? 'All Ratings' : '$filter Stars',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: filter == _selectedRatingFilter
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          color: filter == _selectedRatingFilter
-                              ? Theme.of(context).primaryColor
-                              : Colors.black87,
-                        ),
-                      ),
-                    ],
+        return Directionality(
+          textDirection: languageProvider.isRtl
+              ? ui.TextDirection.rtl
+              : ui.TextDirection.ltr,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  languageProvider.tr('filter_by_rating',
+                      category: 'providers_list_page'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Exo2',
                   ),
-                  trailing: filter == _selectedRatingFilter
-                      ? Icon(
-                          Icons.check_rounded,
-                          color: Theme.of(context).primaryColor,
-                        )
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedRatingFilter = filter;
-                    });
-                    _applyFilters();
-                    Navigator.pop(context);
-                  },
-                );
-              }).toList(),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                ),
+                const SizedBox(height: 20),
+                ..._ratingFilters.map((filter) {
+                  return ListTile(
+                    title: Row(
+                      children: [
+                        Icon(
+                          Icons.star_rounded,
+                          color: filter == 'all'
+                              ? Colors.grey
+                              : Colors.amber.shade600,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          filter == 'all'
+                              ? languageProvider.tr('all_ratings',
+                                  category: 'providers_list_page')
+                              : languageProvider.trParams(
+                                  'stars',
+                                  category: 'providers_list_page',
+                                  params: {'value': filter.replaceAll('+', '')},
+                                ),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: filter == _selectedRatingFilter
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: filter == _selectedRatingFilter
+                                ? Theme.of(context).primaryColor
+                                : Colors.black87,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: filter == _selectedRatingFilter
+                        ? Icon(
+                            Icons.check_rounded,
+                            color: Theme.of(context).primaryColor,
+                          )
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedRatingFilter = filter;
+                      });
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  );
+                }).toList(),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      languageProvider.tr('done',
+                          category: 'providers_list_page'),
+                      style: const TextStyle(fontFamily: 'Exo2'),
                     ),
                   ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Done'),
                 ),
-              ),
-              const SizedBox(height: 10),
-            ],
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
         );
       },
@@ -383,9 +426,20 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
       },
       onCallTap: (provider) {
         // Handle call action
+        final languageProvider =
+            Provider.of<LanguageProvider>(context, listen: false);
         print('Call ${provider.name}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Calling ${provider.name}')),
+          SnackBar(
+            content: Text(
+              languageProvider.trParams(
+                'calling',
+                category: 'providers_list_page',
+                params: {'name': provider.name},
+              ),
+              style: const TextStyle(fontFamily: 'Exo2'),
+            ),
+          ),
         );
       },
       onChatTap: (provider) {
@@ -396,6 +450,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
   }
 
   Widget _buildFilterChips() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.grey[50],
@@ -416,13 +472,15 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                 const SizedBox(width: 6),
                 Text(
                   _selectedRatingFilter == 'all'
-                      ? 'All Ratings'
+                      ? languageProvider.tr('all_ratings',
+                          category: 'providers_list_page')
                       : '${_selectedRatingFilter}',
                   style: TextStyle(
                     fontSize: 14,
                     color: _selectedRatingFilter == 'all'
                         ? Colors.grey[700]
                         : Colors.amber.shade800,
+                    fontFamily: 'Exo2',
                   ),
                 ),
               ],
@@ -443,10 +501,15 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
           const Spacer(),
           // Results count
           Text(
-            '${_filteredProviders.length} results',
+            languageProvider.trParams(
+              'results',
+              category: 'providers_list_page',
+              params: {'count': _filteredProviders.length.toString()},
+            ),
             style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
+              fontFamily: 'Exo2',
             ),
           ),
         ],
@@ -455,6 +518,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
   }
 
   Widget _buildEmptyState() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -467,19 +532,23 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
               color: Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No providers found',
-              style: TextStyle(
+            Text(
+              languageProvider.tr('no_providers_found',
+                  category: 'providers_list_page'),
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
+                fontFamily: 'Exo2',
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Try adjusting your rating filter or check back later',
+              languageProvider.tr('try_adjusting_filter',
+                  category: 'providers_list_page'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey.shade600,
+                fontFamily: 'Exo2',
               ),
             ),
             const SizedBox(height: 16),
@@ -497,7 +566,11 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                 });
                 _applyFilters();
               },
-              child: const Text('Show All Providers'),
+              child: Text(
+                languageProvider.tr('show_all_providers',
+                    category: 'providers_list_page'),
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
             ),
           ],
         ),
@@ -552,63 +625,76 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.subCategoryName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              widget.categoryName,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list_rounded),
-            onPressed: _showRatingFilter,
-            tooltip: 'Filter by Rating',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? ListView.builder(
-              itemCount: 5,
-              itemBuilder: (context, index) => _buildSkeletonCard(),
-            )
-          : Column(
-              children: [
-                _buildFilterChips(),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _loadProviders,
-                    child: _filteredProviders.isEmpty
-                        ? SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: _buildEmptyState(),
-                          )
-                        : ListView.builder(
-                            itemCount: _filteredProviders.length,
-                            itemBuilder: (context, index) {
-                              return _buildProviderCard(
-                                  _filteredProviders[index]);
-                            },
-                          ),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Directionality(
+          textDirection: languageProvider.isRtl
+              ? ui.TextDirection.rtl
+              : ui.TextDirection.ltr,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.subCategoryName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Exo2',
+                    ),
                   ),
+                  Text(
+                    widget.categoryName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontFamily: 'Exo2',
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.filter_list_rounded),
+                  onPressed: _showRatingFilter,
+                  tooltip: languageProvider.tr('filter_by_rating_tooltip',
+                      category: 'providers_list_page'),
                 ),
               ],
             ),
+            body: _isLoading
+                ? ListView.builder(
+                    itemCount: 5,
+                    itemBuilder: (context, index) => _buildSkeletonCard(),
+                  )
+                : Column(
+                    children: [
+                      _buildFilterChips(),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _loadProviders,
+                          child: _filteredProviders.isEmpty
+                              ? SingleChildScrollView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  child: _buildEmptyState(),
+                                )
+                              : ListView.builder(
+                                  itemCount: _filteredProviders.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildProviderCard(
+                                        _filteredProviders[index]);
+                                  },
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        );
+      },
     );
   }
 }

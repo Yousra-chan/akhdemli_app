@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:service_app/screens/auth/constants.dart';
 import 'package:service_app/models/ProviderModel.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class ProviderCard extends StatefulWidget {
   final ProviderModel provider;
@@ -128,6 +130,8 @@ class _ProviderCardState extends State<ProviderCard>
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return MouseRegion(
       onEnter: (_) => _onHoverEnter(),
       onExit: (_) => _onHoverExit(),
@@ -269,7 +273,10 @@ class _ProviderCardState extends State<ProviderCard>
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  'Golden User',
+                                                  languageProvider.tr(
+                                                      'golden_user',
+                                                      category:
+                                                          'providers_list_page'),
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w600,
@@ -342,7 +349,7 @@ class _ProviderCardState extends State<ProviderCard>
                               const SizedBox(width: 5),
                               Expanded(
                                 child: Text(
-                                  _getLocationText(),
+                                  _getLocationText(languageProvider),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -366,12 +373,12 @@ class _ProviderCardState extends State<ProviderCard>
                             children: [
                               // Chat Button (Expanded)
                               Expanded(
-                                child: _buildChatButton(),
+                                child: _buildChatButton(languageProvider),
                               ),
                               const SizedBox(width: 12),
 
                               // Call Button (Circle)
-                              _buildCallButton(),
+                              _buildCallButton(languageProvider),
                             ],
                           ),
                         ),
@@ -420,6 +427,8 @@ class _ProviderCardState extends State<ProviderCard>
   }
 
   Widget _buildFallbackAvatar() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -441,7 +450,7 @@ class _ProviderCardState extends State<ProviderCard>
     );
   }
 
-  Widget _buildChatButton() {
+  Widget _buildChatButton(LanguageProvider lang) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -487,7 +496,7 @@ class _ProviderCardState extends State<ProviderCard>
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Chat Now',
+                  lang.tr('chat_now', category: 'providers_list_page'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Exo2',
@@ -503,7 +512,7 @@ class _ProviderCardState extends State<ProviderCard>
     );
   }
 
-  Widget _buildCallButton() {
+  Widget _buildCallButton(LanguageProvider lang) {
     return Container(
       width: 48,
       height: 48,
@@ -545,7 +554,7 @@ class _ProviderCardState extends State<ProviderCard>
     );
   }
 
-  String _getLocationText() {
+  String _getLocationText(LanguageProvider lang) {
     final wilaya = widget.provider.wilaya;
     final commune = widget.provider.commune;
     final address = widget.provider.address;
@@ -558,6 +567,6 @@ class _ProviderCardState extends State<ProviderCard>
       return address;
     }
 
-    return 'Location not specified';
+    return lang.tr('location_not_specified', category: 'providers_list_page');
   }
 }

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:service_app/models/CategoryModel.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 // Colors
 const Color kPrimaryBlue = Color.fromARGB(255, 12, 94, 153);
@@ -110,20 +111,108 @@ IconData getIconForCategory(String categoryName) {
   }
 }
 
-// Helper method to get CategoryModel from category name - FIXED
+// Helper method to get translated category name - UPDATED to use category.getTranslatedName()
+String getTranslatedCategoryName(String categoryName, LanguageProvider lang) {
+  final category = getCategoryByName(categoryName);
+  if (category != null) {
+    return category.getTranslatedName(lang);
+  }
+
+  // Fallback to old method if category not found
+  final name = categoryName.toLowerCase();
+  if (name.contains('clean')) {
+    return lang.tr('category_cleaning', category: 'categories');
+  } else if (name.contains('plumb')) {
+    return lang.tr('category_plumbing', category: 'categories');
+  } else if (name.contains('electric')) {
+    return lang.tr('category_electrical', category: 'categories');
+  } else if (name.contains('carpent')) {
+    return lang.tr('category_carpentry', category: 'categories');
+  } else if (name.contains('paint')) {
+    return lang.tr('category_painting', category: 'categories');
+  } else if (name.contains('garden')) {
+    return lang.tr('category_gardening', category: 'categories');
+  } else if (name.contains('mov') || name.contains('transport')) {
+    return lang.tr('category_moving', category: 'categories');
+  } else if (name.contains('repair')) {
+    return lang.tr('category_repair', category: 'categories');
+  } else if (name.contains('install')) {
+    return lang.tr('category_installation', category: 'categories');
+  } else if (name.contains('teach') || name.contains('tutor')) {
+    return lang.tr('category_tutoring', category: 'categories');
+  } else if (name.contains('health') || name.contains('medical')) {
+    return lang.tr('category_health', category: 'categories');
+  } else if (name.contains('beauty')) {
+    return lang.tr('category_beauty', category: 'categories');
+  } else if (name.contains('home')) {
+    return lang.tr('category_home', category: 'categories');
+  } else if (name.contains('tech') || name.contains('computer')) {
+    return lang.tr('category_tech', category: 'categories');
+  } else if (name.contains('food')) {
+    return lang.tr('category_food', category: 'categories');
+  } else {
+    return lang.tr('category_other', category: 'categories');
+  }
+}
+
+// Helper method to get translated category description
+String getTranslatedCategoryDescription(
+    String categoryName, LanguageProvider lang) {
+  final category = getCategoryByName(categoryName);
+  if (category != null) {
+    return category.getTranslatedDescription(lang);
+  }
+
+  final name = categoryName.toLowerCase();
+  if (name.contains('clean')) {
+    return lang.tr('category_cleaning_desc', category: 'categories');
+  } else if (name.contains('plumb')) {
+    return lang.tr('category_plumbing_desc', category: 'categories');
+  } else if (name.contains('electric')) {
+    return lang.tr('category_electrical_desc', category: 'categories');
+  } else if (name.contains('carpent')) {
+    return lang.tr('category_carpentry_desc', category: 'categories');
+  } else if (name.contains('paint')) {
+    return lang.tr('category_painting_desc', category: 'categories');
+  } else if (name.contains('garden')) {
+    return lang.tr('category_gardening_desc', category: 'categories');
+  } else if (name.contains('mov') || name.contains('transport')) {
+    return lang.tr('category_moving_desc', category: 'categories');
+  } else if (name.contains('repair')) {
+    return lang.tr('category_repair_desc', category: 'categories');
+  } else if (name.contains('install')) {
+    return lang.tr('category_installation_desc', category: 'categories');
+  } else if (name.contains('teach') || name.contains('tutor')) {
+    return lang.tr('category_tutoring_desc', category: 'categories');
+  } else if (name.contains('health') || name.contains('medical')) {
+    return lang.tr('category_health_desc', category: 'categories');
+  } else if (name.contains('beauty')) {
+    return lang.tr('category_beauty_desc', category: 'categories');
+  } else if (name.contains('home')) {
+    return lang.tr('category_home_desc', category: 'categories');
+  } else if (name.contains('tech') || name.contains('computer')) {
+    return lang.tr('category_tech_desc', category: 'categories');
+  } else if (name.contains('food')) {
+    return lang.tr('category_food_desc', category: 'categories');
+  } else {
+    return lang.tr('category_other_desc', category: 'categories');
+  }
+}
+
+// Helper method to get CategoryModel from category name
 CategoryModel? getCategoryByName(String categoryName) {
   try {
     return CategoryModel.defaultCategories.firstWhere(
       (category) => category.name.toLowerCase() == categoryName.toLowerCase(),
     );
   } catch (e) {
-    // If category not found, return null or create a fallback
     return null;
   }
 }
 
-// Alternative method that creates a fallback category - FIXED
-CategoryModel getCategoryByNameOrCreate(String categoryName) {
+// Alternative method that creates a fallback category
+CategoryModel getCategoryByNameOrCreate(
+    String categoryName, LanguageProvider lang) {
   try {
     return CategoryModel.defaultCategories.firstWhere(
       (category) => category.name.toLowerCase() == categoryName.toLowerCase(),
@@ -133,10 +222,12 @@ CategoryModel getCategoryByNameOrCreate(String categoryName) {
     return CategoryModel(
       id: '0',
       name: categoryName,
+      nameKey: 'category_other',
       description: '$categoryName Services',
+      descriptionKey: 'category_other_desc',
       icon: getIconForCategory(categoryName),
       iconCode: categoryName.toLowerCase(),
-      subcategories: [], // ADDED: required parameter
+      subcategories: [],
     );
   }
 }
@@ -147,20 +238,25 @@ IconData getCategoryIcon(String categoryName) {
   return category?.icon ?? CupertinoIcons.circle_fill;
 }
 
+// Updated color schemes to match all 16 categories
 Color getColorForCategory(String categoryName, int index) {
   final colors = [
-    const Color(0xFF667EEA),
-    const Color(0xFF764BA2),
-    const Color(0xFFF093FB),
-    const Color(0xFFF5576C),
-    const Color(0xFF4FACFE),
-    const Color(0xFF00F2FE),
-    const Color(0xFF43E97B),
-    const Color(0xFF38F9D7),
-    const Color(0xFFFA709A),
-    const Color(0xFFFEE140),
-    const Color(0xFFA8C0FF),
-    const Color(0xFF3EECAC),
+    const Color(0xFF667EEA), // Cleaning
+    const Color(0xFF764BA2), // Plumbing
+    const Color(0xFF4FACFE), // Electrical
+    const Color(0xFF43E97B), // Carpentry
+    const Color(0xFFFA709A), // Painting
+    const Color(0xFFF093FB), // Gardening
+    const Color(0xFF38F9D7), // Moving
+    const Color(0xFFFF9068), // Repair
+    const Color(0xFF00F2FE), // Installation
+    const Color(0xFF38C97B), // Tutoring
+    const Color(0xFFF5576C), // Health
+    const Color(0xFFFFC107), // Beauty
+    const Color(0xFFA8C0FF), // Home
+    const Color(0xFF4CAF50), // Tech
+    const Color(0xFFFF9800), // Food
+    const Color(0xFF969696), // Other
   ];
   return colors[index % colors.length];
 }
@@ -206,8 +302,52 @@ InputDecoration buildAestheticInputDecoration(String labelText,
   );
 }
 
-// Category card widget helper - THIS IS OK (doesn't create new CategoryModel instances)
-Widget buildCategoryCard(
+// Category card widget helper - UPDATED to use category.getTranslatedName()
+Widget buildCategoryCard(CategoryModel category, int index, VoidCallback onTap,
+    LanguageProvider lang) {
+  return Card(
+    elevation: kCardElevation,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(kDefaultPadding),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color:
+                    getColorForCategory(category.name, index).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                category.icon,
+                color: getColorForCategory(category.name, index),
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              category.getTranslatedName(lang),
+              style: kCardTitleTextStyle.copyWith(fontSize: 14),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// Backward compatibility method for buildCategoryCard without LanguageProvider
+Widget buildCategoryCardLegacy(
     CategoryModel category, int index, VoidCallback onTap) {
   return Card(
     elevation: kCardElevation,

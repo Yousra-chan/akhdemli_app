@@ -1,0 +1,19 @@
+{
+  "error_loading_messages": "Error loading messages",
+  "failed_to_send_message": "Failed to send message",
+  "new_message_from": "New message from {name}",
+  "test_notification_message": "Test notification from app! 🎉",
+  "test_notification_sent": "Test notification sent!",
+  "test_failed": "Test failed: {error}",
+  "online": "Online",
+  "offline": "Offline",
+  "loading_messages": "Loading messages...",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "date_format": "MMM d, yyyy",
+  "time_format": "HH:mm",
+  "no_messages_yet": "No messages yet",
+  "start_conversation": "Start the conversation",
+  "test_notifications": "Test Notifications",
+  "type_message": "Type a message..."
+}

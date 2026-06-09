@@ -9,6 +9,8 @@ import 'package:service_app/screens/search/search_screen.dart';
 import 'package:service_app/screens/posts/posts_screen.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'dart:ui' as ui;
 
 class NavigatorBottom extends StatefulWidget {
   const NavigatorBottom({super.key});
@@ -120,7 +122,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
       ),
     );
 
-    // Add badge for chat icon (index 3)
+    // Add badge ONLY for chat messages (index 3)
     if (index == 3 && badgeCount > 0) {
       return _buildMessageBadge(badgeCount, iconWidget);
     }
@@ -163,22 +165,29 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
   @override
   Widget build(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
 
-    // Vérifier si l'utilisateur est connecté
+    // Check if user is logged in
     if (authViewModel.currentUser == null) {
-      return Scaffold(
-        backgroundColor: backgroundColor,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: selectedColor),
-              const SizedBox(height: 20),
-              Text(
-                'Chargement du profil utilisateur...',
-                style: TextStyle(color: unselectedColor),
-              ),
-            ],
+      return Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: selectedColor),
+                const SizedBox(height: 20),
+                Text(
+                  languageProvider.tr('loading_profile',
+                      category: 'nav_bottom'),
+                  style: TextStyle(color: unselectedColor, fontFamily: 'Exo2'),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -193,110 +202,124 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           return StreamBuilder<int>(
             stream: chatViewModel.getTotalUnreadCount(),
             builder: (context, snapshot) {
-              final unreadCount = snapshot.data ?? 0;
+              // Only messages from chats.unreadCount (NOT from notifications collection)
+              final messageUnreadCount = snapshot.data ?? 0;
 
-              return Scaffold(
-                backgroundColor: backgroundColor,
-                body: IndexedStack(
-                  index: selectorIndex,
-                  children: [
-                    const HomePage(),
-                    const MapSearchPage(),
-                    const FeedScreen(),
-                    ChatPage(userId: userId),
-                    const ProfilePageLoader(),
-                  ],
-                ),
-                bottomNavigationBar: Container(
-                  margin: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: navBackgroundColor,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: selectedColor.withOpacity(0.1),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
+              return Directionality(
+                textDirection: languageProvider.isRtl
+                    ? ui.TextDirection.rtl
+                    : ui.TextDirection.ltr,
+                child: Scaffold(
+                  backgroundColor: backgroundColor,
+                  body: IndexedStack(
+                    index: selectorIndex,
+                    children: [
+                      const HomePage(),
+                      const MapSearchPage(),
+                      const FeedScreen(),
+                      ChatPage(userId: userId),
+                      const ProfilePageLoader(),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BottomNavigationBar(
-                      backgroundColor: navBackgroundColor,
-                      selectedItemColor: selectedColor,
-                      unselectedItemColor: unselectedColor,
-                      selectedLabelStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        height: 1.2,
-                      ),
-                      currentIndex: selectorIndex,
-                      type: BottomNavigationBarType.fixed,
-                      elevation: 0,
-                      items: [
-                        BottomNavigationBarItem(
-                          icon: _buildIcon(
-                            0,
-                            CupertinoIcons.briefcase,
-                            CupertinoIcons.briefcase_fill,
-                            selectedColor,
-                          ),
-                          label: 'Services',
+                  bottomNavigationBar: Container(
+                    margin: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: navBackgroundColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: selectedColor.withOpacity(0.1),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                        BottomNavigationBarItem(
-                          icon: _buildIcon(
-                            1,
-                            CupertinoIcons.map,
-                            CupertinoIcons.map_fill,
-                            selectedColor,
-                          ),
-                          label: 'Search',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: _buildIcon(
-                            2,
-                            CupertinoIcons.home,
-                            CupertinoIcons.home,
-                            selectedColor,
-                          ),
-                          label: 'Home',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: _buildIcon(
-                            3,
-                            CupertinoIcons.chat_bubble,
-                            CupertinoIcons.chat_bubble_2_fill,
-                            selectedColor,
-                            badgeCount: unreadCount,
-                          ),
-                          label: 'Chat',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: _buildIcon(
-                            4,
-                            CupertinoIcons.person,
-                            CupertinoIcons.person_fill,
-                            selectedColor,
-                          ),
-                          label: 'Profile',
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
-                      onTap: (val) {
-                        setState(() {
-                          selectorIndex = val;
-                        });
-                      },
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BottomNavigationBar(
+                        backgroundColor: navBackgroundColor,
+                        selectedItemColor: selectedColor,
+                        unselectedItemColor: unselectedColor,
+                        selectedLabelStyle: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                          fontFamily: 'Exo2',
+                        ),
+                        unselectedLabelStyle: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                          fontFamily: 'Exo2',
+                        ),
+                        currentIndex: selectorIndex,
+                        type: BottomNavigationBarType.fixed,
+                        elevation: 0,
+                        items: [
+                          BottomNavigationBarItem(
+                            icon: _buildIcon(
+                              0,
+                              CupertinoIcons.briefcase,
+                              CupertinoIcons.briefcase_fill,
+                              selectedColor,
+                            ),
+                            label: languageProvider.tr('services',
+                                category: 'nav_bottom'),
+                          ),
+                          BottomNavigationBarItem(
+                            icon: _buildIcon(
+                              1,
+                              CupertinoIcons.map,
+                              CupertinoIcons.map_fill,
+                              selectedColor,
+                            ),
+                            label: languageProvider.tr('search',
+                                category: 'nav_bottom'),
+                          ),
+                          BottomNavigationBarItem(
+                            icon: _buildIcon(
+                              2,
+                              CupertinoIcons.home,
+                              CupertinoIcons.home,
+                              selectedColor,
+                            ),
+                            label: languageProvider.tr('home',
+                                category: 'nav_bottom'),
+                          ),
+                          BottomNavigationBarItem(
+                            // Chat badge shows ONLY message count from chats.unreadCount
+                            icon: _buildIcon(
+                              3,
+                              CupertinoIcons.chat_bubble,
+                              CupertinoIcons.chat_bubble_2_fill,
+                              selectedColor,
+                              badgeCount: messageUnreadCount,
+                            ),
+                            label: languageProvider.tr('chat',
+                                category: 'nav_bottom'),
+                          ),
+                          BottomNavigationBarItem(
+                            icon: _buildIcon(
+                              4,
+                              CupertinoIcons.person,
+                              CupertinoIcons.person_fill,
+                              selectedColor,
+                            ),
+                            label: languageProvider.tr('profile',
+                                category: 'nav_bottom'),
+                          ),
+                        ],
+                        onTap: (val) {
+                          setState(() {
+                            selectorIndex = val;
+                          });
+                        },
+                      ),
                     ),
                   ),
                 ),

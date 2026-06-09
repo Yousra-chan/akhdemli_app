@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:service_app/screens/auth/constants.dart';
 
 const Color kPrimaryBlue = Color(0xFF143EAE);
 const Color kLightBackgroundColor = Color(0xFFF0F4F8);
@@ -7,7 +9,7 @@ const Color kMutedTextColor = Color(0xFF64748B);
 const String kAppFont = 'Roboto';
 const double kHorizontalPadding = 24.0;
 const Color kBorderColor = Color(0xFFE0E0E0);
-const Color kInputFillColor = Color(0xFFE9ECEF); // Add this line
+const Color kInputFillColor = Color(0xFFE9ECEF);
 
 InputDecoration buildInputDecoration(String label) {
   return InputDecoration(
@@ -36,30 +38,38 @@ class RegisterButton extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: isLoading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: kPrimaryBlue,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kPrimaryBlue,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 5,
+          shadowColor: kPrimaryBlue.withOpacity(0.5),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 3,
+                ),
+              )
+            : const Text(
+                'Register',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontFamily: kAppFont,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
       ),
-      child: isLoading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 3,
-              ),
-            )
-          : const Text(
-              'Register',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontFamily: kAppFont,
-              ),
-            ),
     );
   }
 }
@@ -68,8 +78,27 @@ class OrDivider extends StatelessWidget {
   const OrDivider({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text("OR", style: TextStyle(color: kMutedTextColor)),
+    return Row(
+      children: <Widget>[
+        const Expanded(
+          child: Divider(color: kBorderColor, height: 1, thickness: 1),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text(
+            "OR",
+            style: TextStyle(
+              color: kMutedTextColor.withOpacity(0.8),
+              fontSize: 14,
+              fontFamily: kAppFont,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const Expanded(
+          child: Divider(color: kBorderColor, height: 1, thickness: 1),
+        ),
+      ],
     );
   }
 }
@@ -92,15 +121,17 @@ class SocialSignInRow extends StatelessWidget {
       children: [
         Expanded(
           child: _buildSocialButton(
-            icon: Icons.g_translate, // Google icon
+            icon: FontAwesomeIcons.google,
             onPressed: onGooglePressed,
+            color: Colors.red,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildSocialButton(
-            icon: Icons.apple,
+            icon: FontAwesomeIcons.apple,
             onPressed: onApplePressed,
+            color: kDarkTextColor,
           ),
         ),
       ],
@@ -110,16 +141,29 @@ class SocialSignInRow extends StatelessWidget {
   Widget _buildSocialButton({
     required IconData icon,
     required VoidCallback onPressed,
+    required Color color,
   }) {
     return InkWell(
       onTap: isLoading ? null : onPressed,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          border: Border.all(color: kBorderColor),
+          border: Border.all(color: kBorderColor.withOpacity(0.7)),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon),
+        child: Center(
+          child: isLoading
+              ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(color),
+                  ),
+                )
+              : Icon(icon, color: color, size: 24),
+        ),
       ),
     );
   }
@@ -133,9 +177,28 @@ class SignInLink extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: const Text(
-        'Already have an account? Sign in',
-        style: TextStyle(color: kPrimaryBlue),
+      child: Center(
+        child: RichText(
+          text: const TextSpan(
+            style: TextStyle(
+              color: kMutedTextColor,
+              fontFamily: kAppFont,
+              fontSize: 15,
+            ),
+            children: [
+              TextSpan(
+                text: "Already have an account? ",
+              ),
+              TextSpan(
+                text: 'Sign in',
+                style: TextStyle(
+                  color: kPrimaryBlue,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -162,15 +225,13 @@ class RoleOption extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected
-              ? kPrimaryBlue.withOpacity(0.1)
-              : kLightBackgroundColor,
+          color: isSelected ? kPrimaryBlue.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? kPrimaryBlue : Colors.transparent,
-            width: 2,
+            color: isSelected ? kPrimaryBlue : kBorderColor,
+            width: isSelected ? 2 : 1,
           ),
         ),
         child: Column(
@@ -178,18 +239,20 @@ class RoleOption extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? kPrimaryBlue : kDarkTextColor,
-              size: 30,
+              color: isSelected ? kPrimaryBlue : kMutedTextColor,
+              size: 24,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               title,
               style: TextStyle(
                 fontFamily: kAppFont,
-                fontWeight: FontWeight.bold,
-                color: kDarkTextColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? kPrimaryBlue : kDarkTextColor,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               subtitle,
               style: TextStyle(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:service_app/Models/UserModel.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'posts_constants.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
@@ -18,28 +19,32 @@ class PostCard extends StatelessWidget {
     this.showFullDescription = false,
   });
 
-  String _formatTime(DateTime timestamp) {
+  String _formatTime(BuildContext context, DateTime timestamp) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     final difference = DateTime.now().difference(timestamp);
 
     if (difference.inSeconds < 60) {
-      return 'Just now';
+      return languageProvider.tr('just_now', category: 'posts');
     } else if (difference.inMinutes < 60) {
       final minutes = difference.inMinutes;
-      return '$minutes ${minutes == 1 ? 'min' : 'mins'} ago';
+      return '$minutes ${minutes == 1 ? languageProvider.tr('min_ago', category: 'posts') : languageProvider.tr('mins_ago', category: 'posts')}';
     } else if (difference.inHours < 24) {
       final hours = difference.inHours;
-      return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+      return '$hours ${hours == 1 ? languageProvider.tr('hour_ago', category: 'posts') : languageProvider.tr('hours_ago', category: 'posts')}';
     } else if (difference.inDays < 7) {
       final days = difference.inDays;
-      return '$days ${days == 1 ? 'day' : 'days'} ago';
+      return '$days ${days == 1 ? languageProvider.tr('day_ago', category: 'posts') : languageProvider.tr('days_ago', category: 'posts')}';
     } else {
       final weeks = (difference.inDays / 7).floor();
-      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+      return '$weeks ${weeks == 1 ? languageProvider.tr('week_ago', category: 'posts') : languageProvider.tr('weeks_ago', category: 'posts')}';
     }
   }
 
   Future<void> _handleChatPress(BuildContext context) async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     final currentUser = authViewModel.currentUser;
 
     final String peerId = post.userId;
@@ -47,7 +52,9 @@ class PostCard extends StatelessWidget {
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please sign in to contact this user'),
+          content: Text(
+            languageProvider.tr('please_sign_in_to_contact', category: 'posts'),
+          ),
           backgroundColor: kSeekingColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -61,7 +68,9 @@ class PostCard extends StatelessWidget {
     if (currentUser.uid == peerId) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('You cannot message yourself'),
+          content: Text(
+            languageProvider.tr('cannot_message_yourself', category: 'posts'),
+          ),
           backgroundColor: kAccentColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -114,8 +123,13 @@ class PostCard extends StatelessWidget {
         Navigator.pop(context); // Close loading dialog if still open
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('Failed to start chat: ${e.toString().split(':').last}'),
+            content: Text(
+              languageProvider.trParams(
+                'failed_to_start_chat',
+                category: 'posts',
+                params: {'error': e.toString().split(':').last.trim()},
+              ),
+            ),
             backgroundColor: kSeekingColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -169,6 +183,8 @@ class PostCard extends StatelessWidget {
 
   Widget _buildHorizontalImageRow(
       BuildContext context, List<String> imageUrls) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     if (imageUrls.isEmpty) return const SizedBox.shrink();
 
     final int imageCount = imageUrls.length;
@@ -190,7 +206,7 @@ class PostCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '$imageCount ${imageCount == 1 ? 'photo' : 'photos'}',
+                  '$imageCount ${imageCount == 1 ? languageProvider.tr('photo', category: 'posts') : languageProvider.tr('photos', category: 'posts')}',
                   style: TextStyle(
                     color: kMutedTextColor,
                     fontSize: 12,
@@ -205,7 +221,7 @@ class PostCard extends StatelessWidget {
                     child: Row(
                       children: [
                         Text(
-                          'View all',
+                          languageProvider.tr('view_all', category: 'posts'),
                           style: TextStyle(
                             color: kPrimaryBlue,
                             fontSize: 12,
@@ -257,7 +273,7 @@ class PostCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       child: Stack(
                         children: [
-                          _buildImageWidget(imageUrls[index]),
+                          _buildImageWidget(context, imageUrls[index]),
                           // Image number indicator for multiple images
                           if (imageCount > 1)
                             Positioned(
@@ -295,17 +311,31 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImageWidget(String imageString) {
+  Widget _buildImageWidget(BuildContext context, String imageString) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final imageProvider = ImageUtils.getImageProvider(imageString);
 
     if (imageProvider == null) {
       return Container(
         color: Colors.grey.shade50,
         child: Center(
-          child: Icon(
-            CupertinoIcons.photo_fill_on_rectangle_fill,
-            color: Colors.grey.shade300,
-            size: 40,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.photo_fill_on_rectangle_fill,
+                color: Colors.grey.shade300,
+                size: 40,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                languageProvider.tr('failed_to_load', category: 'posts'),
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -344,7 +374,7 @@ class PostCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Failed to load',
+                  languageProvider.tr('failed_to_load', category: 'posts'),
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 12,
@@ -371,10 +401,12 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final Color typeColor =
         post.type == PostType.seeking ? kSeekingColor : kOfferingColor;
-    final String typeLabel =
-        post.type == PostType.seeking ? 'Looking for' : 'Offering';
+    final String typeLabel = post.type == PostType.seeking
+        ? languageProvider.tr('looking_for', category: 'posts')
+        : languageProvider.tr('offering', category: 'posts');
     final bool hasImages = post.imageUrls.isNotEmpty;
     final bool isExpanded = showFullDescription;
 
@@ -428,7 +460,7 @@ class PostCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _formatTime(post.timestamp),
+                            _formatTime(context, post.timestamp),
                             style: TextStyle(
                               color: kMutedTextColor,
                               fontSize: 12,
@@ -558,9 +590,9 @@ class PostCard extends StatelessWidget {
                       CupertinoIcons.chat_bubble_text_fill,
                       size: 16,
                     ),
-                    label: const Text(
-                      'Contact',
-                      style: TextStyle(
+                    label: Text(
+                      languageProvider.tr('contact', category: 'posts'),
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                         fontFamily: 'Exo2',
@@ -592,7 +624,7 @@ class PostCard extends StatelessWidget {
                       size: 16,
                     ),
                     label: Text(
-                      'View ${post.imageUrls.length}',
+                      '${languageProvider.tr('view', category: 'posts')} ${post.imageUrls.length}',
                       style: TextStyle(
                         color: kPrimaryBlue,
                         fontWeight: FontWeight.w600,
@@ -658,6 +690,8 @@ class _ImageDialogState extends State<ImageDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(0),
@@ -681,7 +715,7 @@ class _ImageDialogState extends State<ImageDialog> {
                   panEnabled: true,
                   scaleEnabled: true,
                   child: Center(
-                    child: _buildImageWidget(widget.imageUrls[index]),
+                    child: _buildImageWidget(context, widget.imageUrls[index]),
                   ),
                 );
               },
@@ -766,7 +800,8 @@ class _ImageDialogState extends State<ImageDialog> {
     );
   }
 
-  Widget _buildImageWidget(String imageString) {
+  Widget _buildImageWidget(BuildContext context, String imageString) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final imageProvider = ImageUtils.getImageProvider(imageString);
 
     if (imageProvider == null) {
@@ -785,9 +820,9 @@ class _ImageDialogState extends State<ImageDialog> {
               size: 50,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Unable to load image',
-              style: TextStyle(
+            Text(
+              languageProvider.tr('unable_to_load_image', category: 'posts'),
+              style: const TextStyle(
                 color: Colors.grey,
                 fontSize: 14,
               ),
@@ -828,9 +863,9 @@ class _ImageDialogState extends State<ImageDialog> {
                 size: 50,
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Failed to load image',
-                style: TextStyle(
+              Text(
+                languageProvider.tr('failed_to_load_image', category: 'posts'),
+                style: const TextStyle(
                   color: Colors.grey,
                   fontSize: 14,
                 ),

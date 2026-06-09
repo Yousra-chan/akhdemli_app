@@ -10,6 +10,9 @@ import 'package:service_app/models/MessageModel.dart';
 import 'package:intl/intl.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:service_app/Services/notification_service.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
+import 'dart:ui' as ui;
 
 // Profile image cache with expiration
 class ProfileImageCache {
@@ -171,10 +174,15 @@ class _DiscussionPageState extends State<DiscussionPage> {
         .handleError((error, stackTrace) {
       print('❌ Error listening to messages: $error');
       if (mounted) {
+        final languageProvider =
+            Provider.of<LanguageProvider>(context, listen: false);
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading messages'),
+            content: Text(
+              languageProvider.tr('error_loading_messages',
+                  category: 'disscussion'),
+            ),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
@@ -286,6 +294,9 @@ class _DiscussionPageState extends State<DiscussionPage> {
     final messageText = _messageController.text.trim();
     if (messageText.isEmpty) return;
 
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     setState(() {
       _isSendingMessage = true;
     });
@@ -306,15 +317,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
       _shouldAutoScroll = true;
       _scrollToBottom();
 
-      // 🔥 SEND NOTIFICATION USING RENDER SERVER
-      await _sendNotificationViaRenderServer(messageText);
-
-      // Save notification to Firestore for history
-      await _saveNotificationToFirestore(
-        receiverId: _contactUserId ?? widget.contactUserId ?? '',
-        message: messageText,
-        senderName: widget.contactName,
-      );
+      // 🔥 SEND NOTIFICATION VIA RENDER SERVER (SINGLE PATH)
+      await _sendNotificationViaRenderServer(messageText, languageProvider);
 
       if (mounted) {
         setState(() {
@@ -326,7 +330,10 @@ class _DiscussionPageState extends State<DiscussionPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send message'),
+            content: Text(
+              languageProvider.tr('failed_to_send_message',
+                  category: 'disscussion'),
+            ),
             backgroundColor: Colors.red.shade400,
             duration: const Duration(seconds: 2),
           ),
@@ -338,7 +345,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  Future<void> _sendNotificationViaRenderServer(String message) async {
+  Future<void> _sendNotificationViaRenderServer(
+      String message, LanguageProvider lang) async {
     try {
       print('🔍 NOTIFICATION DEBUG - Checking source...');
       print('📱 Current User: ${widget.currentUserId}');
@@ -406,7 +414,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
 
   // Fallback: Send direct FCM notification (if Render server fails)
   Future<void> _sendFallbackNotification(
-      String receiverToken, String message) async {
+      String receiverToken, String message, LanguageProvider lang) async {
     try {
       print('🔄 Trying fallback notification method...');
 
@@ -414,7 +422,11 @@ class _DiscussionPageState extends State<DiscussionPage> {
       final success =
           await NotificationService().sendNotificationViaRenderServer(
         receiverToken: receiverToken,
-        title: 'New message from ${widget.contactName}',
+        title: lang.trParams(
+          'new_message_from',
+          category: 'disscussion',
+          params: {'name': widget.contactName},
+        ),
         body: message,
         data: {
           'type': 'message',
@@ -427,7 +439,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
         print('✅ Fallback notification sent via NotificationService');
       } else {
         print('❌ NotificationService fallback failed, trying direct FCM...');
-        await _sendDirectFCMNotification(receiverToken, message);
+        await _sendDirectFCMNotification(receiverToken, message, lang);
       }
     } catch (e) {
       print('❌ Fallback error: $e');
@@ -436,7 +448,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
 
   // Direct FCM as last resort
   Future<void> _sendDirectFCMNotification(
-      String receiverToken, String message) async {
+      String receiverToken, String message, LanguageProvider lang) async {
     try {
       print('🚨 Using direct FCM as last resort...');
 
@@ -457,7 +469,11 @@ class _DiscussionPageState extends State<DiscussionPage> {
         body: json.encode({
           'to': receiverToken,
           'notification': {
-            'title': 'New message from ${widget.contactName}',
+            'title': lang.trParams(
+              'new_message_from',
+              category: 'disscussion',
+              params: {'name': widget.contactName},
+            ),
             'body': message,
             'sound': 'default',
             'android_channel_id': 'high_importance_channel',
@@ -481,7 +497,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
   }
 
   // Alternative fallback
-  Future<void> _sendFallbackDirectNotification(String message) async {
+  Future<void> _sendFallbackDirectNotification(
+      String message, LanguageProvider lang) async {
     try {
       final receiverId = _contactUserId ?? widget.contactUserId;
       if (receiverId == null) return;
@@ -498,39 +515,11 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  Future<void> _saveNotificationToFirestore({
-    required String receiverId,
-    required String message,
-    required String senderName,
-  }) async {
-    try {
-      if (receiverId.isEmpty) {
-        print('⚠️ Empty receiver ID, skipping notification save');
-        return;
-      }
-
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'userId': receiverId,
-        'senderId': widget.currentUserId,
-        'senderName': senderName,
-        'message': message,
-        'title': '$senderName sent a message',
-        'type': 'message',
-        'chatId': widget.chatId,
-        'time': Timestamp.now(),
-        'isRead': false,
-        'messageCount': 1,
-        'lastMessageTime': Timestamp.now(),
-      });
-
-      print('✅ Notification saved to Firestore');
-    } catch (e) {
-      print('⚠️ Error saving notification to Firestore: $e');
-    }
-  }
-
   // Test notification button (for debugging)
   Future<void> _testNotification() async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       print('🧪 Testing notification system...');
 
@@ -544,11 +533,17 @@ class _DiscussionPageState extends State<DiscussionPage> {
       print('✅ Render server health: ${healthResponse.statusCode}');
 
       // Send test message
-      await _sendNotificationViaRenderServer('Test notification from app! 🎉');
+      await _sendNotificationViaRenderServer(
+          languageProvider.tr('test_notification_message',
+              category: 'disscussion'),
+          languageProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Test notification sent!'),
+          content: Text(
+            languageProvider.tr('test_notification_sent',
+                category: 'disscussion'),
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -556,7 +551,13 @@ class _DiscussionPageState extends State<DiscussionPage> {
       print('❌ Test failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Test failed: $e'),
+          content: Text(
+            languageProvider.trParams(
+              'test_failed',
+              category: 'disscussion',
+              params: {'error': e.toString()},
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -565,6 +566,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final screenSize = MediaQuery.of(context).size;
 
     return WillPopScope(
@@ -572,34 +574,38 @@ class _DiscussionPageState extends State<DiscussionPage> {
         Navigator.pop(context);
         return false;
       },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: _buildAppBar(screenSize),
-        body: Column(
-          children: [
-            Expanded(
-              child: _buildMessagesList(),
+      child: Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          appBar: _buildAppBar(screenSize, languageProvider),
+          body: SafeArea(
+            // ← ADD THIS
+            bottom:
+                false, // ← Important: Let the keyboard handle bottom padding
+            child: Column(
+              children: [
+                Expanded(
+                  child: _buildMessagesList(languageProvider),
+                ),
+                _buildMessageInput(languageProvider),
+              ],
             ),
-            _buildMessageInput(),
-          ],
-        ),
-        // Debug button (remove in production)
-        floatingActionButton: FloatingActionButton(
-          onPressed: _testNotification,
-          child: Icon(Icons.notifications),
-          backgroundColor: Colors.blue,
-          mini: true,
+          ),
         ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(Size screenSize) {
+  PreferredSizeWidget _buildAppBar(Size screenSize, LanguageProvider lang) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Icons.arrow_back, color: Colors.black87, size: 24),
+        icon: Icon(lang.isRtl ? Icons.arrow_forward : Icons.arrow_back,
+            color: Colors.black87, size: 24),
         onPressed: () => Navigator.pop(context),
       ),
       title: Row(
@@ -682,6 +688,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
                     color: Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    fontFamily: 'Exo2',
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -701,13 +708,16 @@ class _DiscussionPageState extends State<DiscussionPage> {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      widget.isOnline ? 'Online' : 'Offline',
+                      widget.isOnline
+                          ? lang.tr('online', category: 'disscussion')
+                          : lang.tr('offline', category: 'disscussion'),
                       style: TextStyle(
                         color: widget.isOnline
                             ? Colors.green
                             : Colors.grey.shade600,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                        fontFamily: 'Exo2',
                       ),
                     ),
                   ],
@@ -720,7 +730,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
     );
   }
 
-  Widget _buildMessagesList() {
+  Widget _buildMessagesList(LanguageProvider lang) {
     if (_isLoading && _messages.isEmpty) {
       return Center(
         child: Column(
@@ -731,10 +741,11 @@ class _DiscussionPageState extends State<DiscussionPage> {
             ),
             SizedBox(height: 16),
             Text(
-              'Loading messages...',
+              lang.tr('loading_messages', category: 'disscussion'),
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 14,
+                fontFamily: 'Exo2',
               ),
             ),
           ],
@@ -743,7 +754,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
 
     return _messages.isEmpty
-        ? _buildEmptyState()
+        ? _buildEmptyState(lang)
         : SmartRefresher(
             enablePullDown: true,
             onRefresh: () {
@@ -766,10 +777,11 @@ class _DiscussionPageState extends State<DiscussionPage> {
                 return Column(
                   children: [
                     if (showDate)
-                      _buildDateSeparator(message.timestamp.toDate()),
+                      _buildDateSeparator(message.timestamp.toDate(), lang),
                     _MessageBubble(
                       message: message,
                       isMe: isMe,
+                      lang: lang,
                     ),
                   ],
                 );
@@ -784,17 +796,18 @@ class _DiscussionPageState extends State<DiscussionPage> {
         date1.day == date2.day;
   }
 
-  Widget _buildDateSeparator(DateTime date) {
+  Widget _buildDateSeparator(DateTime date, LanguageProvider lang) {
     final today = DateTime.now();
     final yesterday = today.subtract(Duration(days: 1));
 
     String dateStr;
     if (_isSameDay(date, today)) {
-      dateStr = 'Today';
+      dateStr = lang.tr('today', category: 'disscussion');
     } else if (_isSameDay(date, yesterday)) {
-      dateStr = 'Yesterday';
+      dateStr = lang.tr('yesterday', category: 'disscussion');
     } else {
-      dateStr = DateFormat('MMM d, yyyy').format(date);
+      dateStr = DateFormat(lang.tr('date_format', category: 'disscussion'))
+          .format(date);
     }
 
     return Padding(
@@ -810,6 +823,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
                 color: Colors.grey.shade600,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
+                fontFamily: 'Exo2',
               ),
             ),
           ),
@@ -819,7 +833,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(LanguageProvider lang) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -839,25 +853,30 @@ class _DiscussionPageState extends State<DiscussionPage> {
           ),
           SizedBox(height: 20),
           Text(
-            'No messages yet',
+            lang.tr('no_messages_yet', category: 'disscussion'),
             style: TextStyle(
               color: Colors.grey.shade800,
               fontSize: 18,
               fontWeight: FontWeight.w600,
+              fontFamily: 'Exo2',
             ),
           ),
           SizedBox(height: 8),
           Text(
-            'Start the conversation',
+            lang.tr('start_conversation', category: 'disscussion'),
             style: TextStyle(
               color: Colors.grey.shade600,
               fontSize: 14,
+              fontFamily: 'Exo2',
             ),
           ),
           SizedBox(height: 20),
           ElevatedButton(
             onPressed: _testNotification,
-            child: Text('Test Notifications'),
+            child: Text(
+              lang.tr('test_notifications', category: 'disscussion'),
+              style: const TextStyle(fontFamily: 'Exo2'),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
             ),
@@ -867,7 +886,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildMessageInput(LanguageProvider lang) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -875,40 +894,48 @@ class _DiscussionPageState extends State<DiscussionPage> {
           top: BorderSide(color: Colors.grey.shade200, width: 0.5),
         ),
       ),
-      padding: EdgeInsets.fromLTRB(
-        16,
-        8,
-        16,
-        max(16.0, MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: max(16.0, MediaQuery.of(context).viewInsets.bottom),
       ),
       child: Row(
         children: [
           Expanded(
             child: Container(
+              constraints: BoxConstraints(
+                maxHeight: 100, // Prevents text field from growing too tall
+              ),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(24),
               ),
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 15,
+              child: SingleChildScrollView(
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: lang.tr('type_message', category: 'disscussion'),
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 15,
+                      fontFamily: 'Exo2',
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 15,
+                    height: 1.4,
+                    fontFamily: 'Exo2',
+                  ),
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  onSubmitted: (_) => _sendMessage(),
                 ),
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
               ),
             ),
           ),
@@ -956,10 +983,12 @@ class _DiscussionPageState extends State<DiscussionPage> {
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
+  final LanguageProvider lang;
 
   const _MessageBubble({
     required this.message,
     required this.isMe,
+    required this.lang,
   });
 
   @override
@@ -978,7 +1007,9 @@ class _MessageBubble extends StatelessWidget {
       timestamp = DateTime.now();
     }
 
-    final formatTime = DateFormat('HH:mm').format(timestamp);
+    final formatTime =
+        DateFormat(lang.tr('time_format', category: 'disscussion'))
+            .format(timestamp);
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -1031,6 +1062,7 @@ class _MessageBubble extends StatelessWidget {
                   color: Colors.grey.shade500,
                   fontSize: 11,
                   fontWeight: FontWeight.w400,
+                  fontFamily: 'Exo2',
                 ),
               ),
             ),

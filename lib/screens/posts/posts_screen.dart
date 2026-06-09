@@ -3,11 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 import 'package:service_app/Services/firestore_service.dart';
 import 'package:service_app/utils/image_optimizer.dart';
 import 'package:service_app/utils/image_utils.dart';
-import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'posts_constants.dart';
 import 'package:service_app/screens/posts/posts_widgets.dart';
 import 'package:image_picker/image_picker.dart';
@@ -62,13 +63,18 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   void _handleCreatePost(Post post) async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       await _firestoreService.addPost(post);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${post.type == PostType.seeking ? "Request" : "Offer"} published successfully!',
+              post.type == PostType.seeking
+                  ? languageProvider.tr('request_published', category: 'posts')
+                  : languageProvider.tr('offer_published', category: 'posts'),
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
             backgroundColor: Colors.green,
@@ -80,7 +86,13 @@ class _FeedScreenState extends State<FeedScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating post: $e'),
+            content: Text(
+              languageProvider.trParams(
+                'error_creating_post',
+                category: 'posts',
+                params: {'error': e.toString()},
+              ),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -91,12 +103,16 @@ class _FeedScreenState extends State<FeedScreen> {
 
   void _showCreatePostModal() {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please sign in to create a post'),
+        SnackBar(
+          content: Text(
+            languageProvider.tr('please_sign_in', category: 'posts'),
+          ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -143,8 +159,11 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  Widget _buildFilterChip(PostFilterType type, String label) {
+  Widget _buildFilterChip(PostFilterType type, String labelKey) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     final isSelected = _selectedFilter == type;
+
     return GestureDetector(
       onTap: () {
         if (_selectedFilter != type) {
@@ -164,7 +183,7 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ),
         child: Text(
-          label,
+          languageProvider.tr(labelKey, category: 'posts'),
           style: TextStyle(
             color: isSelected
                 ? const Color.fromARGB(255, 12, 94, 153)
@@ -178,11 +197,13 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 60,
             height: 60,
             child: CircularProgressIndicator(
@@ -190,10 +211,10 @@ class _FeedScreenState extends State<FeedScreen> {
               strokeWidth: 3,
             ),
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text(
-            'Loading posts...',
-            style: TextStyle(
+            languageProvider.tr('loading_posts', category: 'posts'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
             ),
@@ -204,6 +225,8 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildErrorState() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -216,21 +239,21 @@ class _FeedScreenState extends State<FeedScreen> {
               size: 60,
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Unable to load posts',
-              style: TextStyle(
+            Text(
+              languageProvider.tr('unable_to_load_posts', category: 'posts'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 10),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Please check your internet connection and try again',
+                languageProvider.tr('check_internet', category: 'posts'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ),
             const SizedBox(height: 24),
@@ -245,12 +268,12 @@ class _FeedScreenState extends State<FeedScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.refresh, size: 18),
-                  SizedBox(width: 8),
-                  Text('Try Again'),
+                  const Icon(Icons.refresh, size: 18),
+                  const SizedBox(width: 8),
+                  Text(languageProvider.tr('try_again', category: 'posts')),
                 ],
               ),
             ),
@@ -261,6 +284,8 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildEmptyState() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -273,21 +298,21 @@ class _FeedScreenState extends State<FeedScreen> {
               size: 80,
             ),
             const SizedBox(height: 24),
-            const Text(
-              'No posts yet',
-              style: TextStyle(
+            Text(
+              languageProvider.tr('no_posts_yet', category: 'posts'),
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 10),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                'Be the first to share your service needs or offers',
+                languageProvider.tr('be_first_to_share', category: 'posts'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ),
             const SizedBox(height: 24),
@@ -302,7 +327,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text('Create First Post'),
+              child: Text(
+                languageProvider.tr('create_first_post', category: 'posts'),
+              ),
             ),
           ],
         ),
@@ -311,11 +338,7 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildFilteredEmptyState() {
-    final filterText = _selectedFilter == PostFilterType.seeking
-        ? 'requests'
-        : _selectedFilter == PostFilterType.offering
-            ? 'offers'
-            : 'posts';
+    final languageProvider = Provider.of<LanguageProvider>(context);
 
     return Center(
       child: Padding(
@@ -332,7 +355,9 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No $filterText yet',
+              _selectedFilter == PostFilterType.seeking
+                  ? languageProvider.tr('no_requests_yet', category: 'posts')
+                  : languageProvider.tr('no_offers_yet', category: 'posts'),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -344,8 +369,9 @@ class _FeedScreenState extends State<FeedScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
                 _selectedFilter == PostFilterType.seeking
-                    ? 'No one is looking for services right now'
-                    : 'No services are being offered right now',
+                    ? languageProvider.tr('no_one_looking', category: 'posts')
+                    : languageProvider.tr('no_services_offered',
+                        category: 'posts'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: Colors.white70),
               ),
@@ -364,8 +390,8 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
               child: Text(
                 _selectedFilter == PostFilterType.seeking
-                    ? 'Post a Request'
-                    : 'Offer Service',
+                    ? languageProvider.tr('post_request', category: 'posts')
+                    : languageProvider.tr('offer_service', category: 'posts'),
               ),
             ),
           ],
@@ -374,23 +400,10 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _buildPostList(List<Post> posts) {
-    return ListView.builder(
-      controller: _scrollController,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: posts.length,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: PostCard(post: posts[index]),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       body: SafeArea(
         child: Container(
@@ -408,7 +421,7 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
           child: Column(
             children: [
-              // Header (same as ChatScreen)
+              // Header
               Container(
                 padding: const EdgeInsets.only(
                   top: 10,
@@ -427,7 +440,8 @@ class _FeedScreenState extends State<FeedScreen> {
                           children: [
                             const SizedBox(height: 10),
                             Text(
-                              "Service Exchange",
+                              languageProvider.tr('service_exchange',
+                                  category: 'posts'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
@@ -455,12 +469,12 @@ class _FeedScreenState extends State<FeedScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildFilterChip(PostFilterType.all, 'All Posts'),
+                            _buildFilterChip(PostFilterType.all, 'all_posts'),
                             const SizedBox(width: 8),
                             _buildFilterChip(
-                                PostFilterType.seeking, 'Requests'),
+                                PostFilterType.seeking, 'requests'),
                             const SizedBox(width: 8),
-                            _buildFilterChip(PostFilterType.offering, 'Offers'),
+                            _buildFilterChip(PostFilterType.offering, 'offers'),
                           ],
                         ),
                       ),
@@ -469,7 +483,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ),
 
-              // White content area with rounded top corners (same as ChatScreen)
+              // White content area with rounded top corners
               Expanded(
                 child: Container(
                   decoration: const BoxDecoration(
@@ -482,35 +496,29 @@ class _FeedScreenState extends State<FeedScreen> {
                   child: StreamBuilder<List<Post>>(
                     stream: _firestoreService.getPostsStream(),
                     builder: (context, snapshot) {
-                      // Show loading only when there's NO data yet
                       if (snapshot.connectionState == ConnectionState.waiting &&
                           !snapshot.hasData) {
                         return _buildLoadingState();
                       }
 
-                      // Show error if there's an error
                       if (snapshot.hasError) {
                         return _buildErrorState();
                       }
 
-                      // Get posts data
                       final posts = snapshot.data ?? [];
 
-                      // Handle empty states
                       if (posts.isEmpty) {
                         return _selectedFilter == PostFilterType.all
                             ? _buildEmptyState()
                             : _buildFilteredEmptyState();
                       }
 
-                      // Filter posts
                       final filteredPosts = _filterPosts(posts);
 
                       if (filteredPosts.isEmpty) {
                         return _buildFilteredEmptyState();
                       }
 
-                      // Show posts list with refresh indicator
                       return RefreshIndicator(
                         onRefresh: _refreshData,
                         color: const Color.fromARGB(255, 12, 94, 153),
@@ -593,6 +601,8 @@ class _ImageViewerDialogState extends State<ImageViewerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(0),
@@ -637,7 +647,8 @@ class _ImageViewerDialogState extends State<ImageViewerDialog> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Unable to load image',
+                            languageProvider.tr('unable_to_load_image',
+                                category: 'posts'),
                             style: TextStyle(
                               color: Colors.grey.shade800,
                               fontSize: 16,
@@ -789,6 +800,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
   }
 
   Future<void> _pickImages() async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       final List<XFile> pickedFiles = await widget.imagePicker.pickMultiImage(
         maxWidth: 800,
@@ -796,10 +810,13 @@ class _CreatePostModalState extends State<CreatePostModal> {
         imageQuality: 60,
       );
 
-      if (pickedFiles != null && pickedFiles.isNotEmpty) {
+      if (pickedFiles.isNotEmpty) {
         for (final pickedFile in pickedFiles) {
           if (_selectedImages.length >= 3) {
-            _showSnackBar('Maximum 3 images allowed', Colors.orange);
+            _showSnackBar(
+              languageProvider.tr('maximum_3_images', category: 'posts'),
+              Colors.orange,
+            );
             break;
           }
 
@@ -811,7 +828,11 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
           if (fileSizeInKB > 2000) {
             _showSnackBar(
-              'Image too large (${fileSizeInKB.toStringAsFixed(0)}KB). Max 2MB.',
+              languageProvider.trParams(
+                'image_too_large',
+                category: 'posts',
+                params: {'size': fileSizeInKB.toStringAsFixed(0)},
+              ),
               Colors.orange,
             );
             continue;
@@ -823,11 +844,21 @@ class _CreatePostModalState extends State<CreatePostModal> {
         }
       }
     } catch (e) {
-      _showSnackBar('Error selecting images: $e', Colors.red);
+      _showSnackBar(
+        languageProvider.trParams(
+          'error_selecting_images',
+          category: 'posts',
+          params: {'error': e.toString()},
+        ),
+        Colors.red,
+      );
     }
   }
 
   Future<void> _takePhoto() async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
       final XFile? photo = await widget.imagePicker.pickImage(
         source: ImageSource.camera,
@@ -845,7 +876,11 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
         if (fileSizeInKB > 2000) {
           _showSnackBar(
-            'Image too large (${fileSizeInKB.toStringAsFixed(0)}KB). Max 2MB.',
+            languageProvider.trParams(
+              'image_too_large',
+              category: 'posts',
+              params: {'size': fileSizeInKB.toStringAsFixed(0)},
+            ),
             Colors.orange,
           );
           return;
@@ -855,10 +890,20 @@ class _CreatePostModalState extends State<CreatePostModal> {
           _selectedImages.add(file);
         });
       } else if (_selectedImages.length >= 3) {
-        _showSnackBar('Maximum 3 images reached', Colors.orange);
+        _showSnackBar(
+          languageProvider.tr('maximum_3_images_reached', category: 'posts'),
+          Colors.orange,
+        );
       }
     } catch (e) {
-      _showSnackBar('Error taking photo: $e', Colors.red);
+      _showSnackBar(
+        languageProvider.trParams(
+          'error_taking_photo',
+          category: 'posts',
+          params: {'error': e.toString()},
+        ),
+        Colors.red,
+      );
     }
   }
 
@@ -879,6 +924,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
   }
 
   void _submitPost() async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -887,7 +935,10 @@ class _CreatePostModalState extends State<CreatePostModal> {
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      _showSnackBar('You must be logged in to create a post', kSeekingColor);
+      _showSnackBar(
+        languageProvider.tr('must_be_logged_in', category: 'posts'),
+        kSeekingColor,
+      );
       return;
     }
 
@@ -903,7 +954,6 @@ class _CreatePostModalState extends State<CreatePostModal> {
         for (int i = 0; i < _selectedImages.length; i++) {
           final file = _selectedImages[i];
 
-          // Compress image first
           final compressedBytes = await ImageOptimizer.compressImage(
             file,
             maxSizeKB: 50,
@@ -911,11 +961,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
             maxHeight: 800,
           );
 
-          // Convert to base64
           final base64String = base64Encode(compressedBytes);
           final base64Image = 'data:image/jpeg;base64,$base64String';
 
-          // Check final size
           if (base64Image.length > 70000) {
             print('Image $i too large, skipping');
             continue;
@@ -942,14 +990,28 @@ class _CreatePostModalState extends State<CreatePostModal> {
       if (mounted) {
         Navigator.pop(context);
         _showSnackBar(
-          'Post created successfully${base64Images.isNotEmpty ? ' with ${base64Images.length} image(s)' : ''}!',
+          base64Images.isEmpty
+              ? languageProvider.tr('post_created_successfully',
+                  category: 'posts')
+              : languageProvider.trParams(
+                  'post_created_with_images',
+                  category: 'posts',
+                  params: {'count': base64Images.length.toString()},
+                ),
           Colors.green,
         );
       }
     } catch (e) {
       print('Error creating post: $e');
       if (mounted) {
-        _showSnackBar('Error creating post: $e', Colors.red);
+        _showSnackBar(
+          languageProvider.trParams(
+            'error_creating_post',
+            category: 'posts',
+            params: {'error': e.toString()},
+          ),
+          Colors.red,
+        );
         setState(() {
           _isUploading = false;
         });
@@ -958,6 +1020,8 @@ class _CreatePostModalState extends State<CreatePostModal> {
   }
 
   Widget _buildImageGrid() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     if (_selectedImages.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -966,7 +1030,11 @@ class _CreatePostModalState extends State<CreatePostModal> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Selected Images (${_selectedImages.length}/3)',
+            languageProvider.trParams(
+              'selected_images',
+              category: 'posts',
+              params: {'count': _selectedImages.length.toString()},
+            ),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -1040,6 +1108,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final typeColor =
         _type == PostType.seeking ? kSeekingColor : kOfferingColor;
     final bool isProvider = widget.user.isProvider;
@@ -1065,7 +1134,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Create Post",
+                    languageProvider.tr('create_post', category: 'posts'),
                     style: TextStyle(
                       color: const Color.fromARGB(255, 12, 94, 153),
                       fontSize: 22,
@@ -1082,8 +1151,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
               const SizedBox(height: 4),
               Text(
                 isProvider
-                    ? "Share your services with the community"
-                    : "Let providers know what you need",
+                    ? languageProvider.tr('share_services', category: 'posts')
+                    : languageProvider.tr('let_providers_know',
+                        category: 'posts'),
                 style: TextStyle(
                   color: kMutedTextColor,
                   fontSize: 13,
@@ -1106,7 +1176,11 @@ class _CreatePostModalState extends State<CreatePostModal> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      isProvider ? "I Offer Service" : "I Need Service",
+                      isProvider
+                          ? languageProvider.tr('i_offer_service',
+                              category: 'posts')
+                          : languageProvider.tr('i_need_service',
+                              category: 'posts'),
                       style: TextStyle(
                         color: typeColor,
                         fontSize: 15,
@@ -1120,7 +1194,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  labelText: "Title",
+                  labelText: languageProvider.tr('title', category: 'posts'),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -1130,14 +1204,17 @@ class _CreatePostModalState extends State<CreatePostModal> {
                   contentPadding: const EdgeInsets.all(16),
                 ),
                 maxLength: 60,
-                validator: (value) =>
-                    value!.isEmpty ? 'Title cannot be empty' : null,
+                validator: (value) => value!.isEmpty
+                    ? languageProvider.tr('title_cannot_be_empty',
+                        category: 'posts')
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _bodyController,
                 decoration: InputDecoration(
-                  labelText: "Description",
+                  labelText:
+                      languageProvider.tr('description', category: 'posts'),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -1148,8 +1225,10 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 ),
                 maxLines: 4,
                 maxLength: 300,
-                validator: (value) =>
-                    value!.length < 10 ? 'Description is too short' : null,
+                validator: (value) => value!.length < 10
+                    ? languageProvider.tr('description_too_short',
+                        category: 'posts')
+                    : null,
               ),
               const SizedBox(height: 12),
               Container(
@@ -1181,7 +1260,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Add Images (optional, max 3)',
+                languageProvider.tr('add_images', category: 'posts'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -1195,7 +1274,8 @@ class _CreatePostModalState extends State<CreatePostModal> {
                     child: ElevatedButton.icon(
                       onPressed: _isUploading ? null : _pickImages,
                       icon: const Icon(Icons.photo_library, size: 18),
-                      label: const Text('Gallery'),
+                      label: Text(
+                          languageProvider.tr('gallery', category: 'posts')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color.fromARGB(255, 12, 94, 153),
@@ -1213,7 +1293,8 @@ class _CreatePostModalState extends State<CreatePostModal> {
                     child: ElevatedButton.icon(
                       onPressed: _isUploading ? null : _takePhoto,
                       icon: const Icon(Icons.camera_alt, size: 18),
-                      label: const Text('Camera'),
+                      label: Text(
+                          languageProvider.tr('camera', category: 'posts')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color.fromARGB(255, 12, 94, 153),
@@ -1248,9 +1329,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        "Publish Post",
-                        style: TextStyle(
+                    : Text(
+                        languageProvider.tr('publish_post', category: 'posts'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                           fontSize: 16,

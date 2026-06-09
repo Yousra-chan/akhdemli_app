@@ -8,17 +8,3 @@ const Color kLightGreyBlue = Color.fromARGB(255, 235, 243, 250);
 // Soft shadow color, used for elevation effects.
 const Color kSoftShadowColor = Color.fromARGB(50, 12, 94, 153);
 const Color kMutedTextColor = Color.fromARGB(255, 150, 150, 150);
-
-// --- Chat List Data ---
-final List<String> chatNames = [
-  "Aya Mohamed",
-  "Ahmed Ali",
-  "Sara Mounir",
-  "Dr. Omar",
-  "Project Team",
-  "Client Meeting",
-  "Support Desk",
-  "Marketing Dept",
-  "Finance Team",
-  "HR Contact",
-];

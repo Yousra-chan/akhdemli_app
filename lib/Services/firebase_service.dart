@@ -78,10 +78,11 @@ class FirebaseService {
 
   // Get user notifications
   static Stream<List<NotificationItem>> getUserNotifications(String userId) {
+    // ✅ FIXED: Use receiverId instead of userId
     return _firestore
         .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .orderBy('time', descending: true)
+        .where('receiverId', isEqualTo: userId) // ✅ FIXED
+        .orderBy('timestamp', descending: true) // ✅ FIXED: use timestamp
         .snapshots()
         .handleError((error) {
       print('❌ Error fetching notifications: $error');
@@ -93,17 +94,85 @@ class FirebaseService {
     });
   }
 
-  // Get unread notification count
+  // ✅ FIXED: Get unread notification count - WORKS WITH YOUR FIREBASE!
   static Stream<int> getUnreadNotificationCount(String userId) {
+    if (userId.isEmpty) {
+      print('⚠️ Empty userId provided');
+      return Stream.value(0);
+    }
+
+    print('🔍 Setting up unread count stream for: $userId');
+
+    // Try to get from notifications collection first
     return _firestore
         .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .where('isRead', isEqualTo: false)
+        .where('receiverId', isEqualTo: userId) // ✅ FIXED: receiverId
+        .where('read', isEqualTo: false) // ✅ FIXED: read
         .snapshots()
-        .map((snapshot) => snapshot.docs.length);
+        .map((snapshot) {
+      // Filter out self-notifications
+      final validNotifications = snapshot.docs.where((doc) {
+        final data = doc.data();
+        final senderId = data['senderId'] as String?;
+        return senderId != userId;
+      }).toList();
+
+      final count = validNotifications.length;
+      print('📊 Notification count from collection: $count');
+      return count;
+    }).handleError((error) {
+      print('⚠️ Error querying notifications (may need index): $error');
+      // Fallback to user's unreadCount field
+      return _getUserUnreadCount(userId);
+    });
   }
 
-  // Mark notification as read
+  // ✅ FALLBACK: Get unread count from user document
+  static Stream<int> _getUserUnreadCount(String userId) {
+    print('📊 Using fallback: reading unreadCount from user document');
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) {
+        print('⚠️ User document does not exist');
+        return 0;
+      }
+      final unreadCount = snapshot.data()?['unreadCount'] as int? ?? 0;
+      print('📊 User unreadCount: $unreadCount');
+      return unreadCount;
+    }).handleError((error) {
+      print('❌ Error reading user unreadCount: $error');
+      return 0;
+    });
+  }
+
+  // ✅ NEW: Increment unread count in user document
+  static Future<void> incrementUnreadCount(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'unreadCount': FieldValue.increment(1),
+      });
+      print('✅ Incremented unreadCount for $userId');
+    } catch (e) {
+      print('❌ Error incrementing unreadCount: $e');
+    }
+  }
+
+  // ✅ NEW: Clear unread count in user document
+  static Future<void> clearUnreadCount(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'unreadCount': 0,
+      });
+      print('✅ Cleared unreadCount for $userId');
+    } catch (e) {
+      print('❌ Error clearing unreadCount: $e');
+    }
+  }
+
+  // ✅ FIXED: Mark notification as read
   static Future<void> markNotificationAsRead(String notificationId,
       {bool deleteAfterRead = true}) async {
     try {
@@ -114,10 +183,11 @@ class FirebaseService {
             .delete();
         print('🗑️ Notification deleted: $notificationId');
       } else {
+        // ✅ FIXED: Use 'read' instead of 'isRead'
         await _firestore
             .collection('notifications')
             .doc(notificationId)
-            .update({'isRead': true});
+            .update({'read': true, 'readAt': FieldValue.serverTimestamp()});
         print('✅ Notification marked as read: $notificationId');
       }
     } catch (e) {
@@ -125,15 +195,16 @@ class FirebaseService {
     }
   }
 
-  // Delete all notifications for a specific chat
+  // ✅ FIXED: Delete all notifications for a specific chat
   static Future<void> deleteNotificationsForChat(
       String userId, String chatId) async {
     try {
+      // ✅ FIXED: Use receiverId and read
       final notifications = await _firestore
           .collection('notifications')
-          .where('userId', isEqualTo: userId)
+          .where('receiverId', isEqualTo: userId)
           .where('chatId', isEqualTo: chatId)
-          .where('isRead', isEqualTo: false)
+          .where('read', isEqualTo: false)
           .get();
 
       final batch = _firestore.batch();
@@ -148,7 +219,7 @@ class FirebaseService {
     }
   }
 
-  // Create a notification
+  // ✅ FIXED: Create a notification (matches your notification_service.dart)
   static Future<void> createNotification({
     required String userId,
     required String title,
@@ -162,29 +233,37 @@ class FirebaseService {
     DateTime? lastMessageTime,
   }) async {
     try {
+      // ✅ FIXED: Use receiverId and read to match your structure
       await _firestore.collection('notifications').add({
-        'userId': userId,
-        'title': title,
-        'message': message,
-        'type': type.toString().split('.').last,
-        'chatId': chatId,
+        'receiverId': userId, // ✅ FIXED
         'senderId': senderId,
         'senderName': senderName,
+        'title': title,
+        'body': message, // ✅ FIXED: use 'body' to match notification_service
+        'type': type.toString().split('.').last,
+        'chatId': chatId,
         'actionText': actionText,
-        'isRead': false,
-        'time': FieldValue.serverTimestamp(),
+        'read': false, // ✅ FIXED
+        'timestamp': FieldValue.serverTimestamp(), // ✅ FIXED
         'messageCount': messageCount,
         'lastMessageTime': lastMessageTime != null
             ? Timestamp.fromDate(lastMessageTime)
             : FieldValue.serverTimestamp(),
+        'data': {
+          'chatId': chatId,
+          'senderId': senderId,
+        },
       });
       print('✅ Notification created for user: $userId');
+
+      // Also increment user's unreadCount
+      await incrementUnreadCount(userId);
     } catch (e) {
       print('❌ Error creating notification: $e');
     }
   }
 
-  // Create or update message notification with grouping
+  // ✅ FIXED: Create or update message notification with grouping
   static Future<void> createOrUpdateMessageNotification({
     required String userId,
     required String senderId,
@@ -196,13 +275,13 @@ class FirebaseService {
       print('🔔 Creating/updating message notification');
       print('🔔 User: $userId, Sender: $senderName');
 
-      // Check if there's already an unread notification from this sender
+      // ✅ FIXED: Use receiverId, senderId, and read
       final existingNotifications = await _firestore
           .collection('notifications')
-          .where('userId', isEqualTo: userId)
+          .where('receiverId', isEqualTo: userId)
           .where('senderId', isEqualTo: senderId)
           .where('type', isEqualTo: 'message')
-          .where('isRead', isEqualTo: false)
+          .where('read', isEqualTo: false)
           .limit(1)
           .get();
 
@@ -222,10 +301,10 @@ class FirebaseService {
             .collection('notifications')
             .doc(existingDoc.id)
             .update({
-          'message': truncatedMessage,
+          'body': truncatedMessage, // ✅ FIXED
           'lastMessageTime': now,
           'messageCount': currentCount + 1,
-          'isRead': false,
+          'read': false, // ✅ FIXED
           'chatId': chatId,
         });
 
@@ -234,71 +313,107 @@ class FirebaseService {
       } else {
         // CREATE NEW NOTIFICATION
         final notificationData = {
-          'userId': userId,
-          'title': 'New Message from $senderName',
-          'message': truncatedMessage,
-          'time': now,
-          'lastMessageTime': now,
-          'isRead': false,
-          'type': 'message',
-          'chatId': chatId,
+          'receiverId': userId, // ✅ FIXED
           'senderId': senderId,
           'senderName': senderName,
+          'title': 'New Message from $senderName',
+          'body': truncatedMessage, // ✅ FIXED
+          'timestamp': now, // ✅ FIXED
+          'lastMessageTime': now,
+          'read': false, // ✅ FIXED
+          'type': 'message',
+          'chatId': chatId,
           'actionText': 'Reply',
           'messageCount': 1,
+          'data': {
+            'chatId': chatId,
+            'senderId': senderId,
+          },
         };
 
         final docRef =
             await _firestore.collection('notifications').add(notificationData);
         print('✅ Created new notification: ${docRef.id}');
+
+        // Increment user's unreadCount
+        await incrementUnreadCount(userId);
       }
     } catch (e) {
       print('❌ Error in createOrUpdateMessageNotification: $e');
     }
   }
 
-  // Mark all notifications from a specific sender as read
+  // ✅ FIXED: Mark all notifications from a specific sender as read
   static Future<void> markSenderNotificationsAsRead(
       String userId, String senderId) async {
     try {
+      // ✅ FIXED: Use receiverId and read
       final notifications = await _firestore
           .collection('notifications')
-          .where('userId', isEqualTo: userId)
+          .where('receiverId', isEqualTo: userId)
           .where('senderId', isEqualTo: senderId)
-          .where('isRead', isEqualTo: false)
+          .where('read', isEqualTo: false)
           .get();
 
       final batch = _firestore.batch();
       for (final doc in notifications.docs) {
-        batch.update(doc.reference, {'isRead': true});
+        batch.update(doc.reference, {
+          'read': true,
+          'readAt': FieldValue.serverTimestamp(),
+        });
       }
 
       await batch.commit();
       print(
           '✅ Marked ${notifications.docs.length} notifications from $senderId as read');
+
+      // Recalculate unread count
+      await _recalculateUnreadCount(userId);
     } catch (e) {
       print('❌ Error marking sender notifications as read: $e');
     }
   }
 
-  // Clear message count when user reads the chat
+  // ✅ NEW: Recalculate user's unread count
+  static Future<void> _recalculateUnreadCount(String userId) async {
+    try {
+      final unreadNotifications = await _firestore
+          .collection('notifications')
+          .where('receiverId', isEqualTo: userId)
+          .where('read', isEqualTo: false)
+          .get();
+
+      await _firestore.collection('users').doc(userId).update({
+        'unreadCount': unreadNotifications.docs.length,
+      });
+    } catch (e) {
+      print('❌ Error recalculating unread count: $e');
+    }
+  }
+
+  // ✅ FIXED: Clear message count when user reads the chat
   static Future<void> resetMessageCount(String userId, String senderId) async {
     try {
+      // ✅ FIXED: Use receiverId and read
       final notifications = await _firestore
           .collection('notifications')
-          .where('userId', isEqualTo: userId)
+          .where('receiverId', isEqualTo: userId)
           .where('senderId', isEqualTo: senderId)
-          .where('isRead', isEqualTo: false)
+          .where('read', isEqualTo: false)
           .get();
 
       for (final doc in notifications.docs) {
         await doc.reference.update({
           'messageCount': 1,
-          'isRead': true,
+          'read': true,
+          'readAt': FieldValue.serverTimestamp(),
         });
       }
 
       print('✅ Reset message count for notifications from $senderId');
+
+      // Recalculate unread count
+      await _recalculateUnreadCount(userId);
     } catch (e) {
       print('❌ Error resetting message count: $e');
     }

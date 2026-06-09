@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/models/ServicesModel.dart';
+import 'package:service_app/ViewModel/auth_view_model.dart';
 
 class ServiceViewModel with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -8,18 +9,18 @@ class ServiceViewModel with ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
-  List<Service> _userServices = [];
+  List<Service> _services = [];
 
   bool get isLoading => _isLoading;
   String? get error => _error;
-  List<Service> get userServices => _userServices;
+  List<Service> get services => _services;
 
-  void _setLoading(bool loading) {
+  void setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  void _setError(String? error) {
+  void setError(String? error) {
     _error = error;
     notifyListeners();
   }
@@ -40,8 +41,8 @@ class ServiceViewModel with ChangeNotifier {
     List<String> images = const [],
   }) async {
     try {
-      _setLoading(true);
-      _setError(null);
+      setLoading(true);
+      setError(null);
 
       print('Creating service with providerId: $providerId');
       print('Title: $title');
@@ -81,14 +82,14 @@ class ServiceViewModel with ChangeNotifier {
       print('Service saved to Firestore successfully');
 
       // Add to local list
-      _userServices.add(service);
+      _services.add(service);
       notifyListeners();
 
-      _setLoading(false);
+      setLoading(false);
       return true;
     } catch (e) {
-      _setLoading(false);
-      _setError('Failed to create service: $e');
+      setLoading(false);
+      setError('Failed to create service: $e');
       print('❌ Error in createServiceFromData: $e');
       print('Stack trace: ${e.toString()}');
       return false;
@@ -98,8 +99,8 @@ class ServiceViewModel with ChangeNotifier {
   // Get services by provider ID
   Future<List<Service>> getServicesByProviderId(String providerId) async {
     try {
-      _setLoading(true);
-      _setError(null);
+      setLoading(true);
+      setError(null);
 
       final querySnapshot = await _firestore
           .collection(_collectionName)
@@ -107,42 +108,130 @@ class ServiceViewModel with ChangeNotifier {
           .orderBy('createdAt', descending: true)
           .get();
 
-      _userServices =
+      _services =
           querySnapshot.docs.map((doc) => Service.fromFirestore(doc)).toList();
 
-      _setLoading(false);
-      return _userServices;
+      setLoading(false);
+      return _services;
     } catch (e) {
-      _setLoading(false);
-      _setError('Failed to fetch services: $e');
-      _userServices = [];
+      setLoading(false);
+      setError('Failed to fetch services: $e');
+      _services = [];
       return [];
     }
   }
 
-  // Update service
-  Future<bool> updateService(Service service) async {
+  // Get a specific service by ID
+  Future<Service?> getServiceById(String serviceId) async {
     try {
-      _setLoading(true);
-      _setError(null);
+      setLoading(true);
+      setError(null);
 
+      final docSnapshot =
+          await _firestore.collection(_collectionName).doc(serviceId).get();
+
+      if (docSnapshot.exists) {
+        final service = Service.fromFirestore(docSnapshot);
+        setLoading(false);
+        return service;
+      } else {
+        setLoading(false);
+        setError('Service not found');
+        return null;
+      }
+    } catch (e) {
+      setLoading(false);
+      setError('Failed to fetch service: $e');
+      return null;
+    }
+  }
+
+// Update service with individual parameters
+  Future<bool> updateService({
+    required String serviceId,
+    required String providerId, // Add providerId parameter
+    required String title,
+    required String description,
+    required String category,
+    required String subcategory,
+    required double price,
+    required String priceUnit,
+    required String location,
+    required double? latitude,
+    required double? longitude,
+    required List<String> tags,
+  }) async {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the existing service first to preserve some fields
+      final existingService = await getServiceById(serviceId);
+      if (existingService == null) {
+        setError('Service not found');
+        setLoading(false);
+        return false;
+      }
+
+      // Create updated service data - preserve existing fields
+      final serviceData = {
+        'title': title,
+        'description': description,
+        'category': category,
+        'subcategory': subcategory,
+        'price': price,
+        'priceUnit': priceUnit,
+        'location': location,
+        'latitude': latitude,
+        'longitude': longitude,
+        'tags': tags,
+        'updatedAt': DateTime.now(),
+        'isActive': existingService.isActive, // Preserve existing status
+        'rating': existingService.rating, // Preserve rating
+        'totalReviews': existingService.totalReviews, // Preserve reviews
+        'providerId': providerId, // Use provided providerId
+        'createdAt': existingService.createdAt, // Preserve creation date
+        'images': existingService.images, // Preserve images
+      };
+
+      // Update in Firestore
       await _firestore
           .collection(_collectionName)
-          .doc(service.id)
-          .update(service.toMap());
+          .doc(serviceId)
+          .update(serviceData);
 
-      // Find and update local service
-      final index = _userServices.indexWhere((s) => s.id == service.id);
+      // Update local state
+      final index = _services.indexWhere((s) => s.id == serviceId);
       if (index != -1) {
-        _userServices[index] = service;
+        _services[index] = Service(
+          id: serviceId,
+          providerId: providerId,
+          title: title,
+          description: description,
+          category: category,
+          subcategory: subcategory,
+          price: price,
+          priceUnit: priceUnit,
+          location: location,
+          latitude: latitude,
+          longitude: longitude,
+          tags: tags,
+          images: existingService.images,
+          isActive: existingService.isActive,
+          createdAt: existingService.createdAt,
+          updatedAt: DateTime.now(),
+          rating: existingService.rating,
+          totalReviews: existingService.totalReviews,
+        );
         notifyListeners();
       }
 
-      _setLoading(false);
+      setLoading(false);
       return true;
     } catch (e) {
-      _setLoading(false);
-      _setError('Failed to update service: $e');
+      setLoading(false);
+      setError('Failed to update service: $e');
+      print('❌ Error in updateService: $e');
       return false;
     }
   }
@@ -150,28 +239,55 @@ class ServiceViewModel with ChangeNotifier {
   // Delete service
   Future<bool> deleteService(String serviceId) async {
     try {
-      _setLoading(true);
-      _setError(null);
+      setLoading(true);
+      setError(null);
 
       await _firestore.collection(_collectionName).doc(serviceId).delete();
-      _userServices.removeWhere((service) => service.id == serviceId);
+      _services.removeWhere((service) => service.id == serviceId);
       notifyListeners();
 
-      _setLoading(false);
+      setLoading(false);
       return true;
     } catch (e) {
-      _setLoading(false);
-      _setError('Failed to delete service: $e');
+      setLoading(false);
+      setError('Failed to delete service: $e');
+      return false;
+    }
+  }
+
+  // Toggle service active status
+  Future<bool> toggleServiceStatus(String serviceId, bool isActive) async {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await _firestore.collection(_collectionName).doc(serviceId).update({
+        'isActive': isActive,
+        'updatedAt': DateTime.now(),
+      });
+
+      // Update local state
+      final index = _services.indexWhere((s) => s.id == serviceId);
+      if (index != -1) {
+        _services[index] = _services[index].copyWith(isActive: isActive);
+        notifyListeners();
+      }
+
+      setLoading(false);
+      return true;
+    } catch (e) {
+      setLoading(false);
+      setError('Failed to update service status: $e');
       return false;
     }
   }
 
   void clearError() {
-    _setError(null);
+    setError(null);
   }
 
   void clearServices() {
-    _userServices = [];
+    _services = [];
     notifyListeners();
   }
 }

@@ -9,6 +9,7 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class CreateServiceScreen extends StatefulWidget {
   const CreateServiceScreen({super.key});
@@ -20,13 +21,7 @@ class CreateServiceScreen extends StatefulWidget {
 class _CreateServiceScreenState extends State<CreateServiceScreen> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
-  final List<String> _stepTitles = [
-    'Service Details',
-    'Category',
-    'Pricing',
-    'Location',
-    'Review'
-  ];
+  List<String> _stepTitles = [];
 
   // Form data
   final TextEditingController _titleController = TextEditingController();
@@ -63,6 +58,13 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Load service translations when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
+      // No need to manually load - your provider already loads all files
+    });
+
     // Listen for validation
     _titleController.addListener(_validateTitle);
     _descriptionController.addListener(_validateDescription);
@@ -114,7 +116,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
       case 3:
         return _locationValid;
       case 4:
-        return _validateAllSteps(); // Review step validates all previous steps
+        return _validateAllSteps();
       default:
         return true;
     }
@@ -130,6 +132,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   void _nextStep() {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     if (_currentStepValid && _currentStep < _stepTitles.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -160,23 +164,24 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   void _showValidationErrorForCurrentStep() {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
     String message = '';
+
     switch (_currentStep) {
       case 0:
-        message =
-            'Please provide a valid title (min 5 chars) and description (min 20 chars)';
+        message = lang.tr('validation_service_details', category: 'service');
         break;
       case 1:
-        message = 'Please select a category and subcategory';
+        message = lang.tr('validation_category', category: 'service');
         break;
       case 2:
-        message = 'Please enter a valid price (greater than 0)';
+        message = lang.tr('validation_price', category: 'service');
         break;
       case 3:
-        message = 'Please set your service location';
+        message = lang.tr('validation_location', category: 'service');
         break;
       case 4:
-        message = 'Please complete all required fields before creating service';
+        message = lang.tr('validation_complete', category: 'service');
         break;
     }
 
@@ -192,6 +197,15 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildStepIndicator() {
+    final lang = Provider.of<LanguageProvider>(context);
+    _stepTitles = [
+      lang.tr('step_details', category: 'service'),
+      lang.tr('step_category', category: 'service'),
+      lang.tr('step_pricing', category: 'service'),
+      lang.tr('step_location', category: 'service'),
+      lang.tr('step_review', category: 'service'),
+    ];
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
@@ -206,7 +220,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             child: LinearProgressIndicator(
               value: (_currentStep + 1) / _stepTitles.length,
               backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+              valueColor: const AlwaysStoppedAnimation<Color>(kPrimaryBlue),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -288,6 +302,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
   Widget _buildNavigationButtons() {
     final serviceViewModel = Provider.of<ServiceViewModel>(context);
+    final lang = Provider.of<LanguageProvider>(context);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -324,7 +339,9 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _currentStep == 0 ? 'Cancel' : 'Back',
+                    _currentStep == 0
+                        ? lang.tr('cancel', category: 'service')
+                        : lang.tr('back', category: 'service'),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: _currentStep == 0 ? Colors.grey : kPrimaryBlue,
@@ -362,8 +379,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                       children: [
                         Text(
                           _currentStep == _stepTitles.length - 1
-                              ? 'Create'
-                              : 'Next',
+                              ? lang.tr('create', category: 'service')
+                              : lang.tr('next', category: 'service'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -384,6 +401,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   void _submitService() async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     // Dismiss keyboard first
     FocusScope.of(context).unfocus();
 
@@ -392,13 +411,13 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         Provider.of<ServiceViewModel>(context, listen: false);
 
     if (authViewModel.currentUser == null) {
-      _showError('Please log in to create a service');
+      _showError(lang.tr('error_login_required', category: 'service'));
       return;
     }
 
     // Final validation before submission
     if (!_validateAllSteps()) {
-      _showError('Please complete all required fields');
+      _showError(lang.tr('error_complete_fields', category: 'service'));
       return;
     }
 
@@ -419,20 +438,21 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
       );
 
       if (success && mounted) {
-        _showSuccess('Service created successfully!');
+        _showSuccess(lang.tr('success_service_created', category: 'service'));
         Future.delayed(const Duration(seconds: 2), () {
-          Navigator.pop(context, true); // Pass success back
+          Navigator.pop(context, true);
         });
       } else if (mounted) {
-        _showError(serviceViewModel.error ?? 'Failed to create service');
+        _showError(serviceViewModel.error ??
+            lang.tr('error_create_failed', category: 'service'));
       }
     } catch (e) {
       if (mounted) {
-        // More specific error handling
         if (e is FormatException) {
-          _showError('Invalid price format. Please check your price.');
+          _showError(lang.tr('error_invalid_price', category: 'service'));
         } else {
-          _showError('Error creating service: ${e.toString()}');
+          _showError(lang.trParams('error_generic',
+              category: 'service', params: {'error': e.toString()}));
         }
       }
     }
@@ -476,6 +496,15 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<LanguageProvider>(context);
+    _stepTitles = [
+      lang.tr('step_details', category: 'service'),
+      lang.tr('step_category', category: 'service'),
+      lang.tr('step_pricing', category: 'service'),
+      lang.tr('step_location', category: 'service'),
+      lang.tr('step_review', category: 'service'),
+    ];
+
     return Scaffold(
       backgroundColor: kLightBackgroundColor,
       appBar: AppBar(
@@ -483,7 +512,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Step ${_currentStep + 1} of ${_stepTitles.length}: ${_stepTitles[_currentStep]}',
+              lang.trParams('step_progress', category: 'service', params: {
+                'current': (_currentStep + 1).toString(),
+                'total': _stepTitles.length.toString(),
+                'step': _stepTitles[_currentStep]
+              }),
               style: TextStyle(
                 fontSize: 12,
                 color: kMutedTextColor,
@@ -517,19 +550,10 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                // Step 1: Service Details
                 _buildStep1(),
-
-                // Step 2: Category & Subcategory
                 _buildStep2(),
-
-                // Step 3: Pricing
                 _buildStep3(),
-
-                // Step 4: Location
                 _buildStep4(),
-
-                // Step 5: Review (now Step 4 becomes Step 5 in index)
                 _buildReviewStep(),
               ],
             ),
@@ -541,6 +565,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildStep1() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -548,30 +574,34 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         children: [
           const SizedBox(height: 24),
           InputField(
-            label: 'Service Title',
-            hint: 'e.g., Professional House Cleaning',
+            label: lang.tr('service_title', category: 'service'),
+            hint: lang.tr('service_title_hint', category: 'service'),
             controller: _titleController,
             icon: Icons.work_rounded,
             maxLength: 60,
             validator: (value) {
-              if (value!.isEmpty) return 'Please enter service title';
+              if (value!.isEmpty)
+                return lang.tr('error_title_required', category: 'service');
               if (value.length < 5)
-                return 'Title must be at least 5 characters';
+                return lang.tr('error_title_min_length', category: 'service');
               return null;
             },
           ),
           const SizedBox(height: 24),
           InputField(
-            label: 'Service Description',
-            hint: 'Describe your service in detail...',
+            label: lang.tr('service_description', category: 'service'),
+            hint: lang.tr('service_description_hint', category: 'service'),
             controller: _descriptionController,
             icon: Icons.description_rounded,
             maxLines: 5,
             maxLength: 500,
             validator: (value) {
-              if (value!.isEmpty) return 'Please enter service description';
+              if (value!.isEmpty)
+                return lang.tr('error_description_required',
+                    category: 'service');
               if (value.length < 20)
-                return 'Description must be at least 20 characters';
+                return lang.tr('error_description_min_length',
+                    category: 'service');
               return null;
             },
           ),
@@ -581,6 +611,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildStep2() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -588,8 +620,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.category,
-            title: 'Category & Subcategory',
-            subtitle: 'Choose the best fit for your service',
+            title: lang.tr('category_title', category: 'service'),
+            subtitle: lang.tr('category_subtitle', category: 'service'),
           ),
           const SizedBox(height: 24),
 
@@ -598,10 +630,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             onCategorySelected: _handleCategorySelected,
           ),
 
-          // Spacing
           if (_selectedCategory != null) const SizedBox(height: 32),
 
-          // Subcategory Selection (only if category is selected)
           if (_selectedCategory != null)
             SubcategorySection(
               selectedCategory: _selectedCategory!,
@@ -612,7 +642,6 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     );
   }
 
-// Extracted handler methods
   void _handleCategorySelected(CategoryModel category) {
     setState(() {
       _selectedCategory = category;
@@ -628,7 +657,6 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     });
   }
 
-// Updated helper methods with optional topPadding
   Widget _buildSelectionPrompt({
     required IconData icon,
     required String title,
@@ -721,6 +749,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildStep3() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -728,8 +758,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.attach_money,
-            title: 'Service Pricing',
-            subtitle: 'Set your price in Algerian Dinar (DZD)',
+            title: lang.tr('pricing_title', category: 'service'),
+            subtitle: lang.tr('pricing_subtitle', category: 'service'),
           ),
           const SizedBox(height: 24),
           PriceSection(
@@ -750,6 +780,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildStep4() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -757,8 +789,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.location_on,
-            title: 'Service Location',
-            subtitle: 'Set where you provide your service',
+            title: lang.tr('location_title', category: 'service'),
+            subtitle: lang.tr('location_subtitle', category: 'service'),
           ),
           const SizedBox(height: 24),
           LocationSection(
@@ -776,14 +808,15 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             const SizedBox(height: 40),
             _buildSelectionPrompt(
               icon: Icons.location_searching,
-              title: 'Location Required',
-              description: 'Please enable location detection to proceed',
+              title: lang.tr('location_required', category: 'service'),
+              description:
+                  lang.tr('location_required_desc', category: 'service'),
             ),
           ] else ...[
             const SizedBox(height: 24),
             _buildSelectionConfirmation(
               icon: Icons.check_circle,
-              title: 'Location Detected',
+              title: lang.tr('location_detected', category: 'service'),
               description: _locationAddress.length > 60
                   ? '${_locationAddress.substring(0, 60)}...'
                   : _locationAddress,
@@ -796,6 +829,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildReviewStep() {
+    final lang = Provider.of<LanguageProvider>(context);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -803,8 +838,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.preview,
-            title: 'Review & Create',
-            subtitle: 'Review your service details before publishing',
+            title: lang.tr('review_title', category: 'service'),
+            subtitle: lang.tr('review_subtitle', category: 'service'),
           ),
           const SizedBox(height: 24),
           Card(
@@ -817,77 +852,73 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
                   _buildReviewItem(
-                    label: 'Service Title',
+                    label: lang.tr('service_title', category: 'service'),
                     value: _titleController.text.isNotEmpty
                         ? _titleController.text
-                        : 'Not set',
+                        : lang.tr('not_set', category: 'service'),
                     icon: Icons.work,
                     isValid: _titleValid,
                   ),
                   const SizedBox(height: 16),
-
-                  // Category
                   _buildReviewItem(
-                    label: 'Category',
-                    value: _selectedCategory?.name ?? 'Not selected',
+                    label: lang.tr('category', category: 'service'),
+                    value: _selectedCategory?.getTranslatedName(lang) ??
+                        lang.tr('not_selected', category: 'service'),
                     icon: Icons.category,
                     isValid: _categoryValid,
                   ),
-
                   if (_selectedSubcategory != null) ...[
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.only(left: 32),
                       child: _buildReviewItem(
-                        label: 'Subcategory',
-                        value: _selectedSubcategory!.name,
+                        label: lang.tr('subcategory', category: 'service'),
+                        value: _selectedSubcategory!.getTranslatedName(lang),
                         icon: Icons.list,
                         isValid: _subcategoryValid,
                       ),
                     ),
                   ],
                   const SizedBox(height: 16),
-
-                  // Price
                   _buildReviewItem(
-                    label: 'Price',
+                    label: lang.tr('price', category: 'service'),
                     value: _priceController.text.isNotEmpty
-                        ? '${_priceController.text} DZD ($_selectedPriceUnit)'
-                        : 'Not set',
+                        ? lang.trParams('price_with_unit_review',
+                            category: 'service',
+                            params: {
+                                'price': _priceController.text,
+                                'unit': _getTranslatedPriceUnit(
+                                    _selectedPriceUnit, lang)
+                              })
+                        : lang.tr('not_set', category: 'service'),
                     icon: Icons.attach_money,
                     isValid: _priceValid,
                   ),
                   const SizedBox(height: 16),
-
-                  // Location
                   _buildReviewItem(
-                    label: 'Location',
+                    label: lang.tr('location', category: 'service'),
                     value: _locationAddress.isNotEmpty
                         ? _locationAddress
-                        : 'Not set',
+                        : lang.tr('not_set', category: 'service'),
                     icon: Icons.location_on,
                     isValid: _locationValid,
                   ),
                   const SizedBox(height: 16),
-
                   if (_selectedTags.isNotEmpty) ...[
                     _buildReviewItem(
-                      label: 'Features',
+                      label: lang.tr('features', category: 'service'),
                       value: _selectedTags.join(', '),
                       icon: Icons.local_offer,
                       isValid: true,
                     ),
                     const SizedBox(height: 16),
                   ],
-
-                  // Description
                   _buildReviewItem(
-                    label: 'Description',
+                    label: lang.tr('description', category: 'service'),
                     value: _descriptionController.text.isNotEmpty
                         ? _descriptionController.text
-                        : 'Not set',
+                        : lang.tr('not_set', category: 'service'),
                     icon: Icons.description,
                     isValid: _descriptionValid,
                   ),
@@ -909,8 +940,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Your service will be reviewed within 24 hours before going live. '
-                    'Make sure all information is accurate and complete.',
+                    lang.tr('review_info', category: 'service'),
                     style: TextStyle(
                       color: kDarkTextColor,
                       fontSize: 12,
@@ -923,6 +953,25 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         ],
       ),
     );
+  }
+
+  String _getTranslatedPriceUnit(String unit, LanguageProvider lang) {
+    switch (unit) {
+      case 'per hour':
+        return lang.tr('price_unit_hour', category: 'service');
+      case 'per service':
+        return lang.tr('price_unit_service', category: 'service');
+      case 'per day':
+        return lang.tr('price_unit_day', category: 'service');
+      case 'per item':
+        return lang.tr('price_unit_item', category: 'service');
+      case 'per square meter':
+        return lang.tr('price_unit_square_meter', category: 'service');
+      case 'per session':
+        return lang.tr('price_unit_session', category: 'service');
+      default:
+        return unit;
+    }
   }
 
   Widget _buildStepHeader({
@@ -1023,10 +1072,12 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   void _showHelpDialog() {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Service Help'),
+        title: Text(lang.tr('help_title', category: 'service')),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -1035,24 +1086,24 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHelpItem(
-                  'Step 1: Service Details',
-                  'Provide a clear title and detailed description of your service.',
+                  lang.tr('help_step1_title', category: 'service'),
+                  lang.tr('help_step1_desc', category: 'service'),
                 ),
                 _buildHelpItem(
-                  'Step 2: Category',
-                  'Select the category and subcategory that best matches your service.',
+                  lang.tr('help_step2_title', category: 'service'),
+                  lang.tr('help_step2_desc', category: 'service'),
                 ),
                 _buildHelpItem(
-                  'Step 3: Pricing',
-                  'Set a competitive price based on your expertise and market rates.',
+                  lang.tr('help_step3_title', category: 'service'),
+                  lang.tr('help_step3_desc', category: 'service'),
                 ),
                 _buildHelpItem(
-                  'Step 4: Location',
-                  'Enable location services to help local customers find you.',
+                  lang.tr('help_step4_title', category: 'service'),
+                  lang.tr('help_step4_desc', category: 'service'),
                 ),
                 _buildHelpItem(
-                  'Step 5: Review',
-                  'Review all information before publishing your service.',
+                  lang.tr('help_step5_title', category: 'service'),
+                  lang.tr('help_step5_desc', category: 'service'),
                 ),
               ],
             ),
@@ -1061,7 +1112,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
+            child: Text(lang.tr('got_it', category: 'service')),
           ),
         ],
       ),

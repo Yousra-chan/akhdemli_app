@@ -4,8 +4,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/models/BookingModel.dart';
-import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/services/booking_service.dart';
+import 'package:service_app/services/booking_notification_service.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'dart:ui' as ui;
 
 const kPrimaryBlue = Color(0xFF007BFF);
 const kDarkTextColor = Color(0xFF1A1A1A);
@@ -48,99 +50,229 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       _loading = true;
     });
 
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     try {
-      await _bookingService.updateBookingStatus(bookingId, status);
+      // Get booking details before updating
+      final bookingSnapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .get();
 
-      // Send notification to the client when provider accepts/rejects/completes
-      if (status == 'accepted' ||
-          status == 'rejected' ||
-          status == 'completed') {
-        // We need to get the booking details first to send notification
-        final bookingSnapshot = await FirebaseFirestore.instance
-            .collection('bookings')
-            .doc(bookingId)
-            .get();
-
-        if (bookingSnapshot.exists) {
-          final bookingData = bookingSnapshot.data() as Map<String, dynamic>;
-
-          await BookingNotificationService.updateBookingStatusNotification(
-            bookingId: bookingId,
-            newStatus: status,
-            providerId: bookingData['providerId'] ?? '',
-            clientId: bookingData['clientId'] ?? '',
-            providerName: bookingData['providerName'] ?? 'Provider',
-            clientName: bookingData['clientName'] ?? 'Client',
-            serviceTitle: bookingData['serviceTitle'] ?? 'Service',
-          );
-        }
+      if (!bookingSnapshot.exists) {
+        throw Exception(
+            languageProvider.tr('booking_not_found', category: 'bookings'));
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Booking $status successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      final bookingData = bookingSnapshot.data() as Map<String, dynamic>;
+
+      // Update booking status in database
+      await _bookingService.updateBookingStatus(bookingId, status);
+
+      print('✅ Booking status updated to: $status');
+
+      // 🔔 SEND NOTIFICATION FOR STATUS CHANGE
+      try {
+        final notificationSent =
+            await BookingNotificationService.sendBookingStatusNotification(
+          bookingId: bookingId,
+          newStatus: status,
+          providerId: bookingData['providerId'] ?? '',
+          clientId: bookingData['clientId'] ?? '',
+          providerName: bookingData['providerName'] ??
+              languageProvider.tr('provider', category: 'bookings'),
+          clientName: bookingData['clientName'] ??
+              languageProvider.tr('client', category: 'bookings'),
+          serviceName: bookingData['serviceTitle'] ??
+              languageProvider.tr('service', category: 'bookings'),
+        );
+
+        print('${notificationSent ? '✅' : '⚠️'} Notification sent: $status');
+      } catch (e) {
+        print('⚠️ Error sending notification: $e');
+        // Don't fail the booking update if notification fails
+      }
+
+      // Show appropriate success message
+      String successMessage;
+      switch (status.toLowerCase()) {
+        case 'accepted':
+          successMessage =
+              languageProvider.tr('booking_accepted', category: 'bookings');
+          break;
+        case 'rejected':
+          successMessage =
+              languageProvider.tr('booking_rejected', category: 'bookings');
+          break;
+        case 'completed':
+          successMessage =
+              languageProvider.tr('booking_completed', category: 'bookings');
+          break;
+        case 'cancelled':
+          successMessage =
+              languageProvider.tr('booking_cancelled', category: 'bookings');
+          break;
+        default:
+          successMessage =
+              languageProvider.tr('booking_updated', category: 'bookings');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(successMessage),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update booking: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('❌ Error updating booking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              languageProvider.trParams(
+                'failed_to_update_booking',
+                category: 'bookings',
+                params: {'error': e.toString()},
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
   Future<void> _deleteBooking(String bookingId) async {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Booking'),
-        content: const Text('Are you sure you want to delete this booking?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (context) => Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: AlertDialog(
+          title:
+              Text(languageProvider.tr('cancel_booking', category: 'bookings')),
+          content: Text(
+            languageProvider.tr('cancel_booking_confirmation',
+                category: 'bookings'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              setState(() {
-                _loading = true;
-              });
-
-              try {
-                await _bookingService.deleteBooking(bookingId);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Booking deleted successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to delete booking: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              } finally {
-                setState(() {
-                  _loading = false;
-                });
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kErrorRed,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                languageProvider.tr('keep_booking', category: 'bookings'),
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
             ),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                setState(() {
+                  _loading = true;
+                });
+
+                try {
+                  // Get booking details before deleting
+                  final bookingSnapshot = await FirebaseFirestore.instance
+                      .collection('bookings')
+                      .doc(bookingId)
+                      .get();
+
+                  if (!bookingSnapshot.exists) {
+                    throw Exception(languageProvider.tr('booking_not_found',
+                        category: 'bookings'));
+                  }
+
+                  final bookingData =
+                      bookingSnapshot.data() as Map<String, dynamic>;
+
+                  // Delete the booking
+                  await _bookingService.deleteBooking(bookingId);
+
+                  print('✅ Booking deleted: $bookingId');
+
+                  // 🔔 SEND CANCELLATION NOTIFICATION
+                  try {
+                    final notificationSent = await BookingNotificationService
+                        .sendBookingStatusNotification(
+                      bookingId: bookingId,
+                      newStatus: 'cancelled',
+                      providerId: bookingData['providerId'] ?? '',
+                      clientId: bookingData['clientId'] ?? '',
+                      providerName: bookingData['providerName'] ??
+                          languageProvider.tr('provider', category: 'bookings'),
+                      clientName: bookingData['clientName'] ??
+                          languageProvider.tr('client', category: 'bookings'),
+                      serviceName: bookingData['serviceTitle'] ??
+                          languageProvider.tr('service', category: 'bookings'),
+                    );
+
+                    print(
+                        '${notificationSent ? '✅' : '⚠️'} Cancellation notification sent');
+                  } catch (e) {
+                    print('⚠️ Error sending cancellation notification: $e');
+                    // Don't fail the deletion if notification fails
+                  }
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          languageProvider.tr('booking_cancelled_success',
+                              category: 'bookings'),
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  print('❌ Error cancelling booking: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          languageProvider.trParams(
+                            'failed_to_cancel_booking',
+                            category: 'bookings',
+                            params: {'error': e.toString()},
+                          ),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      _loading = false;
+                    });
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kErrorRed,
+              ),
+              child: Text(
+                languageProvider.tr('cancel_booking_button',
+                    category: 'bookings'),
+                style: const TextStyle(color: Colors.white, fontFamily: 'Exo2'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -163,257 +295,283 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
-  String _getStatusText(String status) {
+  String _getStatusText(String status, LanguageProvider lang) {
     switch (status.toLowerCase()) {
       case 'pending':
-        return 'Waiting for confirmation';
+        return lang.tr('status_pending', category: 'bookings');
       case 'confirmed':
-        return 'Confirmed';
+        return lang.tr('status_confirmed', category: 'bookings');
       case 'accepted':
-        return 'Accepted';
+        return lang.tr('status_accepted', category: 'bookings');
       case 'completed':
-        return 'Completed';
+        return lang.tr('status_completed', category: 'bookings');
       case 'cancelled':
-        return 'Cancelled';
+        return lang.tr('status_cancelled', category: 'bookings');
       case 'rejected':
-        return 'Rejected';
+        return lang.tr('status_rejected', category: 'bookings');
       default:
         return status;
     }
   }
 
   Widget _buildBookingCard(BookingModel booking, bool isProvider) {
-    final statusColor = _getStatusColor(booking.status);
-    final statusText = _getStatusText(booking.status);
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        final statusColor = _getStatusColor(booking.status);
+        final statusText = _getStatusText(booking.status, languageProvider);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: kCardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header with status
-          Container(
-            padding: const EdgeInsets.all(16),
+        return Directionality(
+          textDirection: languageProvider.isRtl
+              ? ui.TextDirection.rtl
+              : ui.TextDirection.ltr,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor),
-                  ),
-                  child: Text(
-                    statusText.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-                Text(
-                  DateFormat('MMM d, yyyy').format(booking.appointmentDate),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: kMutedTextColor,
-                    fontWeight: FontWeight.w600,
-                  ),
+              color: kCardBackground,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-          ),
-
-          // Booking details
-          Padding(
-            padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Service Info
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: kPrimaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.work_outline,
-                        color: kPrimaryBlue,
-                        size: 24,
-                      ),
+                // Header with status
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            booking.serviceTitle,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: statusColor),
+                        ),
+                        child: Text(
+                          statusText.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                            fontFamily: 'Exo2',
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${booking.servicePrice} DZD',
-                            style: TextStyle(
-                              fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        DateFormat(languageProvider.tr('date_format',
+                                category: 'bookings'))
+                            .format(booking.appointmentDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: kMutedTextColor,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Exo2',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Booking details
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Service Info
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: kPrimaryBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.work_outline,
                               color: kPrimaryBlue,
-                              fontWeight: FontWeight.w600,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  booking.serviceTitle,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Exo2',
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${booking.servicePrice} DZD',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: kPrimaryBlue,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Exo2',
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                // Provider/Client Info
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.person_outline,
-                        color: Colors.green,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Provider/Client Info
+                      Row(
                         children: [
-                          Text(
-                            isProvider
-                                ? booking.clientName
-                                : booking.providerName,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.person_outline,
+                              color: Colors.green,
+                              size: 24,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isProvider
-                                ? booking.clientPhone
-                                : booking.providerPhone,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: kMutedTextColor,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isProvider
+                                      ? booking.clientName
+                                      : booking.providerName,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Exo2',
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isProvider
+                                      ? booking.clientPhone
+                                      : booking.providerPhone,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: kMutedTextColor,
+                                    fontFamily: 'Exo2',
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                // Appointment Time
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.access_time,
-                        color: Colors.orange,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Appointment Time
+                      Row(
                         children: [
-                          Text(
-                            DateFormat('EEEE, MMMM d, yyyy')
-                                .format(booking.appointmentDate),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.access_time,
+                              color: Colors.orange,
+                              size: 24,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('h:mm a')
-                                .format(booking.appointmentDate),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: kMutedTextColor,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  DateFormat(languageProvider.tr(
+                                          'full_date_format',
+                                          category: 'bookings'))
+                                      .format(booking.appointmentDate),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Exo2',
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat(languageProvider.tr('time_format',
+                                          category: 'bookings'))
+                                      .format(booking.appointmentDate),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: kMutedTextColor,
+                                    fontFamily: 'Exo2',
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+
+                      // Notes
+                      if (booking.notes.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          '${languageProvider.tr('notes', category: 'bookings')}:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: kDarkTextColor,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          booking.notes,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: kMutedTextColor,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                      ],
+
+                      // Actions based on status and role
+                      const SizedBox(height: 20),
+                      _buildActionButtons(
+                          booking, isProvider, languageProvider),
+                    ],
+                  ),
                 ),
-
-                // Notes
-                if (booking.notes.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Notes:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: kDarkTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    booking.notes,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: kMutedTextColor,
-                    ),
-                  ),
-                ],
-
-                // Actions based on status and role
-                const SizedBox(height: 20),
-                _buildActionButtons(booking, isProvider),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildActionButtons(BookingModel booking, bool isProvider) {
+  Widget _buildActionButtons(
+      BookingModel booking, bool isProvider, LanguageProvider lang) {
     if (booking.status.toLowerCase() == 'cancelled' ||
         booking.status.toLowerCase() == 'rejected' ||
         booking.status.toLowerCase() == 'completed') {
@@ -428,7 +586,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => _updateBookingStatus(booking.id, 'accepted'),
+                  onPressed: _loading
+                      ? null
+                      : () => _updateBookingStatus(booking.id, 'accepted'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kSuccessGreen,
                     foregroundColor: Colors.white,
@@ -437,13 +597,35 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Accept'),
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.check_circle, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              lang.tr('accept', category: 'bookings'),
+                              style: const TextStyle(fontFamily: 'Exo2'),
+                            ),
+                          ],
+                        ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => _updateBookingStatus(booking.id, 'rejected'),
+                  onPressed: _loading
+                      ? null
+                      : () => _updateBookingStatus(booking.id, 'rejected'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kErrorRed,
                     side: BorderSide(color: kErrorRed),
@@ -452,7 +634,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Reject'),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.cancel, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        lang.tr('reject', category: 'bookings'),
+                        style: const TextStyle(fontFamily: 'Exo2'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -461,20 +653,40 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           return Row(
             children: [
               Expanded(
-                child: ElevatedButton(
-                  onPressed: () =>
-                      _updateBookingStatus(booking.id, 'completed'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  child: ElevatedButton(
+                onPressed: _loading
+                    ? null
+                    : () => _updateBookingStatus(booking.id, 'completed'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Mark as Completed'),
                 ),
-              ),
+                child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.done_all, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            lang.tr('mark_completed', category: 'bookings'),
+                            style: const TextStyle(fontFamily: 'Exo2'),
+                          ),
+                        ],
+                      ),
+              )),
             ],
           );
         default:
@@ -484,23 +696,40 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       // Client actions
       switch (booking.status.toLowerCase()) {
         case 'pending':
-          return Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _deleteBooking(booking.id),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kErrorRed,
-                    side: BorderSide(color: kErrorRed),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Cancel Booking'),
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _loading ? null : () => _deleteBooking(booking.id),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kErrorRed,
+                side: BorderSide(color: kErrorRed),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ],
+              child: _loading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(kErrorRed),
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.cancel, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          lang.tr('cancel_booking_button',
+                              category: 'bookings'),
+                          style: const TextStyle(fontFamily: 'Exo2'),
+                        ),
+                      ],
+                    ),
+            ),
           );
         case 'accepted':
           return Row(
@@ -508,7 +737,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               Expanded(
                 child: ElevatedButton(
                   onPressed: () => _showContactProviderDialog(
-                      booking.providerName, booking.providerPhone),
+                      booking.providerName, booking.providerPhone, lang),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
@@ -517,7 +746,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Contact Provider'),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.phone, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        lang.tr('contact_provider', category: 'bookings'),
+                        style: const TextStyle(fontFamily: 'Exo2'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -528,33 +767,56 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
-  void _showContactProviderDialog(String providerName, String providerPhone) {
+  void _showContactProviderDialog(
+      String providerName, String providerPhone, LanguageProvider lang) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Contact $providerName'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Phone: $providerPhone'),
-            const SizedBox(height: 16),
-            const Text('You can call or send a message to the provider.'),
+      builder: (context) => Directionality(
+        textDirection: lang.isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+        child: AlertDialog(
+          title: Text(
+            lang.trParams(
+              'contact_provider_title',
+              category: 'bookings',
+              params: {'name': providerName},
+            ),
+            style: const TextStyle(fontFamily: 'Exo2'),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${lang.tr('phone', category: 'bookings')}: $providerPhone',
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                lang.tr('contact_provider_message', category: 'bookings'),
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                lang.tr('close', category: 'bookings'),
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Implement call functionality
+              },
+              child: Text(
+                lang.tr('call', category: 'bookings'),
+                style: const TextStyle(fontFamily: 'Exo2'),
+              ),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Implement call functionality
-            },
-            child: const Text('Call'),
-          ),
-        ],
       ),
     );
   }
@@ -562,28 +824,38 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   @override
   Widget build(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_off, size: 60, color: kMutedTextColor),
-              const SizedBox(height: 16),
-              Text(
-                'Please sign in to view your bookings',
-                style: TextStyle(fontSize: 16, color: kMutedTextColor),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/login');
-                },
-                child: const Text('Sign In'),
-              ),
-            ],
+      return Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_off, size: 60, color: kMutedTextColor),
+                const SizedBox(height: 16),
+                Text(
+                  languageProvider.tr('please_sign_in', category: 'bookings'),
+                  style: TextStyle(
+                      fontSize: 16, color: kMutedTextColor, fontFamily: 'Exo2'),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/login');
+                  },
+                  child: Text(
+                    languageProvider.tr('sign_in', category: 'bookings'),
+                    style: const TextStyle(fontFamily: 'Exo2'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -593,105 +865,131 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
     return DefaultTabController(
       length: 3,
-      child: Scaffold(
-        backgroundColor: kLightBackgroundColor,
-        appBar: AppBar(
-          title: const Text('My Bookings'),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: kPrimaryBlue),
-            onPressed: () => Navigator.pop(context),
+      child: Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: Scaffold(
+          backgroundColor: kLightBackgroundColor,
+          appBar: AppBar(
+            title: Text(
+              languageProvider.tr('my_bookings', category: 'bookings'),
+              style: const TextStyle(fontFamily: 'Exo2'),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: kPrimaryBlue),
+              onPressed: () => Navigator.pop(context),
+            ),
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: kPrimaryBlue,
+              unselectedLabelColor: kMutedTextColor,
+              indicatorColor: kPrimaryBlue,
+              tabs: [
+                Tab(text: languageProvider.tr('active', category: 'bookings')),
+                Tab(
+                    text:
+                        languageProvider.tr('upcoming', category: 'bookings')),
+                Tab(text: languageProvider.tr('history', category: 'bookings')),
+              ],
+            ),
           ),
-          bottom: TabBar(
+          body: TabBarView(
             controller: _tabController,
-            labelColor: kPrimaryBlue,
-            unselectedLabelColor: kMutedTextColor,
-            indicatorColor: kPrimaryBlue,
-            tabs: const [
-              Tab(text: 'Active'),
-              Tab(text: 'Upcoming'),
-              Tab(text: 'History'),
+            children: [
+              // Active Tab
+              _buildBookingsList(currentUser.uid, isProvider, 'active'),
+              // Upcoming Tab
+              _buildBookingsList(currentUser.uid, isProvider, 'upcoming'),
+              // History Tab
+              _buildBookingsList(currentUser.uid, isProvider, 'history'),
             ],
           ),
-        ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            // Active Tab
-            _buildBookingsList(currentUser.uid, isProvider, 'active'),
-            // Upcoming Tab
-            _buildBookingsList(currentUser.uid, isProvider, 'upcoming'),
-            // History Tab
-            _buildBookingsList(currentUser.uid, isProvider, 'history'),
-          ],
         ),
       ),
     );
   }
 
   Widget _buildBookingsList(String userId, bool isProvider, String filterType) {
-    return StreamBuilder<List<BookingModel>>(
-      stream: _bookingService.getUserBookings(userId, isProvider, filterType),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error, size: 60, color: kErrorRed),
-                const SizedBox(height: 16),
-                const Text(
-                  'Error loading bookings',
-                  style: TextStyle(fontSize: 16, color: kDarkTextColor),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return StreamBuilder<List<BookingModel>>(
+          stream:
+              _bookingService.getUserBookings(userId, isProvider, filterType),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(
+                  color: kPrimaryBlue,
                 ),
-              ],
-            ),
-          );
-        }
+              );
+            }
 
-        final bookings = snapshot.data ?? [];
-
-        if (bookings.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _getEmptyStateIcon(filterType),
-                  size: 80,
-                  color: kMutedTextColor.withOpacity(0.5),
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, size: 60, color: kErrorRed),
+                    const SizedBox(height: 16),
+                    Text(
+                      languageProvider.tr('error_loading_bookings',
+                          category: 'bookings'),
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: kDarkTextColor,
+                          fontFamily: 'Exo2'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  _getEmptyStateMessage(filterType, isProvider),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: kMutedTextColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        }
+              );
+            }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            setState(() {});
+            final bookings = snapshot.data ?? [];
+
+            if (bookings.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _getEmptyStateIcon(filterType),
+                      size: 80,
+                      color: kMutedTextColor.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      _getEmptyStateMessage(
+                          filterType, isProvider, languageProvider),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: kMutedTextColor,
+                        fontFamily: 'Exo2',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: () async {
+                setState(() {});
+              },
+              color: kPrimaryBlue,
+              child: ListView.builder(
+                padding: const EdgeInsets.only(top: 16),
+                itemCount: bookings.length,
+                itemBuilder: (context, index) {
+                  return _buildBookingCard(bookings[index], isProvider);
+                },
+              ),
+            );
           },
-          child: ListView.builder(
-            padding: const EdgeInsets.only(top: 16),
-            itemCount: bookings.length,
-            itemBuilder: (context, index) {
-              return _buildBookingCard(bookings[index], isProvider);
-            },
-          ),
         );
       },
     );
@@ -710,16 +1008,23 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
-  String _getEmptyStateMessage(String filterType, bool isProvider) {
+  String _getEmptyStateMessage(
+      String filterType, bool isProvider, LanguageProvider lang) {
     switch (filterType) {
       case 'active':
-        return isProvider ? 'No active service requests' : 'No active bookings';
+        return isProvider
+            ? lang.tr('no_active_requests', category: 'bookings')
+            : lang.tr('no_active_bookings', category: 'bookings');
       case 'upcoming':
-        return isProvider ? 'No upcoming appointments' : 'No upcoming bookings';
+        return isProvider
+            ? lang.tr('no_upcoming_appointments', category: 'bookings')
+            : lang.tr('no_upcoming_bookings', category: 'bookings');
       case 'history':
-        return isProvider ? 'No booking history' : 'No past bookings';
+        return isProvider
+            ? lang.tr('no_booking_history', category: 'bookings')
+            : lang.tr('no_past_bookings', category: 'bookings');
       default:
-        return 'No bookings found';
+        return lang.tr('no_bookings_found', category: 'bookings');
     }
   }
 }

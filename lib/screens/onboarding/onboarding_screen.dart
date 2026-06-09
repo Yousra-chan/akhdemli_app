@@ -1,21 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:service_app/screens/auth/login/login_screen.dart';
-
-// --- Configuration ---
-class OnboardingPageModel {
-  final String imagePath;
-  final String title;
-  final String description;
-
-  OnboardingPageModel({
-    required this.imagePath,
-    required this.title,
-    required this.description,
-  });
-}
+import 'package:service_app/screens/auth/language_selection_screen.dart';
+import 'package:service_app/screens/auth/constants.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -26,66 +12,36 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
-  int _currentPageIndex = 0;
+  int _currentPage = 0;
 
-  static const Color _brandPrimaryBlue = Color(0xFF143EAE);
-
-  // Onboarding page data (using your image names)
-  final List<OnboardingPageModel> _pages = [
-    OnboardingPageModel(
-      imagePath: "assets/images/1.png",
-      title: "Fast & Reliable Service",
+  final List<OnboardingItem> _onboardingData = [
+    // PAGE 1: Logo / Welcome - GET STARTED BUTTON HERE
+    OnboardingItem(
+      title: 'Welcome to Akhdem Li',
       description:
-          "Connect with skilled professionals for all your needs, quickly and efficiently.",
+          'Your trusted platform for finding and offering professional services',
+      image: 'assets/images/logo.png',
     ),
-    OnboardingPageModel(
-      imagePath: "assets/images/2.png",
-      title: "Quality Guaranteed",
+    // PAGE 2: Find Services
+    OnboardingItem(
+      title: 'Find Services',
       description:
-          "Our platform ensures top-notch service from verified and highly-rated experts.",
+          'Browse through hundreds of trusted professionals in your area',
+      image: 'assets/images/1.png',
     ),
-    OnboardingPageModel(
-      imagePath: "assets/images/3.png",
-      title: "Easy to Use",
-      description:
-          "Find, book, and manage services seamlessly with our intuitive app interface.",
+    // PAGE 3: Offer Your Skills
+    OnboardingItem(
+      title: 'Offer Your Skills',
+      description: 'Showcase your expertise and grow your client base',
+      image: 'assets/images/2.png',
+    ),
+    // PAGE 4: Get Started (final page)
+    OnboardingItem(
+      title: 'Get Started',
+      description: 'Join our community today and experience the difference',
+      image: 'assets/images/3.png',
     ),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController.addListener(() {
-      if (_pageController.page != null) {
-        setState(() {
-          _currentPageIndex = _pageController.page!.round();
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  // RELIABLE FIX: Static method to save the flag without relying on widget context
-  static Future<void> _setSeenFlag() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasSeenOnboarding', true);
-  }
-
-  // RELIABLE FIX: Synchronous navigation after calling the async save (fire-and-forget)
-  void _navigateToDestination(Widget destinationScreen) {
-    _setSeenFlag(); // Start the async save operation
-
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => destinationScreen),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,159 +50,196 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Skip Button (Goes to main app/dashboard)
+            // Skip button - only show on pages after first?
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
-                onPressed: () => _navigateToDestination(const LoginScreen()),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey[600],
-                  textStyle: GoogleFonts.varelaRound(
+                onPressed: _completeOnboarding,
+                child: const Text(
+                  'Skip',
+                  style: TextStyle(
+                    color: kPrimaryBlue,
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: kAppFont,
                   ),
                 ),
-                child: const Text('Skip'),
               ),
             ),
 
+            // PageView
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _pages.length,
+                itemCount: _onboardingData.length,
+                onPageChanged: (int page) {
+                  setState(() {
+                    _currentPage = page;
+                  });
+                },
                 itemBuilder: (context, index) {
-                  final page = _pages[index];
-                  return _OnboardingPageView(
-                    imagePath: page.imagePath,
-                    title: page.title,
-                    description: page.description,
-                    brandPrimaryBlue: _brandPrimaryBlue,
-                  );
+                  return _buildOnboardingPage(_onboardingData[index]);
                 },
               ),
             ),
 
-            // Page Indicator and Next/Start Button
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 30.0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SmoothPageIndicator(
-                    controller: _pageController,
-                    count: _pages.length,
-                    effect: ExpandingDotsEffect(
-                      dotColor: Colors.grey.shade300,
-                      activeDotColor: _brandPrimaryBlue,
-                      dotHeight: 8,
-                      dotWidth: 8,
-                      expansionFactor: 3,
-                      spacing: 5.0,
-                    ),
-                  ),
-                  _currentPageIndex == _pages.length - 1
-                      ? ElevatedButton(
-                          // FINAL ACTION: Get Started button navigates to LoginScreen
-                          onPressed: () =>
-                              _navigateToDestination(const LoginScreen()),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _brandPrimaryBlue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 30,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            textStyle: GoogleFonts.varelaRound(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          child: const Text('Get Started'),
-                        )
-                      : FloatingActionButton(
-                          onPressed: () {
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 400),
-                              curve: Curves.easeOut,
-                            );
-                          },
-                          backgroundColor: _brandPrimaryBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: const CircleBorder(),
-                          child: const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 20,
-                          ),
-                        ),
-                ],
+            // Page indicators
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _onboardingData.length,
+                (index) => _buildPageIndicator(index == _currentPage),
               ),
             ),
+
+            const SizedBox(height: 32),
+
+            // Next/Get Started button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _currentPage == _onboardingData.length - 1
+                      ? _completeOnboarding
+                      : _nextPage,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    _currentPage == _onboardingData.length - 1
+                        ? 'Get Started'
+                        : 'Next',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: kAppFont,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
-}
 
-// A helper widget for each individual onboarding page content
-class _OnboardingPageView extends StatelessWidget {
-  final String imagePath;
-  final String title;
-  final String description;
-  final Color brandPrimaryBlue;
-
-  const _OnboardingPageView({
-    required this.imagePath,
-    required this.title,
-    required this.description,
-    required this.brandPrimaryBlue,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildOnboardingPage(OnboardingItem item) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      padding: const EdgeInsets.all(32.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Image constrained for better centering and size control
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.35,
-              maxWidth: MediaQuery.of(context).size.width * 0.7,
+          // Image only
+          Container(
+            width: 250,
+            height: 250,
+            child: Image.asset(
+              item.image,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: kPrimaryBlue.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '📸',
+                      style: TextStyle(fontSize: 60),
+                    ),
+                  ),
+                );
+              },
             ),
-            child: Center(child: Image.asset(imagePath, fit: BoxFit.contain)),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 48),
+
+          // Title
           Text(
-            title,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.varelaRound(
+            item.title,
+            style: const TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: brandPrimaryBlue,
+              fontWeight: FontWeight.bold,
+              color: kDarkTextColor,
+              fontFamily: kAppFont,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
+
+          // Description
           Text(
-            description,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.varelaRound(
+            item.description,
+            style: TextStyle(
               fontSize: 16,
-              color: Colors.grey[700],
+              color: kMutedTextColor,
+              fontFamily: kAppFont,
               height: 1.5,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 40),
         ],
       ),
     );
   }
+
+  Widget _buildPageIndicator(bool isActive) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: isActive ? 24 : 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: isActive ? kPrimaryBlue : kPrimaryBlue.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  void _nextPage() {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Future<void> _completeOnboarding() async {
+    // Save that user has seen onboarding
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenOnboarding', true);
+
+    print('✅ Onboarding completed - navigating to language selection');
+
+    // Navigate to language selection screen
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+      );
+    }
+  }
+}
+
+class OnboardingItem {
+  final String title;
+  final String description;
+  final String image;
+
+  OnboardingItem({
+    required this.title,
+    required this.description,
+    required this.image,
+  });
 }

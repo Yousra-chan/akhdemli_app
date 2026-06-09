@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
+import 'package:service_app/screens/profile/settings/change_language_page.dart';
 import 'package:service_app/screens/profile/settings/change_password_page.dart';
+import 'package:service_app/screens/profile/settings/edit_profile_page.dart';
 import 'package:service_app/screens/profile/settings/update_email_page.dart';
-import 'edit_profile_page.dart';
+import 'package:service_app/screens/profile/settings/delete_account.dart';
+import 'package:service_app/ViewModel/auth_view_model.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -19,12 +23,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: kLightBackgroundColor,
       body: Column(
         children: [
-          // Simple App Bar (matches ProfilePage design)
-          _buildAppBar(context),
+          // Simple App Bar
+          _buildAppBar(context, languageProvider),
 
           Expanded(
             child: SingleChildScrollView(
@@ -32,47 +38,111 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // --- 1. Account Settings Section ---
-                  _buildSettingsSection("ACCOUNT", [
-                    _buildSettingsItem(
-                      icon: Icons.person_outline,
-                      title: "Edit Profile",
-                      subtitle: "Update your personal information",
-                      onTap: () => _navigateToEditProfile(context),
-                    ),
-                    _buildSettingsItem(
-                      icon: Icons.lock_outline,
-                      title: "Change Password",
-                      subtitle: "Update your password",
-                      onTap: () => _navigateToChangePassword(context),
-                    ),
-                    _buildSettingsItem(
-                      icon: Icons.email_outlined,
-                      title: "Update Email",
-                      subtitle: "Change your email address",
-                      onTap: () => _navigateToUpdateEmail(context),
-                    ),
-                  ]),
+                  _buildSettingsSection(
+                    languageProvider.tr('accountSettings', category: 'profile'),
+                    [
+                      _buildSettingsItem(
+                        icon: Icons.person_outline,
+                        title: languageProvider.tr('editProfile',
+                            category: 'profile'),
+                        subtitle: languageProvider.tr('updatePersonalInfo',
+                            category: 'profile'),
+                        onTap: () => _navigateToEditProfile(context),
+                      ),
+                      _buildSettingsItem(
+                        icon: Icons.lock_outline,
+                        title: languageProvider.tr('changePassword',
+                            category: 'profile'),
+                        subtitle: languageProvider.tr('updatePassword',
+                            category: 'profile'),
+                        onTap: () => _navigateToChangePassword(context),
+                      ),
+                      _buildSettingsItem(
+                        icon: Icons.email_outlined,
+                        title: languageProvider.tr('updateEmail',
+                            category: 'profile'),
+                        subtitle: languageProvider.tr('changeEmail',
+                            category: 'profile'),
+                        onTap: () => _navigateToUpdateEmail(context),
+                      ),
+                    ],
+                  ),
 
                   // --- 2. General Settings Section ---
-                  _buildSettingsSection("GENERAL", [
-                    _buildSettingsItem(
-                      icon: Icons.language,
-                      title: "Language",
-                      subtitle: "Change app language",
-                      onTap: () => _showLanguageDialog(context),
-                    ),
-                  ]),
+                  _buildSettingsSection(
+                    languageProvider.tr('general', category: 'common'),
+                    [
+                      _buildSettingsItem(
+                        icon: Icons.language,
+                        title: languageProvider.tr('language',
+                            category: 'language'),
+                        subtitle: _getCurrentLanguageName(languageProvider),
+                        onTap: () => _navigateToLanguagePage(context),
+                        showChevron: true,
+                      ),
+                      _buildSettingsItem(
+                        icon: Icons.notifications_outlined,
+                        title: languageProvider.tr('notifications',
+                            category: 'profile'),
+                        subtitle: languageProvider.tr('manageNotifications',
+                            category: 'profile'),
+                        hasSwitch: true,
+                        switchValue: _sendReadReceipts,
+                        onSwitchChanged: (value) {
+                          setState(() {
+                            _sendReadReceipts = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
 
-                  // --- 3. Danger Zone ---
-                  _buildSettingsSection("DANGER ZONE", [
-                    _buildSettingsItem(
-                      icon: Icons.delete_outline,
-                      title: "Delete Account",
-                      subtitle: "Permanently delete your account",
-                      onTap: () => _showDeleteAccountDialog(context),
-                      isDestructive: true,
-                    ),
-                  ]),
+                  // --- 3. Appearance Section ---
+                  _buildSettingsSection(
+                    languageProvider.tr('appearance', category: 'common'),
+                    [
+                      _buildSettingsItem(
+                        icon: Icons.dark_mode_outlined,
+                        title:
+                            languageProvider.tr('darkMode', category: 'common'),
+                        subtitle: languageProvider.tr('enableDarkTheme',
+                            category: 'common'),
+                        hasSwitch: true,
+                        switchValue: _darkModeEnabled,
+                        onSwitchChanged: (value) {
+                          setState(() {
+                            _darkModeEnabled = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // --- 4. Danger Zone ---
+                  _buildSettingsSection(
+                    languageProvider.tr('dangerZone', category: 'profile'),
+                    [
+                      _buildSettingsItem(
+                        icon: Icons.logout,
+                        title:
+                            languageProvider.tr('logout', category: 'profile'),
+                        subtitle: languageProvider.tr('signOutAccount',
+                            category: 'profile'),
+                        onTap: () =>
+                            _showLogoutDialog(context, languageProvider),
+                        isWarning: true,
+                      ),
+                      _buildSettingsItem(
+                        icon: Icons.delete_outline,
+                        title: languageProvider.tr('deleteAccount',
+                            category: 'profile'),
+                        subtitle: languageProvider.tr('permanentlyDelete',
+                            category: 'profile'),
+                        onTap: () => _navigateToDeleteAccount(context),
+                        isDestructive: true,
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: 40),
                 ],
@@ -84,7 +154,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -111,9 +181,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          const Text(
-            'Account Settings',
-            style: TextStyle(
+          Text(
+            languageProvider.tr('accountSettings', category: 'profile'),
+            style: const TextStyle(
               color: kDarkTextColor,
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -121,7 +191,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           Container(
-            width: 40, // Placeholder for spacing
+            width: 40,
           ),
         ],
       ),
@@ -137,42 +207,41 @@ class _SettingsPageState extends State<SettingsPage> {
           Padding(
             padding: const EdgeInsets.only(left: 10, bottom: 12),
             child: Text(
-              title,
+              title.toUpperCase(),
               style: const TextStyle(
                 color: kMutedTextColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1,
+                fontFamily: 'Exo2',
               ),
             ),
           ),
           Container(
             decoration: BoxDecoration(
               color: kCardBackgroundColor,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: kSoftShadowColor.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
-              children: items
-                  .map((item) => Column(
-                        children: [
-                          item,
-                          if (item !=
-                              items.last) // Add divider except for last item
-                            const Divider(
-                              height: 1,
-                              indent: 20,
-                              endIndent: 20,
-                            ),
-                        ],
-                      ))
-                  .toList(),
+              children: [
+                for (int i = 0; i < items.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      color: kMutedTextColor.withOpacity(0.1),
+                      indent: 16,
+                      endIndent: 16,
+                    ),
+                  items[i],
+                ],
+              ],
             ),
           ),
         ],
@@ -184,36 +253,46 @@ class _SettingsPageState extends State<SettingsPage> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
     bool hasSwitch = false,
     bool switchValue = false,
     Function(bool)? onSwitchChanged,
+    bool showChevron = false,
+    bool isWarning = false,
     bool isDestructive = false,
   }) {
-    return Material(
+    final Color titleColor = isDestructive
+        ? Colors.red
+        : isWarning
+            ? Colors.orange
+            : kDarkTextColor;
+
+    return Container(
       color: Colors.transparent,
       child: InkWell(
-        onTap: isDestructive ? null : onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        onTap: hasSwitch ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: isDestructive
                       ? Colors.red.withOpacity(0.1)
-                      : kPrimaryBlue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                      : isWarning
+                          ? Colors.orange.withOpacity(0.1)
+                          : kPrimaryBlue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   icon,
-                  color: isDestructive ? Colors.red : kPrimaryBlue,
+                  color: titleColor,
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,39 +300,37 @@ class _SettingsPageState extends State<SettingsPage> {
                     Text(
                       title,
                       style: TextStyle(
-                        color: isDestructive ? Colors.red : kDarkTextColor,
+                        color: titleColor,
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Exo2',
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         color: kMutedTextColor,
-                        fontSize: 12,
+                        fontSize: 13,
+                        fontFamily: 'Exo2',
                       ),
                     ),
                   ],
                 ),
               ),
               if (hasSwitch)
-                Switch(
-                  value: switchValue,
-                  onChanged: onSwitchChanged,
-                  activeColor: kPrimaryBlue,
-                  activeTrackColor: kPrimaryBlue.withOpacity(0.3),
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: switchValue,
+                    onChanged: onSwitchChanged,
+                    activeColor: kPrimaryBlue,
+                  ),
                 )
-              else if (!isDestructive)
-                const Icon(
+              else if (showChevron)
+                Icon(
                   Icons.chevron_right,
                   color: kMutedTextColor,
-                  size: 24,
-                )
-              else
-                Icon(
-                  Icons.delete_outline,
-                  color: Colors.red.withOpacity(0.7),
                 ),
             ],
           ),
@@ -262,7 +339,20 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // Navigation Methods
+  String _getCurrentLanguageName(LanguageProvider languageProvider) {
+    final code = languageProvider.locale.languageCode;
+    switch (code) {
+      case 'en':
+        return languageProvider.tr('english', category: 'language');
+      case 'fr':
+        return languageProvider.tr('french', category: 'language');
+      case 'ar':
+        return languageProvider.tr('arabic', category: 'language');
+      default:
+        return languageProvider.tr('english', category: 'language');
+    }
+  }
+
   void _navigateToEditProfile(BuildContext context) {
     Navigator.push(
       context,
@@ -284,7 +374,22 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showLanguageDialog(BuildContext context) {
+  void _navigateToLanguagePage(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LanguagePage()),
+    );
+  }
+
+  void _navigateToDeleteAccount(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DeleteAccountPage()),
+    );
+  }
+
+  void _showLogoutDialog(
+      BuildContext context, LanguageProvider languageProvider) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -313,12 +418,12 @@ class _SettingsPageState extends State<SettingsPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: kPrimaryBlue.withOpacity(0.1),
+                  color: Colors.orange.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.language,
-                  color: kPrimaryBlue,
+                child: const Icon(
+                  Icons.logout,
+                  color: Colors.orange,
                   size: 32,
                 ),
               ),
@@ -326,9 +431,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Title
               Text(
-                'Language Selection',
-                style: TextStyle(
-                  color: kDarkTextColor,
+                languageProvider.tr('logout', category: 'profile'),
+                style: const TextStyle(
+                  color: Colors.orange,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'Exo2',
@@ -337,21 +442,16 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
 
               // Description
-              const Text(
-                'Select your preferred language',
+              Text(
+                languageProvider.tr('logoutConfirm', category: 'profile'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: kMutedTextColor,
                   fontSize: 14,
                   height: 1.4,
+                  fontFamily: 'Exo2',
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // Language options
-              _buildLanguageOption('English', true),
-              const SizedBox(height: 12),
-              _buildLanguageOption('Français', false),
               const SizedBox(height: 24),
 
               // Buttons
@@ -370,210 +470,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Save Button
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Language updated successfully'),
-                            backgroundColor: kSuccessColor,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: const Text(
-                        'Save',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageOption(String language, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isSelected ? kPrimaryBlue.withOpacity(0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected ? kPrimaryBlue : Colors.grey[300]!,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.language,
-            color: isSelected ? kPrimaryBlue : kMutedTextColor,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              language,
-              style: TextStyle(
-                color: isSelected ? kPrimaryBlue : kDarkTextColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          if (isSelected)
-            Icon(
-              Icons.check_circle,
-              color: kPrimaryBlue,
-              size: 24,
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteAccountDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            color: kCardBackgroundColor,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.red,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Title
-              const Text(
-                'Delete Account?',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Description
-              const Text(
-                'This action cannot be undone. All your data will be permanently deleted.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Warning note
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.red.withOpacity(0.2),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.red,
-                      size: 18,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
                       child: Text(
-                        'This includes all your jobs, reviews, messages, and profile information.',
-                        style: TextStyle(
-                          color: kDarkTextColor,
-                          fontSize: 12,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Buttons
-              Row(
-                children: [
-                  // Cancel Button
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kMutedTextColor,
-                        side:
-                            BorderSide(color: kMutedTextColor.withOpacity(0.3)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
+                        languageProvider.tr('cancel', category: 'common'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -581,21 +480,42 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(width: 12),
 
-                  // Delete Button
+                  // Logout Button
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(context).pop();
-                        // Implement account deletion logic
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Account deletion initiated'),
-                            backgroundColor: Colors.red,
-                          ),
+
+                        // Logout
+                        final authViewModel = Provider.of<AuthViewModel>(
+                          context,
+                          listen: false,
                         );
+                        await authViewModel.logout();
+
+                        if (mounted) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/login',
+                            (route) => false,
+                          );
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                languageProvider.tr('loggedOut',
+                                    category: 'profile'),
+                                style: const TextStyle(
+                                  fontFamily: 'Exo2',
+                                ),
+                              ),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -603,9 +523,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         elevation: 2,
                       ),
-                      child: const Text(
-                        'Delete',
-                        style: TextStyle(
+                      child: Text(
+                        languageProvider.tr('logout', category: 'profile'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                         ),
                       ),

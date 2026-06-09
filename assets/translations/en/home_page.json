@@ -1,0 +1,13 @@
+{
+  "hello_user": "Hello, {name}!",
+  "hello_guest": "Welcome, Guest!",
+  "find_service_providers": "Find the best service providers near you",
+  "manage_services": "Manage your services and bookings",
+  "search_services_providers": "Search for services or providers...",
+  "search_services_listings": "Search your services...",
+  "categories": "Categories",
+  "no_services_available": "No services available",
+  "all_categories": "All Categories",
+  "all_services": "All Services",
+  "search_results": "Search Results"
+}

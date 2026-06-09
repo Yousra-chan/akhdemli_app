@@ -4,19 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
-import 'package:service_app/ViewModel/unread_message_view_model.dart';
 import 'package:service_app/ViewModel/search_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/screens/onboarding/onboarding_screen.dart';
+import 'package:service_app/screens/auth/language_selection_screen.dart';
 import 'package:service_app/Services/notification_service.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 /// Global navigator key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -24,7 +26,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// Background handler (when app is closed)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('📨 [BACKGROUND] Notification received');
+  print('🔨 [BACKGROUND] Notification received');
 
   // Initialize Firebase
   await Firebase.initializeApp();
@@ -112,30 +114,55 @@ class ServiceApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
         ChangeNotifierProvider(create: (_) => ServiceViewModel()),
-        ChangeNotifierProvider(create: (_) => UnreadMessagesViewModel()),
         ChangeNotifierProvider(create: (_) => SearchViewModel()),
-      ],
-      child: MaterialApp(
-        title: 'Akhdem-Li',
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-          useMaterial3: true,
+        ChangeNotifierProvider(
+          create: (_) => LanguageProvider()..init(),
         ),
-        routes: {
-          '/home': (_) => const NavigatorBottom(),
-          '/login': (_) => const LoginScreen(),
-          '/onboarding': (_) => const OnboardingScreen(),
+      ],
+      child: Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return MaterialApp(
+            title: 'Akhdem-Li',
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+              useMaterial3: true,
+            ),
+
+            /// Set locale from LanguageProvider
+            locale: languageProvider.locale,
+
+            /// Define supported locales
+            supportedLocales: const [
+              Locale('en'),
+              Locale('fr'),
+              Locale('ar'),
+            ],
+
+            /// IMPORTANT: Keep these localization delegates!
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+
+            routes: {
+              '/home': (_) => const NavigatorBottom(),
+              '/login': (_) => const LoginScreen(),
+              '/onboarding': (_) => const OnboardingScreen(),
+              '/language': (_) => const LanguageSelectionScreen(),
+            },
+            home: const AuthWrapper(),
+          );
         },
-        home: const AuthWrapper(),
       ),
     );
   }
 }
 
 /// ============================================================================
-/// AUTH WRAPPER (SIMPLIFIED)
+/// AUTH WRAPPER WITH INTELLIGENT LANGUAGE FLOW
 /// ============================================================================
 
 class AuthWrapper extends StatefulWidget {
@@ -148,6 +175,7 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _loading = true;
   bool _hasSeenOnboarding = false;
+  bool _hasCompletedInitialSetup = false;
 
   @override
   void initState() {
@@ -157,34 +185,24 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _initApp() async {
     try {
-      // Check onboarding status
       final prefs = await SharedPreferences.getInstance();
+
+      // Check if user has seen onboarding
       _hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
-      // Handle notification if app opened from notification
-      await _handleInitialNotification();
+      // Check if user has completed initial setup (language selection)
+      _hasCompletedInitialSetup =
+          prefs.getBool('hasCompletedInitialSetup') ?? false;
 
       print('✅ App initialization complete');
+      print('📱 Has seen onboarding: $_hasSeenOnboarding');
+      print('⚙️ Has completed initial setup: $_hasCompletedInitialSetup');
     } catch (e) {
       print('⚠️ Error during app initialization: $e');
     } finally {
       if (mounted) {
         setState(() => _loading = false);
       }
-    }
-  }
-
-  Future<void> _handleInitialNotification() async {
-    try {
-      final initialMessage =
-          await FirebaseMessaging.instance.getInitialMessage();
-      if (initialMessage != null) {
-        print('🚀 App opened from notification');
-        print('📨 Data: ${initialMessage.data}');
-        // You can navigate to specific screen here
-      }
-    } catch (e) {
-      print('⚠️ Error handling initial notification: $e');
     }
   }
 
@@ -196,10 +214,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return _loadingScreen();
     }
 
+    // 1. FIRST: Show Onboarding if not seen
     if (!_hasSeenOnboarding) {
       return const OnboardingScreen();
     }
 
+    // 2. SECOND: Show Language Selection ONLY ONCE in entire app lifetime
+    // Only show if user has NOT completed initial setup AND is NOT logged in
+    if (!_hasCompletedInitialSetup && authVM.currentUser == null) {
+      return const LanguageSelectionScreen();
+    }
+
+    // 3. THIRD: Handle authentication
     if (authVM.isLoading && authVM.currentUser == null) {
       return _loadingScreen();
     }
@@ -208,11 +234,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return _authenticatedApp(authVM.currentUser!);
     }
 
+    // 4. FINALLY: Show Login screen
     return const LoginScreen();
   }
 
   Widget _authenticatedApp(UserModel user) {
-    // Initialize user notifications
+    // Initialize user notifications after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeUserNotifications(user);
     });
@@ -230,13 +257,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _initializeUserNotifications(UserModel user) async {
     try {
       print('🔔 Initializing notifications for ${user.name}');
-
-      // Register user with NotificationService
       await NotificationService().registerUser(
         userId: user.uid,
         userName: user.name,
       );
-
       print('✅ User notifications initialized');
     } catch (e) {
       print('⚠️ Error initializing notifications: $e');

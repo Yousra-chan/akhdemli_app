@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'dart:ui' as ui;
 
 class CategoriesPage extends StatelessWidget {
   static const double _gridSpacing = 16;
@@ -23,16 +26,25 @@ class CategoriesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: _buildCategoriesGrid(),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Directionality(
+          textDirection: languageProvider.isRtl
+              ? ui.TextDirection.rtl
+              : ui.TextDirection.ltr,
+          child: Scaffold(
+            appBar: _buildAppBar(context, languageProvider),
+            body: _buildCategoriesGrid(context, languageProvider),
+          ),
+        );
+      },
     );
   }
 
-  AppBar _buildAppBar(BuildContext context) {
+  AppBar _buildAppBar(BuildContext context, LanguageProvider lang) {
     return AppBar(
       title: Text(
-        'All Categories',
+        lang.tr('all_categories', category: 'home_categories'),
         style: TextStyle(
           color: kDarkTextColor,
           fontWeight: FontWeight.w700,
@@ -42,13 +54,38 @@ class CategoriesPage extends StatelessWidget {
       backgroundColor: Colors.white,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Icons.arrow_back, color: kDarkTextColor),
+        icon: Icon(lang.isRtl ? Icons.arrow_forward : Icons.arrow_back,
+            color: kDarkTextColor),
         onPressed: () => Navigator.pop(context),
       ),
     );
   }
 
-  Widget _buildCategoriesGrid() {
+  Widget _buildCategoriesGrid(BuildContext context, LanguageProvider lang) {
+    if (categories.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.category_outlined,
+              size: 64,
+              color: kMutedTextColor,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              lang.tr('no_categories_found', category: 'home_categories'),
+              style: TextStyle(
+                color: kMutedTextColor,
+                fontSize: 16,
+                fontFamily: 'Exo2',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.all(_gridSpacing),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -62,6 +99,7 @@ class CategoriesPage extends StatelessWidget {
         context,
         categories[index],
         index,
+        lang,
       ),
     );
   }
@@ -70,9 +108,10 @@ class CategoriesPage extends StatelessWidget {
     BuildContext context,
     CategoryModel category,
     int index,
+    LanguageProvider lang,
   ) {
     return GestureDetector(
-      onTap: () => _navigateToProviders(context, category),
+      onTap: () => _navigateToProviders(context, category, lang),
       child: Container(
         decoration: _categoryCardDecoration(),
         child: Column(
@@ -81,6 +120,7 @@ class CategoriesPage extends StatelessWidget {
             _buildCategoryIcon(category, index),
             const SizedBox(height: 12),
             _buildCategoryName(category.name),
+            const SizedBox(height: 4),
           ],
         ),
       ),
@@ -134,17 +174,19 @@ class CategoriesPage extends StatelessWidget {
           fontFamily: 'Exo2',
         ),
         maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
-  void _navigateToProviders(BuildContext context, CategoryModel category) {
+  void _navigateToProviders(
+      BuildContext context, CategoryModel category, LanguageProvider lang) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProvidersListPage(
           categoryName: category.name,
-          subCategoryName: '',
+          subCategoryName: lang.tr('all_services', category: 'home_categories'),
         ),
       ),
     );

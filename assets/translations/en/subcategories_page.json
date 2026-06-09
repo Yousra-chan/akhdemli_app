@@ -1,0 +1,18 @@
+{
+  "search_services": "Search services...",
+  "basic_service": "Basic Service",
+  "premium_service": "Premium Service",
+  "emergency_service": "Emergency Service",
+  "advanced_service": "Advanced Service",
+  "standard_package": "Standard Package",
+  "custom_service": "Custom Service",
+  "service_description": "{category} {service} service",
+  "no_services_found": "No services found",
+  "loading_services": "Loading services...",
+  "clear_search": "Clear search",
+  "services_count": "{count} services available",
+  "view_providers": "View providers",
+  "all_services": "All Services",
+  "popular_services": "Popular Services",
+  "recommended": "Recommended"
+}

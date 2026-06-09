@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class PriceSection extends StatelessWidget {
   final TextEditingController priceController;
@@ -29,63 +31,67 @@ class PriceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        _buildPriceInputSection(),
-      ],
+    return Consumer<LanguageProvider>(
+      builder: (context, lang, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            _buildPriceInputSection(lang),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildPriceInputSection() {
+  Widget _buildPriceInputSection(LanguageProvider lang) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
             if (constraints.maxWidth > 600) {
-              return _buildDesktopLayout();
+              return _buildDesktopLayout(lang);
             } else {
-              return _buildMobileLayout();
+              return _buildMobileLayout(lang);
             }
           },
         ),
         const SizedBox(height: 12),
         if (priceController.text.isNotEmpty) ...[
-          _buildPriceInfoCards(),
-          const SizedBox(height: 4), // Reduced spacing
+          _buildPriceInfoCards(lang),
+          const SizedBox(height: 4),
         ],
       ],
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(LanguageProvider lang) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: _buildPriceInputCard(),
+          child: _buildPriceInputCard(lang),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _buildPriceUnitCard(),
+          child: _buildPriceUnitCard(lang),
         ),
       ],
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(LanguageProvider lang) {
     return Column(
       children: [
-        _buildPriceInputCard(),
+        _buildPriceInputCard(lang),
         const SizedBox(height: 12),
-        _buildPriceUnitCard(),
+        _buildPriceUnitCard(lang),
       ],
     );
   }
 
-  Widget _buildPriceInputCard() {
+  Widget _buildPriceInputCard(LanguageProvider lang) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -101,7 +107,7 @@ class PriceSection extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Price (DZD)',
+                  lang.tr('price_section_title', category: 'service'),
                   style: TextStyle(
                     color: _textSecondary,
                     fontWeight: FontWeight.w600,
@@ -114,10 +120,22 @@ class PriceSection extends StatelessWidget {
                       priceController.clear();
                       onPriceChanged?.call();
                     },
-                    child: Icon(
-                      Icons.clear,
-                      color: _textSecondary,
-                      size: 18,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.clear,
+                          color: _textSecondary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          lang.tr('price_clear', category: 'service'),
+                          style: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -133,7 +151,7 @@ class PriceSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'DZD',
+                    lang.tr('price_currency', category: 'service'),
                     style: TextStyle(
                       color: _primaryColor,
                       fontWeight: FontWeight.w700,
@@ -147,17 +165,17 @@ class PriceSection extends StatelessWidget {
                     controller: priceController,
                     onChanged: (_) => onPriceChanged?.call(),
                     decoration: InputDecoration(
-                      hintText: '0.00',
+                      hintText: lang.tr('price_hint', category: 'service'),
                       hintStyle: TextStyle(
                         color: _textSecondary.withOpacity(0.5),
-                        fontSize: 16, // Reduced size
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.only(bottom: 4),
                     ),
                     style: TextStyle(
-                      fontSize: 16, // Reduced size
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: _textPrimary,
                     ),
@@ -173,7 +191,7 @@ class PriceSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPriceUnitCard() {
+  Widget _buildPriceUnitCard(LanguageProvider lang) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -186,7 +204,7 @@ class PriceSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Billing Method',
+              lang.tr('price_billing_method', category: 'service'),
               style: TextStyle(
                 color: _textSecondary,
                 fontWeight: FontWeight.w600,
@@ -197,7 +215,7 @@ class PriceSection extends StatelessWidget {
             DropdownButton<String>(
               value: selectedPriceUnit,
               isExpanded: true,
-              items: _buildPriceUnitItems(),
+              items: _buildPriceUnitItems(lang),
               onChanged: onPriceUnitChanged,
               underline: const SizedBox(),
               icon: Icon(
@@ -218,30 +236,31 @@ class PriceSection extends StatelessWidget {
     );
   }
 
-  List<DropdownMenuItem<String>> _buildPriceUnitItems() {
+  List<DropdownMenuItem<String>> _buildPriceUnitItems(LanguageProvider lang) {
     return priceUnits.map((unit) {
+      final unitKey = _getPriceUnitKey(unit);
+
       return DropdownMenuItem(
         value: unit,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4), // Reduced padding
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
               Icon(
                 _getPriceUnitIcon(unit),
-                size: 18, // Reduced size
+                size: 18,
                 color: _primaryColor,
               ),
-              const SizedBox(width: 8), // Reduced spacing
+              const SizedBox(width: 8),
               Flexible(
-                // Use Flexible instead of Expanded
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min, // Prevent overflow
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      unit,
+                      lang.tr(unitKey, category: 'service'),
                       style: TextStyle(
-                        fontSize: 13, // Reduced size
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: _textPrimary,
                       ),
@@ -250,9 +269,9 @@ class PriceSection extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _getPriceUnitTooltip(unit),
+                      lang.tr('${unitKey}_desc', category: 'service'),
                       style: TextStyle(
-                        fontSize: 10, // Reduced size
+                        fontSize: 10,
                         color: _textSecondary,
                       ),
                       maxLines: 1,
@@ -268,28 +287,46 @@ class PriceSection extends StatelessWidget {
     }).toList();
   }
 
-  Widget _buildPriceInfoCards() {
+  String _getPriceUnitKey(String unit) {
+    switch (unit) {
+      case 'per hour':
+        return 'price_unit_hour';
+      case 'per day':
+        return 'price_unit_day';
+      case 'per service':
+        return 'price_unit_service';
+      case 'per square meter':
+        return 'price_unit_square_meter';
+      case 'per item':
+        return 'price_unit_item';
+      case 'per session':
+        return 'price_unit_session';
+      default:
+        return 'price_unit_service';
+    }
+  }
+
+  Widget _buildPriceInfoCards(LanguageProvider lang) {
     final price = double.tryParse(priceController.text.replaceAll(',', '.'));
     if (price == null || price <= 0) {
       return const SizedBox.shrink();
     }
 
     return Column(
-      mainAxisSize: MainAxisSize.min, // Prevent overflow
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _buildPriceSummaryCard(price),
+        _buildPriceSummaryCard(price, lang),
         if (showMarketComparison) ...[
-          const SizedBox(height: 6), // Reduced spacing
-          _buildMarketComparisonCard(price),
+          const SizedBox(height: 6),
+          _buildMarketComparisonCard(price, lang),
         ],
       ],
     );
   }
 
-  Widget _buildPriceSummaryCard(double price) {
+  Widget _buildPriceSummaryCard(double price, LanguageProvider lang) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 12, vertical: 10), // Reduced padding
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: _accentColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
@@ -299,31 +336,41 @@ class PriceSection extends StatelessWidget {
         children: [
           Icon(
             Icons.currency_exchange_rounded,
-            size: 16, // Reduced size
+            size: 16,
             color: _accentColor,
           ),
-          const SizedBox(width: 8), // Reduced spacing
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min, // Prevent overflow
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _getPriceSummaryText(price),
+                  lang.trParams('price_summary', category: 'service', params: {
+                    'price': price.toStringAsFixed(
+                        price.truncateToDouble() == price ? 0 : 2),
+                    'unit': lang.tr(_getPriceUnitKey(selectedPriceUnit),
+                        category: 'service'),
+                  }),
                   style: TextStyle(
                     color: _textPrimary,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12, // Reduced size
+                    fontSize: 12,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Based on $selectedPriceUnit',
+                  lang.trParams('price_summary_label',
+                      category: 'service',
+                      params: {
+                        'unit': lang.tr(_getPriceUnitKey(selectedPriceUnit),
+                            category: 'service'),
+                      }),
                   style: TextStyle(
                     color: _textSecondary,
-                    fontSize: 10, // Reduced size
+                    fontSize: 10,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -336,13 +383,12 @@ class PriceSection extends StatelessWidget {
     );
   }
 
-  Widget _buildMarketComparisonCard(double price) {
+  Widget _buildMarketComparisonCard(double price, LanguageProvider lang) {
     final comparison = price.compareTo(marketAveragePrice);
-    final comparisonData = _getComparisonData(comparison, price);
+    final comparisonData = _getComparisonData(comparison, price, lang);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 12, vertical: 10), // Reduced padding
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: comparisonData.color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
@@ -352,31 +398,35 @@ class PriceSection extends StatelessWidget {
         children: [
           Icon(
             comparisonData.icon,
-            size: 16, // Reduced size
+            size: 16,
             color: comparisonData.color,
           ),
-          const SizedBox(width: 8), // Reduced spacing
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min, // Prevent overflow
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   comparisonData.text,
                   style: TextStyle(
                     color: comparisonData.color,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12, // Reduced size
+                    fontSize: 12,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Market avg: ${marketAveragePrice.toStringAsFixed(0)} DZD',
+                  lang.trParams('price_market_avg',
+                      category: 'service',
+                      params: {
+                        'price': marketAveragePrice.toStringAsFixed(0),
+                      }),
                   style: TextStyle(
                     color: _textSecondary,
-                    fontSize: 10, // Reduced size
+                    fontSize: 10,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -390,21 +440,6 @@ class PriceSection extends StatelessWidget {
   }
 
   // Helper methods
-  String _getPriceUnitTooltip(String unit) {
-    final lowerUnit = unit.toLowerCase();
-
-    final tooltips = {
-      'per hour': 'Per hour worked',
-      'per day': 'Per day worked',
-      'per service': 'Fixed price',
-      'per square meter': 'Based on area',
-      'per item': 'Price per unit',
-      'per session': 'Per appointment',
-    };
-
-    return tooltips[lowerUnit] ?? '';
-  }
-
   IconData _getPriceUnitIcon(String unit) {
     final lowerUnit = unit.toLowerCase();
 
@@ -420,32 +455,31 @@ class PriceSection extends StatelessWidget {
     return icons[lowerUnit] ?? Icons.attach_money;
   }
 
-  String _getPriceSummaryText(double price) {
-    final formattedPrice =
-        price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2);
-    return '$formattedPrice DZD $selectedPriceUnit';
-  }
-
-  _ComparisonData _getComparisonData(int comparison, double price) {
+  _ComparisonData _getComparisonData(
+      int comparison, double price, LanguageProvider lang) {
     final percentage =
         ((price - marketAveragePrice).abs() / marketAveragePrice * 100)
             .toStringAsFixed(0);
 
     if (comparison < 0) {
       return _ComparisonData(
-        text: '$percentage% below avg',
+        text: lang.trParams('price_below_avg', category: 'service', params: {
+          'percentage': percentage,
+        }),
         color: const Color(0xFF10B981),
         icon: Icons.trending_down,
       );
     } else if (comparison > 0) {
       return _ComparisonData(
-        text: '$percentage% above avg',
+        text: lang.trParams('price_above_avg', category: 'service', params: {
+          'percentage': percentage,
+        }),
         color: const Color(0xFFF59E0B),
         icon: Icons.trending_up,
       );
     } else {
       return _ComparisonData(
-        text: 'At market average',
+        text: lang.tr('price_at_avg', category: 'service'),
         color: const Color(0xFF6366F1),
         icon: Icons.trending_flat,
       );

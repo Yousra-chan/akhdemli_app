@@ -1,0 +1,18 @@
+{
+  "search_services": "Rechercher des services...",
+  "basic_service": "Service de base",
+  "premium_service": "Service premium",
+  "emergency_service": "Service d'urgence",
+  "advanced_service": "Service avancé",
+  "standard_package": "Forfait standard",
+  "custom_service": "Service personnalisé",
+  "service_description": "Service {service} de {category}",
+  "no_services_found": "Aucun service trouvé",
+  "loading_services": "Chargement des services...",
+  "clear_search": "Effacer la recherche",
+  "services_count": "{count} services disponibles",
+  "view_providers": "Voir les prestataires",
+  "all_services": "Tous les services",
+  "popular_services": "Services populaires",
+  "recommended": "Recommandé"
+}

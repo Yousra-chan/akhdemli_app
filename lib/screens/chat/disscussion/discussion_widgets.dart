@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:service_app/models/MessageModel.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_constants.dart';
 import 'package:intl/intl.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 Widget buildDiscussionAppBar(
   BuildContext context,
@@ -10,6 +12,8 @@ Widget buildDiscussionAppBar(
   bool isOnline,
   String? profileImageUrl,
 ) {
+  final languageProvider =
+      Provider.of<LanguageProvider>(context, listen: false);
   final double topPadding = MediaQuery.of(context).padding.top;
 
   return Container(
@@ -97,7 +101,11 @@ Widget buildDiscussionAppBar(
                       ),
                     ),
                     Text(
-                      isOnline ? "Online" : "Offline",
+                      isOnline
+                          ? languageProvider.tr('online',
+                              category: 'disscussion')
+                          : languageProvider.tr('offline',
+                              category: 'disscussion'),
                       style: TextStyle(
                         color: isOnline ? kOnlineStatusGreen : Colors.white70,
                         fontSize: 13,
@@ -115,8 +123,14 @@ Widget buildDiscussionAppBar(
   );
 }
 
-Widget buildMessageBubble(MessageModel message, String currentUserId,
-    [String? profileImageUrl]) {
+Widget buildMessageBubble(
+  MessageModel message,
+  String currentUserId,
+  BuildContext context, [
+  String? profileImageUrl,
+]) {
+  final languageProvider =
+      Provider.of<LanguageProvider>(context, listen: false);
   final bool isSent = message.senderId == currentUserId;
 
   return Container(
@@ -210,7 +224,9 @@ Widget buildMessageBubble(MessageModel message, String currentUserId,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  DateFormat('HH:mm').format(message.timestamp.toDate()),
+                  DateFormat(languageProvider.tr('time_format',
+                          category: 'disscussion'))
+                      .format(message.timestamp.toDate()),
                   style: TextStyle(
                     color: isSent
                         ? kLightTextColor.withOpacity(0.7)
@@ -266,7 +282,7 @@ Color _getColorFromName(String name) {
   return Color(hash & 0xFFFFFF).withOpacity(1.0);
 }
 
-Widget buildDateSeparator(String date) {
+Widget buildDateSeparator(String date, BuildContext context) {
   return Container(
     margin: const EdgeInsets.symmetric(vertical: 20),
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
