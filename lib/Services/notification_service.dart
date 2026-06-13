@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 
+import 'package:service_app/providers/language_provider.dart';
+
 /// Custom exception for notification-related errors
 class NotificationException implements Exception {
   final String message;
@@ -31,6 +33,56 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
 
   factory NotificationService() => _instance;
+
+  // Language Provider for translations
+  static LanguageProvider? _languageProvider;
+
+  // Method to set the language provider
+  static void setLanguageProvider(LanguageProvider provider) {
+    _languageProvider = provider;
+  }
+
+  /// Helper method to get translated strings
+  String _tr(String key, {Map<String, String>? params}) {
+    if (_languageProvider != null) {
+      if (params != null) {
+        return _languageProvider!
+            .trParams(key, category: 'notification_service', params: params);
+      }
+      return _languageProvider!.tr(key, category: 'notification_service');
+    }
+    // Return fallback English messages if provider not set
+    return _getFallbackEnglish(key, params);
+  }
+
+  /// Fallback English messages
+  String _getFallbackEnglish(String key, Map<String, String>? params) {
+    final Map<String, String> fallback = {
+      'new_message_from': 'New message from {name}',
+      'booking_confirmed_title': 'Booking Confirmed!',
+      'booking_confirmed_body':
+          'Your booking for {serviceName} has been confirmed',
+      'booking_cancelled_title': 'Booking Cancelled',
+      'booking_cancelled_body':
+          'Your booking for {serviceName} has been cancelled',
+      'booking_reminder_title': 'Booking Reminder',
+      'booking_reminder_body': 'Reminder: Your {serviceName} is tomorrow',
+      'booking_update_title': 'Booking Update',
+      'booking_update_body': 'Update for your {serviceName} booking',
+      'test_notification_title': 'Test Notification',
+      'test_notification_body': 'Your notifications are working correctly! 🎉',
+      'default_new_message': 'New Message',
+      'default_notification_body': 'You have a new notification',
+    };
+
+    String text = fallback[key] ?? key;
+    if (params != null) {
+      params.forEach((key, value) {
+        text = text.replaceAll('{$key}', value);
+      });
+    }
+    return text;
+  }
 
   // Firebase and local notification instances
   late FirebaseMessaging _firebaseMessaging;
@@ -267,8 +319,8 @@ class NotificationService {
 
       await _localNotifications.show(
         message.hashCode,
-        notification.title ?? 'New Message',
-        notification.body ?? 'You have a new notification',
+        notification.title ?? _tr('default_new_message'),
+        notification.body ?? _tr('default_notification_body'),
         platformDetails,
         payload: json.encode(message.data),
       );
@@ -371,7 +423,7 @@ class NotificationService {
       // Send notification
       final success = await sendNotificationViaRenderServer(
         receiverToken: receiverToken,
-        title: 'New message from $finalSenderName',
+        title: _tr('new_message_from', params: {'name': finalSenderName}),
         body: truncatedMessage,
         data: {
           'type': _notificationTypeMessage,
@@ -389,7 +441,7 @@ class NotificationService {
         await _saveNotificationToFirestore(
           receiverUserId: receiverUserId,
           type: _notificationTypeMessage,
-          title: 'New message from $finalSenderName',
+          title: _tr('new_message_from', params: {'name': finalSenderName}),
           body: truncatedMessage,
           data: {
             'chatId': chatId,
@@ -558,8 +610,8 @@ class NotificationService {
 
       final success = await sendNotificationViaRenderServer(
         receiverToken: token,
-        title: 'Test Notification',
-        body: 'Your notifications are working correctly! 🎉',
+        title: _tr('test_notification_title'),
+        body: _tr('test_notification_body'),
         data: {
           'type': _notificationTypeTest,
           'notificationType': _notificationTypeTest,
@@ -776,23 +828,27 @@ class NotificationService {
     switch (status.toLowerCase()) {
       case _statusConfirmed:
         return (
-          'Booking Confirmed!',
-          'Your booking for $serviceName has been confirmed',
+          _instance._tr('booking_confirmed_title'),
+          _instance._tr('booking_confirmed_body',
+              params: {'serviceName': serviceName}),
         );
       case _statusCancelled:
         return (
-          'Booking Cancelled',
-          'Your booking for $serviceName has been cancelled',
+          _instance._tr('booking_cancelled_title'),
+          _instance._tr('booking_cancelled_body',
+              params: {'serviceName': serviceName}),
         );
       case _statusReminder:
         return (
-          'Booking Reminder',
-          'Reminder: Your $serviceName is tomorrow',
+          _instance._tr('booking_reminder_title'),
+          _instance._tr('booking_reminder_body',
+              params: {'serviceName': serviceName}),
         );
       default:
         return (
-          'Booking Update',
-          'Update for your $serviceName booking',
+          _instance._tr('booking_update_title'),
+          _instance
+              ._tr('booking_update_body', params: {'serviceName': serviceName}),
         );
     }
   }

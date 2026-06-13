@@ -20,8 +20,58 @@ import 'package:service_app/screens/auth/language_selection_screen.dart';
 import 'package:service_app/Services/notification_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 
+import 'package:service_app/Services/auth_service.dart';
+import 'package:service_app/Services/booking_notification_service.dart';
+
+import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
+
 /// Global navigator key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+void setupNotificationTapHandler() {
+  NotificationService.onNotificationTap = (data) {
+    print('🎯 Notification Tapped Handler: $data');
+    final context = navigatorKey.currentContext;
+    if (context == null) {
+      print('⚠️ Navigator context is null');
+      return;
+    }
+
+    final type = data['type'] ?? data['notificationType'];
+
+    if (type == 'message') {
+      final chatId = data['chatId'];
+      final senderName = data['senderName'] ?? 'Chat';
+      final senderId = data['senderId'];
+
+      if (chatId != null && senderId != null) {
+        try {
+          final authVM = Provider.of<AuthViewModel>(context, listen: false);
+          final chatVM = Provider.of<ChatViewModel?>(context, listen: false);
+
+          if (authVM.currentUser != null && chatVM != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DiscussionPage(
+                  contactName: senderName,
+                  isOnline: true,
+                  chatId: chatId,
+                  currentUserId: authVM.currentUser!.uid,
+                  chatViewModel: chatVM,
+                ),
+              ),
+            );
+          } else {
+            print('⚠️ User not logged in or ChatVM not ready');
+          }
+        } catch (e) {
+          print('❌ Error navigating from notification: $e');
+        }
+      }
+    }
+  };
+}
 
 /// Background handler (when app is closed)
 @pragma('vm:entry-point')
@@ -92,6 +142,10 @@ Future<void> main() async {
     await NotificationService.initialize();
     print('✅ NotificationService initialized');
 
+    /// 4. Setup Notification Tap Handler
+    setupNotificationTapHandler();
+    print('✅ Notification tap handler configured');
+
     runApp(const ServiceApp());
   } catch (e, s) {
     print('❌ Fatal init error: $e');
@@ -113,6 +167,14 @@ class ServiceApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProxyProvider<AuthViewModel, ChatViewModel?>(
+          create: (_) => null,
+          update: (_, auth, previous) {
+            if (auth.currentUser == null) return null;
+            if (previous != null) return previous;
+            return ChatViewModel(userId: auth.currentUser!.uid);
+          },
+        ),
         ChangeNotifierProvider(create: (_) => ServiceViewModel()),
         ChangeNotifierProvider(create: (_) => SearchViewModel()),
         ChangeNotifierProvider(
@@ -121,6 +183,11 @@ class ServiceApp extends StatelessWidget {
       ],
       child: Consumer<LanguageProvider>(
         builder: (context, languageProvider, child) {
+          // Sync language provider with services
+          AuthService.setLanguageProvider(languageProvider);
+          NotificationService.setLanguageProvider(languageProvider);
+          BookingNotificationService.setLanguageProvider(languageProvider);
+
           return MaterialApp(
             title: 'Akhdem-Li',
             navigatorKey: navigatorKey,
@@ -244,14 +311,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       _initializeUserNotifications(user);
     });
 
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => ChatViewModel(userId: user.uid),
-        ),
-      ],
-      child: const NavigatorBottom(),
-    );
+    return const NavigatorBottom();
   }
 
   Future<void> _initializeUserNotifications(UserModel user) async {

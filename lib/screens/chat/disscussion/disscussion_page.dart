@@ -12,6 +12,7 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:service_app/Services/notification_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
+import '../../auth/constants.dart';
 import 'dart:ui' as ui;
 
 // Profile image cache with expiration
@@ -100,6 +101,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
   Timer? _scrollToBottomTimer;
   bool _initialScrollDone = false;
   bool _shouldAutoScroll = true;
+  bool _serverOnline = true;
+  bool _hasErrorLoadingMessages = false;
 
   static const String _renderServerUrl =
       'https://notifications-f7n2.onrender.com';
@@ -151,17 +154,24 @@ class _DiscussionPageState extends State<DiscussionPage> {
         headers: {'Accept': 'application/json'},
       ).timeout(Duration(seconds: 10));
 
+      if (mounted) {
+        setState(() {
+          _serverOnline = response.statusCode == 200;
+        });
+      }
+
       if (response.statusCode == 200) {
         print('✅ Render server is online');
-        final data = json.decode(response.body);
-        print('📡 Server status: ${data['status']}');
       } else {
         print('⚠️ Render server returned ${response.statusCode}');
       }
     } catch (e) {
       print('❌ Cannot connect to Render server: $e');
-      print('💡 Server URL: $_renderServerUrl');
-      print('💡 Make sure your server is running on Render.com');
+      if (mounted) {
+        setState(() {
+          _serverOnline = false;
+        });
+      }
     }
   }
 
@@ -176,17 +186,14 @@ class _DiscussionPageState extends State<DiscussionPage> {
       if (mounted) {
         final languageProvider =
             Provider.of<LanguageProvider>(context, listen: false);
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('error_loading_messages',
-                  category: 'disscussion'),
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
+        setState(() {
+          _isLoading = false;
+          _hasErrorLoadingMessages = true;
+        });
+        showErrorSnackBar(
+            context,
+            languageProvider.tr('error_loading_messages',
+                category: 'disscussion'));
       }
     }).listen(
       (messages) {
@@ -199,6 +206,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
           setState(() {
             _messages = messages;
             _isLoading = false;
+            _hasErrorLoadingMessages = false;
           });
 
           if (wasAtBottom && _shouldAutoScroll) {
@@ -387,7 +395,12 @@ class _DiscussionPageState extends State<DiscussionPage> {
               'message': message,
               'senderName': widget.contactName,
               'chatId': widget.chatId,
-              'notificationId': notificationId, // 🔥 Add unique ID
+              'notificationId': notificationId,
+              'title': lang.trParams(
+                'new_message_from',
+                category: 'disscussion',
+                params: {'name': widget.contactName},
+              ),
             }),
           )
           .timeout(const Duration(seconds: 15));
@@ -582,11 +595,41 @@ class _DiscussionPageState extends State<DiscussionPage> {
           backgroundColor: Colors.white,
           appBar: _buildAppBar(screenSize, languageProvider),
           body: SafeArea(
-            // ← ADD THIS
-            bottom:
-                false, // ← Important: Let the keyboard handle bottom padding
+            bottom: false,
             child: Column(
               children: [
+                if (!_serverOnline)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.orange.shade100,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange.shade800, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            languageProvider.isRtl
+                                ? "خادم الإشعارات غير متصل. قد تتأخر التنبيهات."
+                                : "Notification server is offline. Alerts might be delayed.",
+                            style: TextStyle(
+                                color: Colors.orange.shade900,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.refresh,
+                              color: Colors.orange.shade800, size: 20),
+                          onPressed: _checkRenderServer,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: _buildMessagesList(languageProvider),
                 ),
@@ -747,6 +790,35 @@ class _DiscussionPageState extends State<DiscussionPage> {
                 fontSize: 14,
                 fontFamily: 'Exo2',
               ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_hasErrorLoadingMessages && _messages.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+            const SizedBox(height: 16),
+            Text(
+              lang.tr('error_loading_messages', category: 'disscussion'),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isLoading = true;
+                  _hasErrorLoadingMessages = false;
+                });
+                _setupMessageListener();
+              },
+              icon: const Icon(Icons.refresh),
+              label: Text(lang.isRtl ? "إعادة المحاولة" : "Retry"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
             ),
           ],
         ),

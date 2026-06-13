@@ -38,3 +38,26 @@ InputDecoration buildInputDecoration(String label) {
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
   );
 }
+
+const Color kSuccessColor = Color(0xFF2E7D32);
+
+void showSuccessSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.green,
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+
+void showErrorSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.red,
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+

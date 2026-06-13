@@ -6,7 +6,6 @@ class SubscriptionService {
   final String _users = 'users';
   final String _codes = 'subscription_codes';
 
-  // Generate a code like SUB-8A7B-9C2D
   String _generateCodeString() {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     final rand = Random.secure();
@@ -16,12 +15,11 @@ class SubscriptionService {
   }
 
   Future<String> generateSubscriptionCode(
-      {int validDays = 30, String? providerId}) async {
+      {int validDays = 30, String? providerId, String? note}) async {
     final now = DateTime.now();
     final validUntil = Timestamp.fromDate(now.add(Duration(days: validDays)));
     String code = _generateCodeString();
 
-    // ensure uniqueness
     final docRef = _firestore.collection(_codes).doc(code);
     await docRef.set({
       'code': code,
@@ -29,6 +27,8 @@ class SubscriptionService {
       'used': false,
       'createdAt': FieldValue.serverTimestamp(),
       'validUntil': validUntil,
+      'validDays': validDays,
+      if (note != null) 'note': note,
     });
 
     return code;
@@ -48,7 +48,31 @@ class SubscriptionService {
     }).toList();
   }
 
-  // Activate subscription by code; returns true if success
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final snap = await _firestore.collection(_users).get();
+    return snap.docs.map((d) {
+      final data = d.data();
+      data['uid'] = d.id;
+      return data;
+    }).toList();
+  }
+
+  Future<Map<String, dynamic>?> findUserByEmail(String email) async {
+    final snap = await _firestore
+        .collection(_users)
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final data = snap.docs.first.data();
+    data['uid'] = snap.docs.first.id;
+    return data;
+  }
+
+  Future<void> deleteCode(String code) async {
+    await _firestore.collection(_codes).doc(code).delete();
+  }
+
   Future<bool> activateSubscription(
       {required String providerId, required String code}) async {
     final codeRef = _firestore.collection(_codes).doc(code);
@@ -58,23 +82,33 @@ class SubscriptionService {
       final codeSnap = await tx.get(codeRef);
       if (!codeSnap.exists) throw Exception('Code not found');
       final codeData = codeSnap.data() as Map<String, dynamic>;
+
       final used = codeData['used'] ?? false;
       final validUntil = codeData['validUntil'] as Timestamp?;
+      final assignedTo = codeData['providerId'] as String?;
+
       if (used) throw Exception('Code already used');
       if (validUntil == null || validUntil.toDate().isBefore(DateTime.now()))
         throw Exception('Code expired');
 
-      final userSnap = await tx.get(userRef);
-      if (!userSnap.exists) throw Exception('Provider not found');
+      // Only check if code was assigned to a specific user
+      // No role validation - any user can activate if code matches
+      if (assignedTo != null &&
+          assignedTo.isNotEmpty &&
+          assignedTo != providerId) {
+        throw Exception('This code was not generated for your account');
+      }
 
-      // Update user
+      final userSnap = await tx.get(userRef);
+      if (!userSnap.exists) throw Exception('User not found');
+
+      // Update user subscription - no role requirement
       tx.update(userRef, {
         'subscriptionActive': true,
         'subscriptionExpiresAt': validUntil,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Mark code used
       tx.update(codeRef, {
         'used': true,
         'usedBy': providerId,
@@ -87,7 +121,6 @@ class SubscriptionService {
     });
   }
 
-  // Check and deactivate if expired for a provider
   Future<void> checkAndUpdateExpiryForProvider(String providerId) async {
     final ref = _firestore.collection(_users).doc(providerId);
     final doc = await ref.get();
@@ -101,12 +134,10 @@ class SubscriptionService {
     }
   }
 
-  // Optionally check all providers (careful with large collections)
   Future<void> checkAndUpdateAllExpired() async {
     final now = Timestamp.fromDate(DateTime.now());
     final q = await _firestore
         .collection(_users)
-        .where('role', isEqualTo: 'provider')
         .where('subscriptionActive', isEqualTo: true)
         .get();
     final batch = _firestore.batch();

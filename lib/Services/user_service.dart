@@ -78,12 +78,9 @@ class UserService {
   }
 
   /// Listen to user updates in real-time
-  Stream<UserModel> listenUser(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((doc) => UserModel.fromMap(doc.data()!, doc.id));
+  Stream<UserModel?> listenUser(String userId) {
+    return _firestore.collection('users').doc(userId).snapshots().map(
+        (doc) => doc.exists ? UserModel.fromMap(doc.data()!, doc.id) : null);
   }
 
   /// Get user stats

@@ -68,16 +68,23 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       if (user != null) {
+        showSuccessSnackBar(
+            context, lang.tr('google_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const NavigatorBottom()),
           (route) => false,
         );
+      } else {
+        showErrorSnackBar(
+            context,
+            authViewModel.error ??
+                lang.tr('google_sign_in_failed', category: 'auth'));
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar(lang.trParams('google_sign_in_failed_message',
-          category: 'auth', params: {'error': e.toString().split('\n').first}));
+      showErrorSnackBar(
+          context, lang.tr('google_sign_in_failed', category: 'auth'));
     }
   }
 
@@ -90,16 +97,23 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       if (user != null) {
+        showSuccessSnackBar(
+            context, lang.tr('apple_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const NavigatorBottom()),
           (route) => false,
         );
+      } else {
+        showErrorSnackBar(
+            context,
+            authViewModel.error ??
+                lang.tr('apple_sign_in_failed', category: 'auth'));
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar(lang.trParams('apple_sign_in_failed_message',
-          category: 'auth', params: {'error': e.toString().split('\n').first}));
+      showErrorSnackBar(
+          context, lang.tr('apple_sign_in_failed', category: 'auth'));
     }
   }
 
@@ -198,67 +212,27 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       if (user != null) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    lang.trParams('register_success',
-                        category: 'auth', params: {'name': user.name ?? ''}),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: kPrimaryBlue,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        showSuccessSnackBar(
+            context,
+            lang.trParams('register_success',
+                category: 'auth', params: {'name': user.name ?? ''}));
 
-        // Navigate immediately to home
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const NavigatorBottom()),
           (route) => false,
         );
       } else {
-        // Show error
-        final errorMessage =
-            authViewModel.error ?? lang.tr('register_error', category: 'auth');
-        _showErrorSnackBar(errorMessage);
+        showErrorSnackBar(context,
+            authViewModel.error ?? lang.tr('register_error', category: 'auth'));
       }
     } catch (e) {
       if (!mounted) return;
-      final errorMessage = authViewModel.error ??
-          lang.tr('register_unexpected_error', category: 'auth');
-      _showErrorSnackBar(errorMessage);
+      showErrorSnackBar(
+          context,
+          authViewModel.error ??
+              lang.tr('register_unexpected_error', category: 'auth'));
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    final lang = Provider.of<LanguageProvider>(context, listen: false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Text(
-                    '${lang.tr('register_failed', category: 'auth')}: $message')),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   Widget _buildTopBar(BuildContext context, LanguageProvider lang) {

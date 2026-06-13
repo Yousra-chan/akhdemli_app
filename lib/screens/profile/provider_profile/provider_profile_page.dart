@@ -12,7 +12,6 @@ import 'package:service_app/services/booking_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:flutter/services.dart';
 
-// ... [Keep all the color constants as they are]
 const kPrimaryColor = Color(0xFF667EEA);
 const kSecondaryColor = Color(0xFF764BA2);
 const kAccentColor = Color(0xFFFF6B6B);
@@ -52,6 +51,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   String _notes = '';
   bool _loadingServices = true;
   bool _showBookingForm = false;
+  int _bookedCount = 0;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -61,6 +61,21 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     _currentRating = _provider.rating;
     _checkIfUserHasRated();
     _loadProviderServices();
+    _loadBookedCount();
+  }
+
+  Future<void> _loadBookedCount() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('providerId', isEqualTo: _provider.uid)
+          .get();
+      setState(() {
+        _bookedCount = snapshot.docs.length;
+      });
+    } catch (e) {
+      // keep default 0
+    }
   }
 
   Future<void> _openWhatsAppSupport() async {
@@ -144,7 +159,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         return;
       }
 
-      // Find a code doc that is unused and either assigned to this provider or unassigned
       QueryDocumentSnapshot? matched;
       for (final doc in query.docs) {
         final data = doc.data() as Map<String, dynamic>;
@@ -169,7 +183,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         return;
       }
 
-      // Update user document
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_provider.uid)
@@ -179,7 +192,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Mark code as used
       await matched.reference.update({
         'used': true,
         'usedBy': _provider.uid,
@@ -201,14 +213,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     }
   }
 
-  // Helper method to get translation
   String _tr(BuildContext context, String key) {
     final languageProvider =
         Provider.of<LanguageProvider>(context, listen: false);
     return languageProvider.tr(key, category: 'provider_profile');
   }
 
-  // Helper method to get translation with parameters
   String _trParams(
       BuildContext context, String key, Map<String, String> params) {
     final languageProvider =
@@ -394,6 +404,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           bookingId: booking.id,
         );
 
+        // Refresh booked count after successful booking
+        await _loadBookedCount();
         _showSuccessDialog(appointmentDateTime);
       } else {
         _showSnackbar(_tr(context, 'failed_create_booking'), kAccentColor);
@@ -403,7 +415,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           _trParams(context, 'error', {'error': e.toString()}), kAccentColor);
     }
   }
-  // Continuing from the previous section...
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -491,26 +502,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
-                actions: [
-                  Container(
-                    margin: EdgeInsets.only(right: 8, top: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: kShadowColor,
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.more_vert, color: kPrimaryColor),
-                      onPressed: () => _showMoreOptions(context),
-                    ),
-                  ),
-                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: _buildHeaderBackground(),
                   centerTitle: false,
@@ -542,7 +533,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _buildProfileCard(),
+                    // Contact information moved to top
+                    _buildContactSection(),
                     SizedBox(height: 16),
                     _buildServicesSection(),
                     SizedBox(height: 16),
@@ -550,21 +542,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     _buildStatsSection(),
                     SizedBox(height: 16),
                     _buildRatingSection(),
-                    SizedBox(height: 16),
-                    if (_provider.description.isNotEmpty)
-                      _buildSectionCard(
-                        title: _tr(context, 'about'),
-                        icon: Icons.info_outline,
-                        child: Text(
-                          _provider.description,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: kTextSecondary,
-                            height: 1.6,
-                          ),
-                        ),
-                      ),
-                    _buildContactSection(),
                     SizedBox(height: 120),
                   ],
                 ),
@@ -643,14 +620,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                       onTap: () => _makePhoneCall(_provider.phone),
                       isSmall: true,
                     ),
-                    SizedBox(width: 12),
-                    _buildActionButton(
-                      icon: Icons.share,
-                      label: _tr(context, 'share'),
-                      color: kSecondaryColor,
-                      onTap: () => _shareProfile(context),
-                      isSmall: true,
-                    ),
                   ],
                 ),
               ),
@@ -699,163 +668,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildProfileCard() {
-    return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: kShadowColor,
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _tr(context, 'professional_profile'),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: kTextPrimary,
-                ),
-              ),
-              if (_provider.subscriptionActive)
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [kSuccessColor, Color(0xFF6BCF7F)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.verified, size: 14, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        _tr(context, 'verified'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              // If the current user is the owner of this profile, show subscription actions
-              Builder(builder: (ctx) {
-                final authViewModel = ctx.read<AuthViewModel>();
-                final isOwner = authViewModel.currentUser?.uid == _provider.uid;
-                if (!isOwner) return SizedBox.shrink();
-
-                return Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _openWhatsAppSupport,
-                        icon: Icon(Icons.shopping_cart_outlined, size: 16),
-                        label: Text(_tr(context, 'buy_subscription')),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: kPrimaryColor),
-                      ),
-                      SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _showEnterCodeDialog,
-                        child: Text(_tr(context, 'enter_code')),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-          SizedBox(height: 20),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _buildInfoChip(
-                Icons.person,
-                _tr(context, 'profession'),
-                _provider.profession.isNotEmpty
-                    ? _provider.profession
-                    : _tr(context, 'service_provider'),
-                kPrimaryColor,
-              ),
-              _buildInfoChip(
-                Icons.location_city,
-                _tr(context, 'wilaya'),
-                _provider.wilaya,
-                kSecondaryColor,
-              ),
-              _buildInfoChip(
-                Icons.location_on,
-                _tr(context, 'commune'),
-                _provider.commune,
-                kAccentColor,
-              ),
-              _buildInfoChip(
-                Icons.star,
-                _tr(context, 'rating'),
-                '${_currentRating.toStringAsFixed(1)} ⭐',
-                kWarningColor,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(
-      IconData icon, String label, String value, Color color) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          SizedBox(width: 6),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              color: kTextPrimary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1692,7 +1504,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               '${_currentRating.toStringAsFixed(1)}', Icons.star),
           _buildStatItem(_tr(context, 'services'),
               '${_providerServices.length}', Icons.work_outline),
-          _buildStatItem(_tr(context, 'booked'), '24', Icons.verified_user),
+          _buildStatItem(
+              _tr(context, 'booked'), '$_bookedCount', Icons.verified_user),
         ],
       ),
     );
@@ -1886,103 +1699,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  void _showMoreOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      backgroundColor: Colors.white,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: kBorderColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 20),
-              _buildOptionItem(
-                Icons.share,
-                _tr(context, 'share_option'),
-                kPrimaryColor,
-                () {
-                  Navigator.pop(context);
-                  _shareProfile(context);
-                },
-              ),
-              _buildOptionItem(
-                Icons.bookmark,
-                _tr(context, 'save_favorites'),
-                kWarningColor,
-                () {
-                  Navigator.pop(context);
-                  _saveToFavorites(context);
-                },
-              ),
-              _buildOptionItem(
-                Icons.report,
-                _tr(context, 'report'),
-                kAccentColor,
-                () {
-                  Navigator.pop(context);
-                  _showReportDialog(context);
-                },
-              ),
-              _buildOptionItem(
-                Icons.block,
-                _tr(context, 'block'),
-                kTextSecondary,
-                () {
-                  Navigator.pop(context);
-                  _showBlockDialog(context);
-                },
-              ),
-              SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildOptionItem(
-      IconData icon, String title, Color color, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              SizedBox(width: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: kTextPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _saveToFavorites(BuildContext context) {
-    _showSnackbar(_tr(context, 'added_to_favorites'), kSuccessColor);
-  }
-
   void _startChat(BuildContext context) async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final chatService = ChatService();
@@ -2038,127 +1754,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
     }
-  }
-
-  void _shareProfile(BuildContext context) {
-    final text =
-        _trParams(context, 'share_profile_text', {'name': _provider.name});
-    _showSnackbar(text, kPrimaryColor);
-  }
-
-  void _showReportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          _tr(context, 'report_user'),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: kTextPrimary,
-          ),
-        ),
-        content: Text(
-          _tr(context, 'report_description'),
-          style: TextStyle(color: kTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              _tr(context, 'cancel'),
-              style: TextStyle(color: kTextSecondary),
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                Navigator.pop(context);
-                _showSnackbar(_tr(context, 'report_submitted'), kSuccessColor);
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kPrimaryColor, kSecondaryColor],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _tr(context, 'submit'),
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showBlockDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          _tr(context, 'block_user'),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: kTextPrimary,
-          ),
-        ),
-        content: Text(
-          _trParams(context, 'block_confirm', {'name': _provider.name}),
-          style: TextStyle(color: kTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              _tr(context, 'cancel'),
-              style: TextStyle(color: kTextSecondary),
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                Navigator.pop(context);
-                _showSnackbar(
-                    _trParams(
-                        context, 'user_blocked', {'name': _provider.name}),
-                    kAccentColor);
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kAccentColor, Color(0xFFFF8A65)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _tr(context, 'block'),
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   String _cleanPhoneNumber(String phoneNumber) {

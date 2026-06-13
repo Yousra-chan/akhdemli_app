@@ -137,6 +137,8 @@ class UserModel {
     String? profession,
     bool? subscriptionActive,
     Timestamp? subscriptionExpiry,
+    Timestamp? subscriptionExpiresAt,
+    bool? isAdmin,
     Timestamp? fcmTokenUpdatedAt,
     List<String>? chatIds,
     String? wilaya,
@@ -159,6 +161,9 @@ class UserModel {
       profession: profession ?? this.profession,
       subscriptionActive: subscriptionActive ?? this.subscriptionActive,
       subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,
+      subscriptionExpiresAt:
+          subscriptionExpiresAt ?? this.subscriptionExpiresAt,
+      isAdmin: isAdmin ?? this.isAdmin,
       fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt,
       chatIds: chatIds ?? this.chatIds,
       wilaya: wilaya ?? this.wilaya,
@@ -168,4 +173,11 @@ class UserModel {
 
   bool get isProvider => role == 'provider';
   bool get isClient => role == 'client';
+
+  bool get hasValidSubscription {
+    final expiry = subscriptionExpiresAt ?? subscriptionExpiry;
+    return subscriptionActive &&
+        expiry != null &&
+        expiry.toDate().isAfter(DateTime.now());
+  }
 }

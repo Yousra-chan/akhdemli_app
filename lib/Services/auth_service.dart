@@ -24,7 +24,7 @@ class AuthService {
   // Private instances
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId:
-        "197748991211-f8lv4c72auk07p6bp5jt8169dre2jv4p.apps.googleusercontent.com",
+    "197748991211-f8lv4c72auk07p6bp5jt8169dre2jv4p.apps.googleusercontent.com",
   );
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -69,29 +69,29 @@ class AuthService {
   String _getFallbackEnglish(String key) {
     final Map<String, String> fallback = {
       'weak_password':
-          'The password provided is too weak. Please use at least 8 characters with mixed case and numbers.',
+      'The password provided is too weak. Please use at least 8 characters with mixed case and numbers.',
       'email_already_in_use':
-          'This email address is already registered. Please try logging in or use a different email.',
+      'This email address is already registered. Please try logging in or use a different email.',
       'invalid_email':
-          'The email address format is invalid. Please check and try again.',
+      'The email address format is invalid. Please check and try again.',
       'user_not_found':
-          'Invalid email or password. Please check your credentials.',
+      'Invalid email or password. Please check your credentials.',
       'wrong_password':
-          'Invalid email or password. Please check your credentials.',
+      'Invalid email or password. Please check your credentials.',
       'network_request_failed':
-          'Network error detected. Please check your internet connection and try again.',
+      'Network error detected. Please check your internet connection and try again.',
       'account_exists_different_credential':
-          'An account already exists with this email but different sign-in credentials. Please sign in with the original method.',
+      'An account already exists with this email but different sign-in credentials. Please sign in with the original method.',
       'operation_not_allowed':
-          'This sign-in method is currently disabled. Please contact support.',
+      'This sign-in method is currently disabled. Please contact support.',
       'too_many_requests': 'Too many login attempts. Please try again later.',
       'invalid_credential': 'Invalid credentials provided. Please try again.',
       'default_auth_error':
-          'An authentication error occurred. Please try again later.',
+      'An authentication error occurred. Please try again later.',
       'fcm_token_failed': 'Failed to retrieve FCM token',
       'fcm_token_warning': 'Warning: Could not save FCM token for user',
       'fcm_token_remove_warning':
-          'Warning: Could not remove FCM token for user',
+      'Warning: Could not remove FCM token for user',
       'invalid_coordinates': 'Invalid geographic coordinates provided',
       'firestore_save_failed': 'Failed to save user profile',
       'fetch_user_error': 'Error fetching user profile',
@@ -214,22 +214,23 @@ class AuthService {
   /// Returns: UserModel representing the saved user
   /// Throws: AuthException if save operation fails
   Future<UserModel> _saveUserToFirestore(
-    User user, {
-    required String name,
-    required String role,
-    required String phone,
-    String address = '',
-    double? lat,
-    double? lon,
-  }) async {
+      User user, {
+        required String name,
+        required String role,
+        required String phone,
+        String address = '',
+        double? lat,
+        double? lon,
+      }) async {
     try {
       final docRef = _firestore.collection(_usersCollection).doc(user.uid);
       final existingDoc = await docRef.get();
 
-      // If user already exists, return existing data
+      // If user already exists, merge in any missing fields and return
       if (existingDoc.exists) {
         final existingUser =
-            UserModel.fromMap(existingDoc.data()!, existingDoc.id);
+        UserModel.fromMap(existingDoc.data()!, existingDoc.id);
+        await docRef.set(existingUser.toMap(), SetOptions(merge: true));
         return existingUser;
       }
 
@@ -348,15 +349,15 @@ class AuthService {
         // Send email verification asynchronously
         await user.sendEmailVerification().catchError(
               (e) => print('Warning: Could not send verification email: $e'),
-            );
+        );
 
         return userModel;
       } catch (e) {
         // Delete auth user if Firestore save fails
         await user.delete().catchError(
               (deleteError) =>
-                  print('Error cleaning up auth user: $deleteError'),
-            );
+              print('Error cleaning up auth user: $deleteError'),
+        );
         rethrow;
       }
     } on FirebaseAuthException catch (e) {
@@ -404,13 +405,15 @@ class AuthService {
         );
       }
 
-      // Fetch user profile
-      final userModel = await fetchUserModel(user);
+      // Fetch user profile (auto-create if missing instead of signing out)
+      var userModel = await fetchUserModel(user);
       if (userModel == null) {
-        await _auth.signOut();
-        throw AuthException(
-          _tr('profile_not_found'),
-          code: 'profile-not-found',
+        userModel = await _saveUserToFirestore(
+          user,
+          name: user.displayName ?? '',
+          role: 'client',
+          phone: '',
+          address: '',
         );
       }
 
@@ -838,11 +841,11 @@ class AuthService {
   /// - Name not empty
   /// - Phone not empty
   void _validateSignupInputs(
-    String email,
-    String password,
-    String name,
-    String phone,
-  ) {
+      String email,
+      String password,
+      String name,
+      String phone,
+      ) {
     if (email.isEmpty) {
       throw AuthException(
         _tr('empty_email'),

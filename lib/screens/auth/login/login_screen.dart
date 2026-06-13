@@ -94,68 +94,22 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
 
         if (user != null) {
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child:
-                          Text(lang.tr('sign_in_success', category: 'auth'))),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          showSuccessSnackBar(
+              context, lang.tr('sign_in_success', category: 'auth'));
 
-          // Navigate immediately to home
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const NavigatorBottom()),
             (route) => false,
           );
         } else {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.error_outline,
-                      color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: Text(authViewModel.error ??
-                          lang.tr('sign_in_failed', category: 'auth'))),
-                ],
-              ),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          final errorMessage = authViewModel.error ??
+              lang.tr('sign_in_failed', category: 'auth');
+          showErrorSnackBar(context, _getErrorMessage(errorMessage, lang));
         }
       } catch (e) {
         if (!mounted) return;
-        final errorMessage = _getErrorMessage(e.toString(), lang);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(errorMessage)),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        showErrorSnackBar(context, _getErrorMessage(e.toString(), lang));
       }
     }
   }
@@ -170,60 +124,23 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(
-                        lang.tr('google_sign_in_success', category: 'auth'))),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showSuccessSnackBar(
+            context, lang.tr('google_sign_in_success', category: 'auth'));
 
-        // Navigate to home
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const NavigatorBottom()),
           (route) => false,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(authViewModel.error ??
-                        lang.tr('google_sign_in_failed', category: 'auth'))),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMessage = authViewModel.error ??
+            lang.tr('google_sign_in_failed', category: 'auth');
+        showErrorSnackBar(context, errorMessage);
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                  child:
-                      Text(lang.tr('google_sign_in_failed', category: 'auth'))),
-            ],
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showErrorSnackBar(
+          context, lang.tr('google_sign_in_failed', category: 'auth'));
     }
   }
 
@@ -237,60 +154,23 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(
-                        lang.tr('apple_sign_in_success', category: 'auth'))),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showSuccessSnackBar(
+            context, lang.tr('apple_sign_in_success', category: 'auth'));
 
-        // Navigate to home
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const NavigatorBottom()),
           (route) => false,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(authViewModel.error ??
-                        lang.tr('apple_sign_in_failed', category: 'auth'))),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMessage = authViewModel.error ??
+            lang.tr('apple_sign_in_failed', category: 'auth');
+        showErrorSnackBar(context, errorMessage);
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                  child:
-                      Text(lang.tr('apple_sign_in_failed', category: 'auth'))),
-            ],
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showErrorSnackBar(
+          context, lang.tr('apple_sign_in_failed', category: 'auth'));
     }
   }
 

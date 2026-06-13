@@ -370,6 +370,30 @@ class AuthViewModel with ChangeNotifier {
   ///
   /// Parameters:
   /// - uid: User ID to fetch
+  /// Gets the user profile, auto-creating a default one if missing
+  Future<UserModel?> _getOrCreateUser(String uid) async {
+    var userModel = await _userService.getUserById(uid);
+
+    if (userModel == null) {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        userModel = UserModel(
+          uid: uid,
+          name: firebaseUser.displayName ?? '',
+          email: firebaseUser.email ?? '',
+          phone: firebaseUser.phoneNumber ?? '',
+          role: 'client',
+          photoUrl: firebaseUser.photoURL ?? '',
+          createdAt: Timestamp.now(),
+          address: '',
+        );
+        await _userService.createUser(userModel);
+      }
+    }
+
+    return userModel;
+  }
+
   Future<void> _fetchCurrentUser(String uid) async {
     try {
       _validateUserId(uid);
@@ -383,7 +407,7 @@ class AuthViewModel with ChangeNotifier {
         print('❌ Error checking subscription expiry: $e');
       }
 
-      final userModel = await _userService.getUserById(uid);
+      final userModel = await _getOrCreateUser(uid);
       if (userModel != null) {
         print('✅ UserModel loaded: ${userModel.name} (${userModel.role})');
         _setUser(userModel);
@@ -413,7 +437,7 @@ class AuthViewModel with ChangeNotifier {
     try {
       _validateUserId(uid);
 
-      final userModel = await _userService.getUserById(uid);
+      final userModel = await _getOrCreateUser(uid);
       _setUser(userModel);
       return userModel;
     } catch (e) {

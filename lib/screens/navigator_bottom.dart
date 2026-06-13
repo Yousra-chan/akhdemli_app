@@ -8,6 +8,7 @@ import 'package:service_app/screens/profile/profile_page_loader.dart';
 import 'package:service_app/screens/search/search_screen.dart';
 import 'package:service_app/screens/posts/posts_screen.dart';
 import 'package:service_app/screens/admin/admin_codes_page.dart';
+import 'package:service_app/screens/auth/account_activation_required_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/providers/language_provider.dart';
@@ -31,33 +32,24 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
       const Color.fromARGB(255, 248, 249, 255); // kLightBackgroundColor
   final Color navBackgroundColor = const Color.fromARGB(255, 255, 255, 255);
 
-  // Helper method to build navigation children based on admin status
+  // Helper method to build navigation children
   List<Widget> _buildNavigationChildren({
     required String userId,
-    required bool isAdmin,
   }) {
-    final children = [
+    return [
       const HomePage(),
       const MapSearchPage(),
       const FeedScreen(),
       ChatPage(userId: userId),
       const ProfilePageLoader(),
     ];
-
-    // Add admin page at the end if user is admin
-    if (isAdmin) {
-      children.add(const AdminCodesPage());
-    }
-
-    return children;
   }
 
   // Helper method to build navigation items
   List<BottomNavigationBarItem> _buildNavigationItems(
     LanguageProvider languageProvider,
-    bool isAdmin,
   ) {
-    final items = [
+    return [
       BottomNavigationBarItem(
         icon: _buildIcon(
           0,
@@ -104,23 +96,6 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
         label: languageProvider.tr('profile', category: 'nav_bottom'),
       ),
     ];
-
-    // Add admin tab if user is admin
-    if (isAdmin) {
-      items.add(
-        BottomNavigationBarItem(
-          icon: _buildIcon(
-            5,
-            CupertinoIcons.shield,
-            CupertinoIcons.shield_fill,
-            selectedColor,
-          ),
-          label: languageProvider.tr('admin', category: 'nav_bottom') ?? 'Admin',
-        ),
-      );
-    }
-
-    return items;
   }
 
   // Badge widget for unread messages
@@ -286,88 +261,103 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
       );
     }
 
-    final String userId = authViewModel.currentUser!.uid;
+    final user = authViewModel.currentUser!;
 
-    return ChangeNotifierProvider(
-      create: (context) => ChatViewModel(userId: userId),
-      child: Consumer<ChatViewModel>(
-        builder: (context, chatViewModel, child) {
-          return StreamBuilder<int>(
-            stream: chatViewModel.getTotalUnreadCount(),
-            builder: (context, snapshot) {
-              // Only messages from chats.unreadCount (NOT from notifications collection)
-              final messageUnreadCount = snapshot.data ?? 0;
+    if (user.isAdmin) {
+      return Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: const AdminCodesPage(),
+      );
+    }
 
-              return Directionality(
-                textDirection: languageProvider.isRtl
-                    ? ui.TextDirection.rtl
-                    : ui.TextDirection.ltr,
-                child: Scaffold(
-                  backgroundColor: backgroundColor,
-                  body: IndexedStack(
-                    index: selectorIndex,
-                    children: _buildNavigationChildren(
-                      userId: userId,
-                      isAdmin: authViewModel.currentUser!.isAdmin,
-                    ),
+    if (!user.hasValidSubscription) {
+      return Directionality(
+        textDirection: languageProvider.isRtl
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+        child: const AccountActivationRequiredPage(),
+      );
+    }
+
+    final String userId = user.uid;
+
+    return Consumer<ChatViewModel>(
+      builder: (context, chatViewModel, child) {
+        return StreamBuilder<int>(
+          stream: chatViewModel.getTotalUnreadCount(),
+          builder: (context, snapshot) {
+            // Only messages from chats.unreadCount (NOT from notifications collection)
+            final messageUnreadCount = snapshot.data ?? 0;
+
+            return Directionality(
+              textDirection: languageProvider.isRtl
+                  ? ui.TextDirection.rtl
+                  : ui.TextDirection.ltr,
+              child: Scaffold(
+                backgroundColor: backgroundColor,
+                body: IndexedStack(
+                  index: selectorIndex,
+                  children: _buildNavigationChildren(
+                    userId: userId,
                   ),
-                  bottomNavigationBar: Container(
-                    margin: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: navBackgroundColor,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: selectedColor.withOpacity(0.1),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: BottomNavigationBar(
-                        backgroundColor: navBackgroundColor,
-                        selectedItemColor: selectedColor,
-                        unselectedItemColor: unselectedColor,
-                        selectedLabelStyle: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          height: 1.2,
-                          fontFamily: 'Exo2',
-                        ),
-                        unselectedLabelStyle: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          height: 1.2,
-                          fontFamily: 'Exo2',
-                        ),
-                        currentIndex: selectorIndex,
-                        type: BottomNavigationBarType.fixed,
-                        elevation: 0,
-                        items: _buildNavigationItems(
-                          languageProvider,
-                          authViewModel.currentUser!.isAdmin,
-                        ),
-                        onTap: (val) {
-                          setState(() {
-                            selectorIndex = val;
-                          });
-                        },
+                ),
+                bottomNavigationBar: Container(
+                  margin: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: navBackgroundColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: selectedColor.withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BottomNavigationBar(
+                      backgroundColor: navBackgroundColor,
+                      selectedItemColor: selectedColor,
+                      unselectedItemColor: unselectedColor,
+                      selectedLabelStyle: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                        fontFamily: 'Exo2',
+                      ),
+                      unselectedLabelStyle: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                        fontFamily: 'Exo2',
+                      ),
+                      currentIndex: selectorIndex,
+                      type: BottomNavigationBarType.fixed,
+                      elevation: 0,
+                      items: _buildNavigationItems(
+                        languageProvider,
+                      ),
+                      onTap: (val) {
+                        setState(() {
+                          selectorIndex = val;
+                        });
+                      },
                     ),
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
