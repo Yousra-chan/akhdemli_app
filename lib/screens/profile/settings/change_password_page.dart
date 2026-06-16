@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -46,20 +47,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         password: _currentPasswordController.text,
       );
 
-      // Re-authenticate user
-      await user.reauthenticateWithCredential(credential);
-
       // Update password
       await user.updatePassword(_newPasswordController.text);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('changePasswordSuccess', category: 'profile'),
-            ),
-            backgroundColor: kSuccessColor,
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.tr('changePasswordSuccess', category: 'profile'),
         );
         Navigator.pop(context);
       }
@@ -74,22 +68,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: kDangerColor,
-          ),
-        );
+        AppSnackBar.showError(context, errorMessage);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${languageProvider.tr('failedChangePassword', category: 'profile')}: $e',
-            ),
-            backgroundColor: kDangerColor,
-          ),
+        AppSnackBar.showError(
+          context,
+          '${languageProvider.tr('failedChangePassword', category: 'profile')}: $e',
         );
       }
     } finally {
@@ -99,12 +84,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     }
   }
 
-  String? _validatePassword(String? value) {
+  String? _validatePassword(String? value, LanguageProvider lang) {
     if (value == null || value.isEmpty) {
-      return 'Please enter password';
+      return lang.tr('validation_password_required', category: 'auth');
     }
     if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+      return lang.tr('validation_password_min_length', category: 'auth');
     }
     return null;
   }
@@ -159,7 +144,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                           obscureText: _obscureNewPassword,
                           onToggle: () => setState(
                               () => _obscureNewPassword = !_obscureNewPassword),
-                          validator: (value) => _validatePassword(value),
+                          validator: (value) => _validatePassword(value, languageProvider),
                         ),
                         const Divider(height: 1, indent: 20, endIndent: 20),
                         _buildPasswordFieldWidget(
@@ -171,7 +156,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                               _obscureConfirmPassword =
                                   !_obscureConfirmPassword),
                           validator: (value) {
-                            final validation = _validatePassword(value);
+                            final validation = _validatePassword(value, languageProvider);
                             if (validation != null) return validation;
                             if (value != _newPasswordController.text) {
                               return languageProvider.tr('passwordsDoNotMatch',

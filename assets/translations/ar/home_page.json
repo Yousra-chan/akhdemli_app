@@ -1,5 +1,5 @@
 {
-  "hello_user": "مرحباً، {name}!",
+  "hello_user": "مرحباً، {{name}}!",
   "hello_guest": "مرحباً، زائر!",
   "find_service_providers": "ابحث عن أفضل مقدمي الخدمات بالقرب منك",
   "manage_services": "إدارة خدماتك وحجوزاتك",

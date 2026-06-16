@@ -5,7 +5,7 @@ import 'search_constants.dart';
 import 'package:service_app/services/wilaya_service.dart';
 import 'package:service_app/services/categories_service.dart';
 import 'package:service_app/services/geocoding_service.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:service_app/providers/language_provider.dart';
 
 class SearchFilterDialog extends StatefulWidget {
@@ -125,13 +125,109 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
+    return Directionality(
+      textDirection: languageProvider.isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: Dialog(
+        backgroundColor: theme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+            maxWidth: 500,
+          ),
+          child: _isLoading
+              ? SizedBox(
+                  height: 300,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: theme.primaryColor),
+                        const SizedBox(height: 16),
+                        Text(
+                          languageProvider.tr('loading_filters', category: 'search'),
+                          style: TextStyle(
+                            color: theme.brightness == Brightness.dark ? Colors.white70 : kMutedTextColor,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                      child: _buildHeader(languageProvider),
+                    ),
+
+                    // Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+
+                            // Selected Filters Indicator
+                            _buildSelectedFiltersIndicator(languageProvider),
+                            const SizedBox(height: 24),
+
+                            // Category Section
+                            _buildCategorySection(languageProvider),
+                            const SizedBox(height: 16),
+
+                            // Subcategory Section (if category selected)
+                            _buildSubcategorySection(languageProvider),
+                            if (_selectedCategory != null &&
+                                _availableSubcategories.isNotEmpty)
+                              const SizedBox(height: 16),
+
+                            // Location Section
+                            _buildLocationSection(languageProvider),
+                            const SizedBox(height: 16),
+
+                            // Distance Section
+                            _buildDistanceSection(languageProvider),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Action Buttons
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      child: _buildActionButtons(languageProvider),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Container(
-      padding: EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: kMutedTextColor.withOpacity(0.2),
+            color: theme.dividerColor,
             width: 1,
           ),
         ),
@@ -148,28 +244,28 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Exo2',
-                  color: kDarkTextColor,
+                  color: theme.textTheme.titleLarge?.color,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 lang.tr('select_criteria', category: 'search'),
                 style: TextStyle(
                   fontSize: 14,
                   fontFamily: 'Exo2',
-                  color: kMutedTextColor,
+                  color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                 ),
               ),
             ],
           ),
           IconButton(
             icon: Container(
-              padding: EdgeInsets.all(8),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kLightBackgroundColor,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(CupertinoIcons.xmark, size: 20),
+              child: const Icon(CupertinoIcons.xmark, size: 20),
             ),
             onPressed: () => Navigator.pop(context),
           ),
@@ -179,45 +275,48 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   }
 
   Widget _buildCategorySection(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Card(
+      color: theme.cardColor,
+      surfaceTintColor: Colors.transparent,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.category_outlined, color: kPrimaryBlue, size: 20),
-                SizedBox(width: 8),
+                Icon(Icons.category_outlined, color: theme.primaryColor, size: 20),
+                const SizedBox(width: 8),
                 Text(
                   lang.tr('main_category', category: 'search'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Exo2',
-                    color: kDarkTextColor,
+                    color: theme.textTheme.titleMedium?.color,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             if (_isLoading)
-              Center(child: CircularProgressIndicator(color: kPrimaryBlue))
+              Center(child: CircularProgressIndicator(color: theme.primaryColor))
             else if (_categories.isEmpty)
               Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: kLightBackgroundColor,
+                  color: theme.scaffoldBackgroundColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
                   child: Text(
                     lang.tr('no_categories_available', category: 'search'),
-                    style: TextStyle(color: kMutedTextColor),
+                    style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor),
                   ),
                 ),
               )
@@ -236,12 +335,12 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                           : category,
                       style: TextStyle(
                         fontFamily: 'Exo2',
-                        color: isSelected ? Colors.white : kDarkTextColor,
+                        color: isSelected ? Colors.white : theme.textTheme.bodyMedium?.color,
                       ),
                     ),
                     avatar: Icon(
                       getCategoryIcon(category),
-                      color: isSelected ? Colors.white : kPrimaryBlue,
+                      color: isSelected ? Colors.white : theme.primaryColor,
                       size: 18,
                     ),
                     selected: isSelected,
@@ -252,13 +351,13 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                       });
                       _updateAvailableSubcategories();
                     },
-                    backgroundColor: kLightBackgroundColor,
-                    selectedColor: kPrimaryBlue,
+                    backgroundColor: theme.scaffoldBackgroundColor,
+                    selectedColor: theme.primaryColor,
                     shape: StadiumBorder(
                       side: BorderSide(
                         color: isSelected
-                            ? kPrimaryBlue
-                            : kMutedTextColor.withOpacity(0.3),
+                            ? theme.primaryColor
+                            : (theme.brightness == Brightness.dark ? Colors.white12 : kMutedTextColor.withOpacity(0.3)),
                       ),
                     ),
                   );
@@ -272,69 +371,66 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
 
   Widget _buildSubcategorySection(LanguageProvider lang) {
     if (_selectedCategory == null || _availableSubcategories.isEmpty) {
-      return SizedBox();
+      return const SizedBox();
     }
+    final theme = Theme.of(context);
 
     return Card(
+      color: theme.cardColor,
+      surfaceTintColor: Colors.transparent,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.list_outlined, color: kPrimaryBlue, size: 20),
-                SizedBox(width: 8),
+                Icon(Icons.list_outlined, color: theme.primaryColor, size: 20),
+                const SizedBox(width: 8),
                 Text(
                   lang.tr('service_type', category: 'search'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Exo2',
-                    color: kDarkTextColor,
+                    color: theme.textTheme.titleMedium?.color,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _selectedSubcategory,
+              dropdownColor: theme.cardColor,
               decoration: InputDecoration(
                 filled: true,
-                fillColor: kLightBackgroundColor,
+                fillColor: theme.scaffoldBackgroundColor,
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      BorderSide(color: kMutedTextColor.withOpacity(0.3)),
+                      BorderSide(color: theme.dividerColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      BorderSide(color: kMutedTextColor.withOpacity(0.3)),
+                      BorderSide(color: theme.dividerColor),
                 ),
                 hintText: lang.tr('select_specific_type', category: 'search'),
-                hintStyle: TextStyle(color: kMutedTextColor),
+                hintStyle: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor),
               ),
-              icon: Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
+              icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
               items: _availableSubcategories.map((subcategory) {
-                // Try to find translation key for subcategory
-                String subcategoryKey = '';
-                final categoryData = serviceCategories.firstWhere(
-                  (cat) => cat['id'] == _selectedCategory,
-                  orElse: () => {},
-                );
-
                 return DropdownMenuItem<String>(
                   value: subcategory,
                   child: Text(
-                    subcategory, // You can add subcategory translation keys here if available
-                    style: TextStyle(
+                    subcategory,
+                    style: const TextStyle(
                       fontSize: 15,
                       fontFamily: 'Exo2',
                     ),
@@ -354,32 +450,35 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   }
 
   Widget _buildLocationSection(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Card(
+      color: theme.cardColor,
+      surfaceTintColor: Colors.transparent,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.location_on_outlined, color: kPrimaryBlue, size: 20),
-                SizedBox(width: 8),
+                Icon(Icons.location_on_outlined, color: theme.primaryColor, size: 20),
+                const SizedBox(width: 8),
                 Text(
                   lang.tr('location', category: 'search'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Exo2',
-                    color: kDarkTextColor,
+                    color: theme.textTheme.titleMedium?.color,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -388,41 +487,42 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     fontFamily: 'Exo2',
-                    color: kDarkTextColor,
+                    color: theme.textTheme.bodyMedium?.color,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Container(
                   width: double.infinity,
-                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: kLightBackgroundColor,
+                    color: theme.scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kMutedTextColor.withOpacity(0.3)),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: _isLoading
                       ? Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Center(
                               child: CircularProgressIndicator(
-                                  color: kPrimaryBlue)),
+                                  color: theme.primaryColor)),
                         )
                       : DropdownButton<String>(
                           value: _selectedWilaya,
+                          dropdownColor: theme.cardColor,
                           isExpanded: true,
-                          underline: SizedBox(),
+                          underline: const SizedBox(),
                           icon:
-                              Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
+                              Icon(Icons.arrow_drop_down, color: theme.primaryColor),
                           hint: Text(
                             lang.tr('choose_wilaya', category: 'search'),
-                            style: TextStyle(color: kMutedTextColor),
+                            style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontFamily: 'Exo2'),
                           ),
                           items: _wilayas.map((wilaya) {
                             return DropdownMenuItem<String>(
                               value: wilaya,
                               child: Text(
                                 wilaya,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontFamily: 'Exo2',
                                 ),
@@ -443,7 +543,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
               ],
             ),
             if (_selectedWilaya != null) ...[
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -452,44 +552,45 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontFamily: 'Exo2',
-                      color: kDarkTextColor,
+                      color: theme.textTheme.bodyMedium?.color,
                     ),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: kLightBackgroundColor,
+                      color: theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(12),
                       border:
-                          Border.all(color: kMutedTextColor.withOpacity(0.3)),
+                          Border.all(color: theme.dividerColor),
                     ),
                     child: _communes.isEmpty
                         ? Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Text(
                               lang.tr('no_communes_available',
                                   category: 'search'),
-                              style: TextStyle(color: kMutedTextColor),
+                              style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor),
                             ),
                           )
                         : DropdownButton<String>(
                             value: _selectedCommune,
+                            dropdownColor: theme.cardColor,
                             isExpanded: true,
-                            underline: SizedBox(),
+                            underline: const SizedBox(),
                             icon: Icon(Icons.arrow_drop_down,
-                                color: kPrimaryBlue),
+                                color: theme.primaryColor),
                             hint: Text(
                               lang.tr('choose_commune', category: 'search'),
-                              style: TextStyle(color: kMutedTextColor),
+                              style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontFamily: 'Exo2'),
                             ),
                             items: _communes.map((commune) {
                               return DropdownMenuItem<String>(
                                 value: commune,
                                 child: Text(
                                   commune,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontFamily: 'Exo2',
                                   ),
@@ -513,33 +614,36 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   }
 
   Widget _buildDistanceSection(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Card(
+      color: theme.cardColor,
+      surfaceTintColor: Colors.transparent,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.location_searching_outlined,
-                    color: kPrimaryBlue, size: 20),
-                SizedBox(width: 8),
+                    color: theme.primaryColor, size: 20),
+                const SizedBox(width: 8),
                 Text(
                   lang.tr('distance', category: 'search'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Exo2',
-                    color: kDarkTextColor,
+                    color: theme.textTheme.titleMedium?.color,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Switch(
@@ -549,23 +653,24 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                       _useDistanceFilter = value;
                     });
                   },
-                  activeThumbColor: kPrimaryBlue,
+                  activeThumbColor: theme.primaryColor,
+                  activeColor: theme.primaryColor.withOpacity(0.3),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     lang.tr('limit_by_distance', category: 'search'),
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontFamily: 'Exo2',
-                      color: kDarkTextColor,
+                      color: theme.textTheme.bodyMedium?.color,
                     ),
                   ),
                 ),
               ],
             ),
             if (_useDistanceFilter) ...[
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -577,14 +682,14 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
                           fontFamily: 'Exo2',
-                          color: kDarkTextColor,
+                          color: theme.textTheme.bodyMedium?.color,
                         ),
                       ),
                       Container(
                         padding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: kPrimaryBlue.withOpacity(0.1),
+                          color: theme.primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -595,14 +700,14 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                               }),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: kPrimaryBlue,
+                            color: theme.primaryColor,
                             fontFamily: 'Exo2',
                           ),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Slider(
                     value: _selectedDistance,
                     min: 1,
@@ -613,18 +718,18 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                         _selectedDistance = value;
                       });
                     },
-                    activeColor: kPrimaryBlue,
-                    inactiveColor: kMutedTextColor.withOpacity(0.3),
+                    activeColor: theme.primaryColor,
+                    inactiveColor: theme.brightness == Brightness.dark ? Colors.white12 : kMutedTextColor.withOpacity(0.3),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(lang.tr('min_distance', category: 'search'),
                           style:
-                              TextStyle(color: kMutedTextColor, fontSize: 12)),
+                              TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontSize: 12)),
                       Text(lang.tr('max_distance_50', category: 'search'),
                           style:
-                              TextStyle(color: kMutedTextColor, fontSize: 12)),
+                              TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontSize: 12)),
                     ],
                   ),
                 ],
@@ -637,6 +742,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   }
 
   Widget _buildSelectedFiltersIndicator(LanguageProvider lang) {
+    final theme = Theme.of(context);
     final List<String> activeFilters = [];
 
     if (_selectedCategory != null) {
@@ -653,19 +759,19 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
           params: {'distance': _selectedDistance.toInt().toString()}));
     }
 
-    if (activeFilters.isEmpty) return SizedBox();
+    if (activeFilters.isEmpty) return const SizedBox();
 
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kPrimaryBlue.withOpacity(0.05),
+        color: theme.primaryColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
-          Icon(Icons.filter_list, color: kPrimaryBlue, size: 18),
-          SizedBox(width: 8),
+          Icon(Icons.filter_list, color: theme.primaryColor, size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,16 +781,16 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: kDarkTextColor,
+                    color: theme.textTheme.bodyLarge?.color,
                     fontFamily: 'Exo2',
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   activeFilters.join(' • '),
                   style: TextStyle(
                     fontSize: 13,
-                    color: kMutedTextColor,
+                    color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                     fontFamily: 'Exo2',
                   ),
                   maxLines: 2,
@@ -699,12 +805,13 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   }
 
   Widget _buildActionButtons(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Container(
-      padding: EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.only(top: 20),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: kMutedTextColor.withOpacity(0.2),
+            color: theme.dividerColor,
             width: 1,
           ),
         ),
@@ -726,21 +833,21 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                 });
               },
               style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                side: BorderSide(color: kMutedTextColor.withOpacity(0.3)),
+                side: BorderSide(color: theme.dividerColor),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.refresh, size: 18, color: kDarkTextColor),
-                  SizedBox(width: 8),
+                  Icon(Icons.refresh, size: 18, color: theme.textTheme.bodyMedium?.color),
+                  const SizedBox(width: 8),
                   Text(
                     lang.tr('clear_all', category: 'search'),
                     style: TextStyle(
-                      color: kDarkTextColor,
+                      color: theme.textTheme.bodyMedium?.color,
                       fontFamily: 'Exo2',
                       fontWeight: FontWeight.w500,
                     ),
@@ -749,7 +856,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading
@@ -777,24 +884,24 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                       Navigator.pop(context);
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryBlue,
-                padding: EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: theme.primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 elevation: 2,
               ),
               child: _isLoading
-                  ? CircularProgressIndicator(
+                  ? const CircularProgressIndicator(
                       color: Colors.white, strokeWidth: 2)
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.check, size: 20, color: Colors.white),
-                        SizedBox(width: 8),
+                        const Icon(Icons.check, size: 20, color: Colors.white),
+                        const SizedBox(width: 8),
                         Text(
                           lang.tr('apply_filters', category: 'search'),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontFamily: 'Exo2',
@@ -807,98 +914,6 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
           ),
         ],
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<LanguageProvider>(
-      builder: (context, lang, child) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          insetPadding: EdgeInsets.all(16),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
-              maxWidth: 500,
-            ),
-            child: _isLoading
-                ? SizedBox(
-                    height: 300,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(color: kPrimaryBlue),
-                          SizedBox(height: 16),
-                          Text(
-                            lang.tr('loading_filters', category: 'search'),
-                            style: TextStyle(
-                              color: kMutedTextColor,
-                              fontFamily: 'Exo2',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
-                        child: _buildHeader(lang),
-                      ),
-
-                      // Content
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: 8),
-
-                              // Selected Filters Indicator
-                              _buildSelectedFiltersIndicator(lang),
-                              SizedBox(height: 24),
-
-                              // Category Section
-                              _buildCategorySection(lang),
-                              SizedBox(height: 16),
-
-                              // Subcategory Section (if category selected)
-                              _buildSubcategorySection(lang),
-                              if (_selectedCategory != null &&
-                                  _availableSubcategories.isNotEmpty)
-                                SizedBox(height: 16),
-
-                              // Location Section
-                              _buildLocationSection(lang),
-                              SizedBox(height: 16),
-
-                              // Distance Section
-                              _buildDistanceSection(lang),
-                              SizedBox(height: 24),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Action Buttons
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(24, 0, 24, 24),
-                        child: _buildActionButtons(lang),
-                      ),
-                    ],
-                  ),
-          ),
-        );
-      },
     );
   }
 }

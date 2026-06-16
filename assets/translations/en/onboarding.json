@@ -1,10 +1,13 @@
 {
   "skip": "Skip",
   "get_started": "Get Started",
-  "page_1_title": "Fast & Reliable Service",
-  "page_1_description": "Connect with skilled professionals for all your needs, quickly and efficiently.",
-  "page_2_title": "Quality Guaranteed",
-  "page_2_description": "Our platform ensures top-notch service from verified and highly-rated experts.",
-  "page_3_title": "Easy to Use",
-  "page_3_description": "Find, book, and manage services seamlessly with our intuitive app interface."
+  "next": "Next",
+  "page_1_title": "Welcome to Akhdem Li",
+  "page_1_description": "Your trusted platform for finding and offering professional services",
+  "page_2_title": "Find Services",
+  "page_2_description": "Browse through hundreds of trusted professionals in your area",
+  "page_3_title": "Offer Your Skills",
+  "page_3_description": "Showcase your expertise and grow your client base",
+  "page_4_title": "Get Started",
+  "page_4_description": "Join our community today and experience the difference"
 }

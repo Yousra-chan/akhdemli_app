@@ -29,20 +29,19 @@
   "gallery": "Galerie",
   "camera": "Appareil Photo",
   "publish_post": "Publier le Post",
-  "selected_images": "Images Sélectionnées ({count}/3)",
+  "selected_images": "Images Sélectionnées ({{count}}/3)",
   "maximum_3_images": "Maximum 3 images autorisées",
   "maximum_3_images_reached": "Maximum 3 images atteint",
-  "image_too_large": "Image trop grande ({size}KB). Max 2MB.",
-  "error_selecting_images": "Erreur lors de la sélection des images: {error}",
-  "error_taking_photo": "Erreur lors de la prise de photo: {error}",
+  "image_too_large": "Image trop grande ({{size}}KB). Max 2MB.",
+  "error_selecting_images": "Erreur lors de la sélection des images: {{error}}",
+  "error_taking_photo": "Erreur lors de la prise de photo: {{error}}",
   "must_be_logged_in": "Vous devez être connecté pour créer un post",
   "post_created_successfully": "Post créé avec succès",
-  "post_created_with_images": "Post créé avec succès avec {count} image(s)",
-  "error_creating_post": "Erreur lors de la création du post: {error}",
+  "post_created_with_images": "Post créé avec succès avec {{count}} image(s)",
+  "error_creating_post": "Erreur lors de la création du post: {{error}}",
   "request_published": "Demande publiée avec succès!",
   "offer_published": "Offre publiée avec succès!",
   "please_sign_in": "Veuillez vous connecter pour créer un post",
-
   "just_now": "À l'instant",
   "min_ago": "min",
   "mins_ago": "mins",
@@ -62,7 +61,7 @@
   "view": "Voir",
   "please_sign_in_to_contact": "Veuillez vous connecter pour contacter cet utilisateur",
   "cannot_message_yourself": "Vous ne pouvez pas vous envoyer de message",
-  "failed_to_start_chat": "Échec du démarrage de la conversation: {error}",
+  "failed_to_start_chat": "Échec du démarrage de la conversation: {{error}}",
   "unable_to_load_image": "Impossible de charger l'image",
   "failed_to_load_image": "Échec du chargement de l'image",
   "categories": {
@@ -76,4 +75,3 @@
   },
   "try_again_later": "Veuillez réessayer plus tard"
 }
-

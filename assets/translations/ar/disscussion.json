@@ -1,10 +1,10 @@
 {
   "error_loading_messages": "خطأ في تحميل الرسائل",
   "failed_to_send_message": "فشل إرسال الرسالة",
-  "new_message_from": "رسالة جديدة من {name}",
+  "new_message_from": "رسالة جديدة من {{name}}",
   "test_notification_message": "إشعار تجريبي من التطبيق! 🎉",
   "test_notification_sent": "تم إرسال الإشعار التجريبي!",
-  "test_failed": "فشل الاختبار: {error}",
+  "test_failed": "فشل الاختبار: {{error}}",
   "online": "متصل",
   "offline": "غير متصل",
   "loading_messages": "جاري تحميل الرسائل...",
@@ -15,5 +15,6 @@
   "no_messages_yet": "لا توجد رسائل بعد",
   "start_conversation": "ابدأ المحادثة",
   "test_notifications": "اختبار الإشعارات",
-  "type_message": "اكتب رسالة..."
+  "type_message": "اكتب رسالة...",
+  "notification_server_offline": "خادم الإشعارات غير متصل. قد تتأخر التنبيهات."
 }

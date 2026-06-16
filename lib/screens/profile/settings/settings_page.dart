@@ -9,6 +9,8 @@ import 'package:service_app/screens/profile/settings/update_email_page.dart';
 import 'package:service_app/screens/profile/settings/delete_account.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 
+import 'package:service_app/providers/theme_provider.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -17,16 +19,17 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool _darkModeEnabled = false;
+
   bool _sendReadReceipts = true;
   bool _offlineMode = false;
 
   @override
   Widget build(BuildContext context) {
     final languageProvider = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // Simple App Bar
@@ -39,9 +42,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   // --- 1. Account Settings Section ---
                   _buildSettingsSection(
+                    context,
                     languageProvider.tr('accountSettings', category: 'profile'),
                     [
                       _buildSettingsItem(
+                        context,
                         icon: Icons.person_outline,
                         title: languageProvider.tr('editProfile',
                             category: 'profile'),
@@ -50,6 +55,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _navigateToEditProfile(context),
                       ),
                       _buildSettingsItem(
+                        context,
                         icon: Icons.lock_outline,
                         title: languageProvider.tr('changePassword',
                             category: 'profile'),
@@ -58,6 +64,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _navigateToChangePassword(context),
                       ),
                       _buildSettingsItem(
+                        context,
                         icon: Icons.email_outlined,
                         title: languageProvider.tr('updateEmail',
                             category: 'profile'),
@@ -70,9 +77,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   // --- 2. General Settings Section ---
                   _buildSettingsSection(
+                    context,
                     languageProvider.tr('general', category: 'common'),
                     [
                       _buildSettingsItem(
+                        context,
                         icon: Icons.language,
                         title: languageProvider.tr('language',
                             category: 'language'),
@@ -80,39 +89,25 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () => _navigateToLanguagePage(context),
                         showChevron: true,
                       ),
-                      _buildSettingsItem(
-                        icon: Icons.notifications_outlined,
-                        title: languageProvider.tr('notifications',
-                            category: 'profile'),
-                        subtitle: languageProvider.tr('manageNotifications',
-                            category: 'profile'),
-                        hasSwitch: true,
-                        switchValue: _sendReadReceipts,
-                        onSwitchChanged: (value) {
-                          setState(() {
-                            _sendReadReceipts = value;
-                          });
-                        },
-                      ),
+
                     ],
                   ),
 
                   // --- 3. Appearance Section ---
                   _buildSettingsSection(
+                    context,
                     languageProvider.tr('appearance', category: 'common'),
                     [
                       _buildSettingsItem(
+                        context,
                         icon: Icons.dark_mode_outlined,
-                        title:
-                            languageProvider.tr('darkMode', category: 'common'),
+                        title: languageProvider.tr('darkMode', category: 'common'),
                         subtitle: languageProvider.tr('enableDarkTheme',
                             category: 'common'),
                         hasSwitch: true,
-                        switchValue: _darkModeEnabled,
+                        switchValue: context.watch<ThemeProvider>().isDarkMode,
                         onSwitchChanged: (value) {
-                          setState(() {
-                            _darkModeEnabled = value;
-                          });
+                          context.read<ThemeProvider>().toggleTheme();
                         },
                       ),
                     ],
@@ -120,19 +115,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   // --- 4. Danger Zone ---
                   _buildSettingsSection(
+                    context,
                     languageProvider.tr('dangerZone', category: 'profile'),
                     [
+
                       _buildSettingsItem(
-                        icon: Icons.logout,
-                        title:
-                            languageProvider.tr('logout', category: 'profile'),
-                        subtitle: languageProvider.tr('signOutAccount',
-                            category: 'profile'),
-                        onTap: () =>
-                            _showLogoutDialog(context, languageProvider),
-                        isWarning: true,
-                      ),
-                      _buildSettingsItem(
+                        context,
                         icon: Icons.delete_outline,
                         title: languageProvider.tr('deleteAccount',
                             category: 'profile'),
@@ -155,6 +143,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -162,7 +151,7 @@ class _SettingsPageState extends State<SettingsPage> {
         right: 20,
         bottom: 15,
       ),
-      color: Colors.white,
+      color: theme.appBarTheme.backgroundColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -171,20 +160,20 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kLightBackgroundColor,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back,
-                color: kDarkTextColor,
+                color: theme.appBarTheme.foregroundColor,
                 size: 24,
               ),
             ),
           ),
           Text(
             languageProvider.tr('accountSettings', category: 'profile'),
-            style: const TextStyle(
-              color: kDarkTextColor,
+            style: TextStyle(
+              color: theme.appBarTheme.foregroundColor,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -198,18 +187,20 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSettingsSection(String title, List<Widget> items) {
+  Widget _buildSettingsSection(BuildContext context, String title, List<Widget> items) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 10, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 10, bottom: 12),
             child: Text(
               title.toUpperCase(),
-              style: const TextStyle(
-                color: kMutedTextColor,
+              style: TextStyle(
+                color: isDark ? Colors.white54 : kMutedTextColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1,
@@ -219,11 +210,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           Container(
             decoration: BoxDecoration(
-              color: kCardBackgroundColor,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: kSoftShadowColor.withOpacity(0.1),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -235,7 +226,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (i > 0)
                     Divider(
                       height: 1,
-                      color: kMutedTextColor.withOpacity(0.1),
+                      color: theme.dividerColor,
                       indent: 16,
                       endIndent: 16,
                     ),
@@ -249,7 +240,8 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSettingsItem({
+  Widget _buildSettingsItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
@@ -261,11 +253,13 @@ class _SettingsPageState extends State<SettingsPage> {
     bool isWarning = false,
     bool isDestructive = false,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final Color titleColor = isDestructive
         ? Colors.red
         : isWarning
             ? Colors.orange
-            : kDarkTextColor;
+            : theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     return Container(
       color: Colors.transparent,
@@ -283,12 +277,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       ? Colors.red.withOpacity(0.1)
                       : isWarning
                           ? Colors.orange.withOpacity(0.1)
-                          : kPrimaryBlue.withOpacity(0.1),
+                          : theme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   icon,
-                  color: titleColor,
+                  color: isDestructive ? Colors.red : (isWarning ? Colors.orange : theme.primaryColor),
                   size: 22,
                 ),
               ),
@@ -309,8 +303,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: kMutedTextColor,
+                      style: TextStyle(
+                        color: isDark ? Colors.white38 : kMutedTextColor,
                         fontSize: 13,
                         fontFamily: 'Exo2',
                       ),
@@ -324,13 +318,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Switch(
                     value: switchValue,
                     onChanged: onSwitchChanged,
-                    activeColor: kPrimaryBlue,
+                    activeColor: theme.primaryColor,
                   ),
                 )
               else if (showChevron)
                 Icon(
                   Icons.chevron_right,
-                  color: kMutedTextColor,
+                  color: isDark ? Colors.white24 : kMutedTextColor,
                 ),
             ],
           ),
@@ -388,155 +382,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showLogoutDialog(
-      BuildContext context, LanguageProvider languageProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            color: kCardBackgroundColor,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.logout,
-                  color: Colors.orange,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
 
-              // Title
-              Text(
-                languageProvider.tr('logout', category: 'profile'),
-                style: const TextStyle(
-                  color: Colors.orange,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Description
-              Text(
-                languageProvider.tr('logoutConfirm', category: 'profile'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kMutedTextColor,
-                  fontSize: 14,
-                  height: 1.4,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Buttons
-              Row(
-                children: [
-                  // Cancel Button
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kMutedTextColor,
-                        side:
-                            BorderSide(color: kMutedTextColor.withOpacity(0.3)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        languageProvider.tr('cancel', category: 'common'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Logout Button
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.of(context).pop();
-
-                        // Logout
-                        final authViewModel = Provider.of<AuthViewModel>(
-                          context,
-                          listen: false,
-                        );
-                        await authViewModel.logout();
-
-                        if (mounted) {
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/login',
-                            (route) => false,
-                          );
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                languageProvider.tr('loggedOut',
-                                    category: 'profile'),
-                                style: const TextStyle(
-                                  fontFamily: 'Exo2',
-                                ),
-                              ),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: Text(
-                        languageProvider.tr('logout', category: 'profile'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
-}
+

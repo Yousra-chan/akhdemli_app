@@ -20,6 +20,8 @@ import 'package:service_app/screens/auth/language_selection_screen.dart';
 import 'package:service_app/Services/notification_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 
+import 'package:service_app/providers/theme_provider.dart';
+
 import 'package:service_app/Services/auth_service.dart';
 import 'package:service_app/Services/booking_notification_service.dart';
 
@@ -171,7 +173,10 @@ class ServiceApp extends StatelessWidget {
           create: (_) => null,
           update: (_, auth, previous) {
             if (auth.currentUser == null) return null;
-            if (previous != null) return previous;
+            if (previous != null) {
+              previous.updateUser(auth.currentUser!.uid);
+              return previous;
+            }
             return ChatViewModel(userId: auth.currentUser!.uid);
           },
         ),
@@ -180,9 +185,10 @@ class ServiceApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => LanguageProvider()..init(),
         ),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: Consumer<LanguageProvider>(
-        builder: (context, languageProvider, child) {
+      child: Consumer2<LanguageProvider, ThemeProvider>(
+        builder: (context, languageProvider, themeProvider, child) {
           // Sync language provider with services
           AuthService.setLanguageProvider(languageProvider);
           NotificationService.setLanguageProvider(languageProvider);
@@ -192,10 +198,7 @@ class ServiceApp extends StatelessWidget {
             title: 'Akhdem-Li',
             navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-              useMaterial3: true,
-            ),
+            theme: themeProvider.currentTheme,
 
             /// Set locale from LanguageProvider
             locale: languageProvider.locale,
@@ -278,23 +281,23 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final authVM = context.watch<AuthViewModel>();
 
     if (_loading) {
-      return _loadingScreen();
+      return _loadingScreen(context);
     }
 
-    // 1. FIRST: Show Onboarding if not seen
-    if (!_hasSeenOnboarding) {
-      return const OnboardingScreen();
-    }
-
-    // 2. SECOND: Show Language Selection ONLY ONCE in entire app lifetime
+    // 1. FIRST: Show Language Selection ONLY ONCE in entire app lifetime
     // Only show if user has NOT completed initial setup AND is NOT logged in
     if (!_hasCompletedInitialSetup && authVM.currentUser == null) {
       return const LanguageSelectionScreen();
     }
 
+    // 2. SECOND: Show Onboarding if not seen
+    if (!_hasSeenOnboarding) {
+      return const OnboardingScreen();
+    }
+
     // 3. THIRD: Handle authentication
     if (authVM.isLoading && authVM.currentUser == null) {
-      return _loadingScreen();
+      return _loadingScreen(context);
     }
 
     if (authVM.currentUser != null) {
@@ -327,23 +330,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
-  Widget _loadingScreen() {
+  Widget _loadingScreen(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(
+            CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Loading...',
+            Text(
+              languageProvider.tr('loading', category: 'common'),
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey,
+                color: theme.brightness == Brightness.dark ? Colors.white70 : Colors.grey,
                 fontWeight: FontWeight.w500,
               ),
             ),

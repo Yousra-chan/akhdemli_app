@@ -1,8 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/utils/image_optimizer.dart';
+import 'package:service_app/utils/image_utils.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -14,6 +20,9 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  late TextEditingController _professionController;
+  List<String> _portfolio = [];
+  final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false;
 
@@ -25,13 +34,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
         TextEditingController(text: authVM.currentUser?.name ?? '');
     _phoneController =
         TextEditingController(text: authVM.currentUser?.phone ?? '');
+    _professionController =
+        TextEditingController(text: authVM.currentUser?.profession ?? '');
+    _portfolio = List.from(authVM.currentUser?.portfolio ?? []);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _professionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _addPortfolioImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final compressedBytes = await ImageOptimizer.compressImage(File(image.path));
+      final base64Image = base64Encode(compressedBytes);
+      setState(() {
+        _portfolio.add(base64Image);
+      });
+    } catch (e) {
+      AppSnackBar.showError(context, 'Error adding image: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _updateProfile(LanguageProvider languageProvider) async {
@@ -40,30 +71,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final authVM = Provider.of<AuthViewModel>(context, listen: false);
 
-      // Update user profile logic here
-      // await authVM.updateUserProfile(
-      //   name: _nameController.text,
-      //   phone: _phoneController.text,
-      // );
+      if (authVM.currentUser != null) {
+        final updatedUser = authVM.currentUser!.copyWith(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          profession: _professionController.text.trim(),
+          portfolio: _portfolio,
+        );
+        await authVM.updateUserProfile(updatedUser);
+      }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('updatePersonalInfo', category: 'profile'),
-            ),
-            backgroundColor: kSuccessColor,
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.tr('updatePersonalInfo', category: 'profile'),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: kDangerColor,
-          ),
+        AppSnackBar.showError(
+          context,
+          '${languageProvider.tr('error_occurred', category: 'common')}: $e',
         );
       }
     } finally {
@@ -76,39 +105,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     final languageProvider = context.watch<LanguageProvider>();
+    final isProvider = context.read<AuthViewModel>().currentUser?.isProvider ?? false;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           SingleChildScrollView(
             child: Column(
               children: [
-                // App Bar
-                _buildAppBar(context, languageProvider),
-
-                // Form
+                _buildAppBar(context, languageProvider, theme),
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      // Name Field
                       _buildTextField(
+                        theme: theme,
                         controller: _nameController,
-                        label: 'Name',
+                        label: languageProvider.tr('full_name', category: 'auth'),
                         icon: Icons.person_outline,
                       ),
                       const SizedBox(height: 20),
-
-                      // Phone Field
                       _buildTextField(
+                        theme: theme,
                         controller: _phoneController,
-                        label: 'Phone',
+                        label: languageProvider.tr('phone_number', category: 'auth'),
                         icon: Icons.phone_outlined,
                       ),
+                      const SizedBox(height: 20),
+                      if (isProvider) ...[
+                        _buildTextField(
+                          theme: theme,
+                          controller: _professionController,
+                          label: languageProvider.tr('profession', category: 'common'),
+                          icon: Icons.work_outline,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildPortfolioEditor(languageProvider, theme),
+                        const SizedBox(height: 20),
+                      ],
                       const SizedBox(height: 40),
-
-                      // Save Button
                       SizedBox(
                         width: double.infinity,
                         height: 56,
@@ -117,7 +155,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               ? null
                               : () => _updateProfile(languageProvider),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: kPrimaryBlue,
+                            backgroundColor: theme.primaryColor,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15),
@@ -134,9 +172,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                         Colors.white),
                                   ),
                                 )
-                              : const Text(
-                                  'Save Changes',
-                                  style: TextStyle(
+                              : Text(
+                                  languageProvider.tr('save', category: 'common'),
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -153,8 +191,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           if (_isLoading)
             Container(
               color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(color: kPrimaryBlue),
+              child: Center(
+                child: CircularProgressIndicator(color: theme.primaryColor),
               ),
             ),
         ],
@@ -162,7 +200,95 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
+  Widget _buildPortfolioEditor(LanguageProvider lang, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              lang.tr('my_work_portfolio', category: 'provider_profile'),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: theme.textTheme.titleMedium?.color,
+                fontFamily: 'Exo2',
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _addPortfolioImage,
+              icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+              label: Text(lang.tr('add', category: 'common')),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 100,
+          child: _portfolio.isEmpty
+              ? Center(
+                  child: Text(
+                    lang.tr('no_images', category: 'common'),
+                    style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontSize: 13),
+                  ),
+                )
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _portfolio.length,
+                  itemBuilder: (context, index) {
+                    return Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          margin: const EdgeInsetsDirectional.only(end: 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: theme.dividerColor),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: ImageUtils.isBase64Image(_portfolio[index])
+                                ? Image.memory(
+                                    ImageUtils.decodeBase64Image(_portfolio[index])!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.network(
+                                    _portfolio[index],
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                        ),
+                        PositionedDirectional(
+                          top: 2,
+                          end: 12,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _portfolio.removeAt(index);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider, ThemeData theme) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -170,7 +296,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         right: 20,
         bottom: 15,
       ),
-      color: Colors.white,
+      color: theme.cardColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -179,20 +305,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kLightBackgroundColor,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleLarge?.color,
                 size: 24,
               ),
             ),
           ),
           Text(
             languageProvider.tr('editProfile', category: 'profile'),
-            style: const TextStyle(
-              color: kDarkTextColor,
+            style: TextStyle(
+              color: theme.textTheme.titleLarge?.color,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -205,6 +331,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildTextField({
+    required ThemeData theme,
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -212,11 +339,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: kCardBackgroundColor,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: kSoftShadowColor.withOpacity(0.1),
+            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.2 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -227,13 +354,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: kPrimaryBlue),
+          prefixIcon: Icon(icon, color: theme.primaryColor),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(16),
-          labelStyle: const TextStyle(color: kMutedTextColor),
+          labelStyle: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor),
         ),
-        style: const TextStyle(
-          color: kDarkTextColor,
+        style: TextStyle(
+          color: theme.textTheme.bodyLarge?.color,
           fontSize: 16,
         ),
       ),

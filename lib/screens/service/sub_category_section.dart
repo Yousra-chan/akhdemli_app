@@ -41,6 +41,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
   }
 
   Widget _buildHeader(LanguageProvider lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -49,8 +51,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
           children: [
             Text(
               lang.tr('service_subcategory', category: 'service'),
-              style: const TextStyle(
-                color: kDarkTextColor,
+              style: TextStyle(
+                color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'Exo2',
@@ -62,9 +64,9 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: kPrimaryBlue.withOpacity(0.1),
+                  color: theme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+                  border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
                 ),
                 child: Text(
                   lang.trParams('subcategory_count',
@@ -73,8 +75,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                         'count': widget.selectedCategory!.subcategories.length
                             .toString()
                       }),
-                  style: const TextStyle(
-                    color: kPrimaryBlue,
+                  style: TextStyle(
+                    color: theme.primaryColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Exo2',
@@ -97,8 +99,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                 )
               : lang.tr('service_subcategory_desc_no_select',
                   category: 'service'),
-          style: const TextStyle(
-            color: kMutedTextColor,
+          style: TextStyle(
+            color: isDark ? Colors.white54 : kMutedTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w500,
             fontFamily: 'Exo2',
@@ -109,8 +111,10 @@ class _SubcategorySectionState extends State<SubcategorySection> {
   }
 
   Widget _buildSubcategoriesList(LanguageProvider lang) {
+    final theme = Theme.of(context);
     if (widget.selectedCategory == null) {
       return _buildEmptyState(
+        theme,
         icon: CupertinoIcons.square_grid_2x2,
         title: lang.tr('select_category', category: 'service'),
         message: lang.tr('select_category_desc', category: 'service'),
@@ -121,6 +125,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
 
     if (subcategories.isEmpty) {
       return _buildEmptyState(
+        theme,
         icon: CupertinoIcons.infinite,
         title: lang.tr('no_subcategories', category: 'service'),
         message: lang.trParams(
@@ -144,10 +149,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
           final colors = _getSubcategoryColors(index);
 
           return Container(
-            margin: EdgeInsets.only(
-              right: 16,
-              left: index == 0 ? 0 : 0,
-            ),
+            margin: const EdgeInsetsDirectional.only(end: 16),
             child: _buildSubcategoryItem(
               subcategory,
               colors,
@@ -161,18 +163,20 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     );
   }
 
-  Widget _buildEmptyState({
+  Widget _buildEmptyState(
+    ThemeData theme, {
     required IconData icon,
     required String title,
     required String message,
   }) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: kLightBackgroundColor,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Center(
         child: Column(
@@ -181,13 +185,13 @@ class _SubcategorySectionState extends State<SubcategorySection> {
             Icon(
               icon,
               size: 64,
-              color: kMutedTextColor,
+              color: isDark ? Colors.white24 : kMutedTextColor,
             ),
             const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(
-                color: kDarkTextColor,
+              style: TextStyle(
+                color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 fontFamily: 'Exo2',
@@ -197,8 +201,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: kMutedTextColor,
+              style: TextStyle(
+                color: isDark ? Colors.white54 : kMutedTextColor,
                 fontSize: 14,
                 fontFamily: 'Exo2',
               ),
@@ -216,6 +220,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     int index,
     LanguageProvider lang,
   ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -229,10 +235,10 @@ class _SubcategorySectionState extends State<SubcategorySection> {
               width: isSelected ? 70 : 64,
               height: isSelected ? 70 : 64,
               decoration: BoxDecoration(
-                color: isSelected ? colors[0] : Colors.white,
+                color: isSelected ? colors[0] : theme.cardColor,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? colors[0] : Colors.grey.shade300,
+                  color: isSelected ? colors[0] : (isDark ? Colors.white12 : Colors.grey.shade300),
                   width: isSelected ? 3 : 2,
                 ),
                 boxShadow: [
@@ -244,7 +250,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                     )
                   else
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -268,7 +274,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                       : subcategory.name),
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: isSelected ? colors[0] : kDarkTextColor,
+                color: isSelected ? colors[0] : theme.textTheme.bodyLarge?.color,
                 fontSize: isSelected ? 13 : 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 fontFamily: 'Exo2',
@@ -282,6 +288,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
   }
 
   Widget _buildSelectedIndicator(LanguageProvider lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     if (widget.selectedCategory == null || _selectedSubcategoryId == null) {
       return const SizedBox.shrink();
     }
@@ -307,7 +315,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                 color: kSuccessGreen.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 CupertinoIcons.checkmark_alt_circle_fill,
                 color: kSuccessGreen,
                 size: 20,
@@ -318,8 +326,8 @@ class _SubcategorySectionState extends State<SubcategorySection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    lang.tr('subcategory_selected', category: 'service'),
+                  const Text(
+                    'Subcategory Selected',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -332,9 +340,9 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                     selectedSubcategory.nameKey.isNotEmpty
                         ? selectedSubcategory.getTranslatedName(lang)
                         : selectedSubcategory.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: kDarkTextColor,
+                      color: theme.textTheme.bodyLarge?.color,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'Exo2',
                     ),

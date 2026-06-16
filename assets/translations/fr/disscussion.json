@@ -1,10 +1,10 @@
 {
   "error_loading_messages": "Erreur lors du chargement des messages",
   "failed_to_send_message": "Échec de l'envoi du message",
-  "new_message_from": "Nouveau message de {name}",
+  "new_message_from": "Nouveau message de {{name}}",
   "test_notification_message": "Notification de test depuis l'appli ! 🎉",
   "test_notification_sent": "Notification de test envoyée !",
-  "test_failed": "Test échoué : {error}",
+  "test_failed": "Test échoué : {{error}}",
   "online": "En ligne",
   "offline": "Hors ligne",
   "loading_messages": "Chargement des messages...",
@@ -15,5 +15,6 @@
   "no_messages_yet": "Aucun message",
   "start_conversation": "Commencez la conversation",
   "test_notifications": "Tester les notifications",
-  "type_message": "Tapez un message..."
+  "type_message": "Tapez un message...",
+  "notification_server_offline": "Le serveur de notifications est hors ligne. Les alertes peuvent être retardées."
 }

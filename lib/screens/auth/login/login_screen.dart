@@ -8,15 +8,18 @@ import 'package:service_app/screens/auth/forget_password_screen.dart';
 import 'package:service_app/screens/auth/register/register_screen.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 // --- Aesthetic Input Decoration Function ---
 InputDecoration buildAestheticInputDecoration(
-    String hint, LanguageProvider lang) {
+    String hint, LanguageProvider lang, BuildContext context) {
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
   return InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: kMutedTextColor, fontFamily: kAppFont),
+    hintStyle: TextStyle(color: isDark ? Colors.white38 : kMutedTextColor, fontFamily: kAppFont),
     filled: true,
-    fillColor: kInputFillColor.withOpacity(0.5),
+    fillColor: isDark ? Colors.white.withOpacity(0.05) : kInputFillColor.withOpacity(0.5),
     contentPadding: const EdgeInsets.symmetric(
       vertical: 16.0,
       horizontal: 20.0,
@@ -31,7 +34,7 @@ InputDecoration buildAestheticInputDecoration(
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: kPrimaryBlue, width: 2),
+      borderSide: BorderSide(color: theme.primaryColor, width: 2),
     ),
   );
 }
@@ -94,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
 
         if (user != null) {
-          showSuccessSnackBar(
+          AppSnackBar.showSuccess(
               context, lang.tr('sign_in_success', category: 'auth'));
 
           Navigator.pushAndRemoveUntil(
@@ -105,11 +108,11 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           final errorMessage = authViewModel.error ??
               lang.tr('sign_in_failed', category: 'auth');
-          showErrorSnackBar(context, _getErrorMessage(errorMessage, lang));
+          AppSnackBar.showError(context, _getErrorMessage(errorMessage, lang));
         }
       } catch (e) {
         if (!mounted) return;
-        showErrorSnackBar(context, _getErrorMessage(e.toString(), lang));
+        AppSnackBar.showError(context, _getErrorMessage(e.toString(), lang));
       }
     }
   }
@@ -124,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
-        showSuccessSnackBar(
+        AppSnackBar.showSuccess(
             context, lang.tr('google_sign_in_success', category: 'auth'));
 
         Navigator.pushAndRemoveUntil(
@@ -135,11 +138,11 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final errorMessage = authViewModel.error ??
             lang.tr('google_sign_in_failed', category: 'auth');
-        showErrorSnackBar(context, errorMessage);
+        AppSnackBar.showError(context, errorMessage);
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(
+      AppSnackBar.showError(
           context, lang.tr('google_sign_in_failed', category: 'auth'));
     }
   }
@@ -154,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
-        showSuccessSnackBar(
+        AppSnackBar.showSuccess(
             context, lang.tr('apple_sign_in_success', category: 'auth'));
 
         Navigator.pushAndRemoveUntil(
@@ -165,18 +168,18 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final errorMessage = authViewModel.error ??
             lang.tr('apple_sign_in_failed', category: 'auth');
-        showErrorSnackBar(context, errorMessage);
+        AppSnackBar.showError(context, errorMessage);
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(
+      AppSnackBar.showError(
           context, lang.tr('apple_sign_in_failed', category: 'auth'));
     }
   }
 
   Widget _buildTopBar(LanguageProvider lang) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: AlignmentDirectional.centerStart,
       child: IconButton(
         onPressed: () => Navigator.maybePop(context),
         icon: const Icon(
@@ -191,6 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLogo(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         children: [
@@ -198,11 +202,11 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 10),
           Text(
             lang.tr('app_name', category: 'auth'),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               fontFamily: kAppFont,
-              color: kDarkTextColor,
+              color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
             ),
           ),
         ],
@@ -211,16 +215,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginForm(LanguageProvider lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, child) {
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                 spreadRadius: 5,
                 blurRadius: 15,
                 offset: const Offset(0, 5),
@@ -232,9 +238,9 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Text(
                 lang.tr('welcome_back', category: 'auth'),
-                textAlign: TextAlign.left,
-                style: const TextStyle(
-                  color: kDarkTextColor,
+                textAlign: TextAlign.start,
+                style: TextStyle(
+                  color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   fontFamily: kAppFont,
@@ -243,9 +249,9 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               Text(
                 lang.tr('login_to_account', category: 'auth'),
-                textAlign: TextAlign.left,
-                style: const TextStyle(
-                  color: kMutedTextColor,
+                textAlign: TextAlign.start,
+                style: TextStyle(
+                  color: isDark ? Colors.white54 : kMutedTextColor,
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                   fontFamily: kAppFont,
@@ -286,14 +292,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildEmailField(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return TextFormField(
       controller: _emailController,
       decoration: buildAestheticInputDecoration(
         lang.tr('email_hint_login', category: 'auth'),
         lang,
+        context,
       ),
       keyboardType: TextInputType.emailAddress,
-      style: const TextStyle(fontFamily: kAppFont, color: kDarkTextColor),
+      style: TextStyle(fontFamily: kAppFont, color: theme.textTheme.bodyLarge?.color),
       validator: (value) {
         if (value == null || value.isEmpty) {
           return lang.tr('validation_email_required', category: 'auth');
@@ -307,14 +315,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildPasswordField(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return TextFormField(
       controller: _passwordController,
       decoration: buildAestheticInputDecoration(
         lang.tr('password_hint', category: 'auth'),
         lang,
+        context,
       ),
       obscureText: true,
-      style: const TextStyle(fontFamily: kAppFont, color: kDarkTextColor),
+      style: TextStyle(fontFamily: kAppFont, color: theme.textTheme.bodyLarge?.color),
       validator: (value) {
         if (value == null || value.isEmpty) {
           return lang.tr('validation_password_required', category: 'auth');
@@ -328,8 +338,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildForgotPasswordLink(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Align(
-      alignment: Alignment.centerRight,
+      alignment: AlignmentDirectional.centerEnd,
       child: TextButton(
         onPressed: () {
           Navigator.push(
@@ -341,11 +352,11 @@ class _LoginScreenState extends State<LoginScreen> {
         },
         child: Text(
           lang.tr("forgot_password", category: 'auth'),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: kAppFont,
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: kPrimaryBlue,
+            color: theme.primaryColor,
           ),
         ),
       ),
@@ -354,10 +365,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Consumer<LanguageProvider>(
       builder: (context, lang, child) {
         return Scaffold(
-          backgroundColor: kLightBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: SafeArea(
             child: SingleChildScrollView(
               child: Padding(
@@ -410,16 +422,17 @@ class _LoginButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: kPrimaryBlue,
+          backgroundColor: theme.primaryColor,
           foregroundColor: Colors.white,
           elevation: 5,
-          shadowColor: kPrimaryBlue.withOpacity(0.5),
+          shadowColor: theme.primaryColor.withOpacity(0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -456,25 +469,26 @@ class _OrDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: <Widget>[
-        const Expanded(
-          child: Divider(color: kBorderColor, height: 1, thickness: 1),
+        Expanded(
+          child: Divider(color: isDark ? Colors.white10 : kBorderColor, height: 1, thickness: 1),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
             lang.tr('or', category: 'auth'),
             style: TextStyle(
-              color: kMutedTextColor.withOpacity(0.8),
+              color: isDark ? Colors.white38 : kMutedTextColor.withOpacity(0.8),
               fontSize: 14,
               fontFamily: kAppFont,
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
-        const Expanded(
-          child: Divider(color: kBorderColor, height: 1, thickness: 1),
+        Expanded(
+          child: Divider(color: isDark ? Colors.white10 : kBorderColor, height: 1, thickness: 1),
         ),
       ],
     );
@@ -494,11 +508,14 @@ class _SocialSignInRow extends StatelessWidget {
     required this.lang,
   });
 
-  Widget _buildAestheticSocialIcon({
+  Widget _buildAestheticSocialIcon(
+    BuildContext context, {
     required IconData icon,
     required Color color,
     required VoidCallback onPressed,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Expanded(
       child: InkWell(
         onTap: isLoading ? null : onPressed,
@@ -506,9 +523,9 @@ class _SocialSignInRow extends StatelessWidget {
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kBorderColor.withOpacity(0.7)),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Center(
             child: isLoading
@@ -520,7 +537,7 @@ class _SocialSignInRow extends StatelessWidget {
                       valueColor: AlwaysStoppedAnimation(color),
                     ),
                   )
-                : Icon(icon, color: color, size: 24),
+                : Icon(icon, color: isDark && icon == FontAwesomeIcons.apple ? Colors.white : color, size: 24),
           ),
         ),
       ),
@@ -533,12 +550,14 @@ class _SocialSignInRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildAestheticSocialIcon(
+          context,
           icon: FontAwesomeIcons.google,
           color: Colors.red,
           onPressed: onGooglePressed,
         ),
         const SizedBox(width: 12),
         _buildAestheticSocialIcon(
+          context,
           icon: FontAwesomeIcons.apple,
           color: kDarkTextColor,
           onPressed: onApplePressed,
@@ -559,13 +578,15 @@ class _SignUpLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Center(
         child: RichText(
           text: TextSpan(
             style: TextStyle(
-              color: kMutedTextColor,
+              color: isDark ? Colors.white54 : kMutedTextColor,
               fontFamily: kAppFont,
               fontSize: 15,
             ),
@@ -575,8 +596,8 @@ class _SignUpLink extends StatelessWidget {
               ),
               TextSpan(
                 text: lang.tr('sign_up_now', category: 'auth'),
-                style: const TextStyle(
-                  color: kPrimaryBlue,
+                style: TextStyle(
+                  color: theme.primaryColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),

@@ -10,6 +10,7 @@ import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class CreateServiceScreen extends StatefulWidget {
   const CreateServiceScreen({super.key});
@@ -182,15 +183,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         break;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: kErrorRed,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppSnackBar.showError(context, message);
   }
 
   Widget _buildStepIndicator() {
@@ -206,8 +199,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        color: Theme.of(context).cardColor,
+        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
       ),
       child: Column(
         children: [
@@ -215,8 +208,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             height: 4,
             child: LinearProgressIndicator(
               value: (_currentStep + 1) / _stepTitles.length,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+              backgroundColor: Theme.of(context).dividerColor,
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -241,7 +234,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                     }
                   },
                   child: Container(
-                    margin: const EdgeInsets.only(right: 16),
+                    margin: const EdgeInsetsDirectional.only(end: 16),
                     child: Column(
                       children: [
                         Container(
@@ -251,8 +244,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                             color: isCompleted
                                 ? kSuccessGreen
                                 : isActive
-                                    ? kPrimaryBlue
-                                    : Colors.grey.shade300,
+                                    ? Theme.of(context).primaryColor
+                                    : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -264,7 +257,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                                     style: TextStyle(
                                       color: isActive
                                           ? Colors.white
-                                          : Colors.grey.shade700,
+                                          : (Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.grey.shade700),
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
@@ -279,7 +272,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                             fontWeight:
                                 isActive ? FontWeight.w700 : FontWeight.normal,
                             color:
-                                isActive ? kPrimaryBlue : Colors.grey.shade600,
+                                isActive ? Theme.of(context).primaryColor : (Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.grey.shade600),
                           ),
                         ),
                       ],
@@ -311,11 +304,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -331,7 +324,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                side: BorderSide(color: Colors.grey.shade300),
+                side: BorderSide(color: Theme.of(context).dividerColor),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -339,7 +332,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                   Icon(
                     Icons.arrow_back,
                     size: 18,
-                    color: _currentStep == 0 ? Colors.grey : kPrimaryBlue,
+                    color: _currentStep == 0 ? Colors.grey : Theme.of(context).primaryColor,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -348,7 +341,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                         : lang.tr('back', category: 'service'),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: _currentStep == 0 ? Colors.grey : kPrimaryBlue,
+                      color: _currentStep == 0 ? Colors.grey : Theme.of(context).primaryColor,
                     ),
                   ),
                 ],
@@ -361,7 +354,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 ? ElevatedButton(
                     onPressed: _showLoginRequiredDialog,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade300,
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -369,7 +362,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                     ),
                     child: Text(
                       lang.tr('login_required', category: 'service'),
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.white),
                     ),
                   )
                 : ElevatedButton(
@@ -378,15 +371,15 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                         : _nextStep,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _currentStepValid
-                          ? kPrimaryBlue
-                          : Colors.grey.shade300,
+                          ? Theme.of(context).primaryColor
+                          : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: serviceViewModel.isLoading
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
@@ -563,83 +556,56 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: kErrorRed,
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppSnackBar.showError(context, message);
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: kSuccessGreen,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppSnackBar.showSuccess(context, message);
   }
 
   @override
   Widget build(BuildContext context) {
-    final lang = Provider.of<LanguageProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
     _stepTitles = [
-      lang.tr('step_details', category: 'service'),
-      lang.tr('step_category', category: 'service'),
-      lang.tr('step_pricing', category: 'service'),
-      lang.tr('step_location', category: 'service'),
-      lang.tr('step_review', category: 'service'),
+      languageProvider.tr('step_details', category: 'service'),
+      languageProvider.tr('step_category', category: 'service'),
+      languageProvider.tr('step_pricing', category: 'service'),
+      languageProvider.tr('step_location', category: 'service'),
+      languageProvider.tr('step_review', category: 'service'),
     ];
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              lang.trParams('step_progress', category: 'service', params: {
+              languageProvider.trParams('step_progress', category: 'service', params: {
                 'current': (_currentStep + 1).toString(),
                 'total': _stepTitles.length.toString(),
                 'step': _stepTitles[_currentStep]
               }),
               style: TextStyle(
                 fontSize: 12,
-                color: kMutedTextColor,
+                color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          color: kPrimaryBlue,
+          color: theme.primaryColor,
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
-            color: kPrimaryBlue,
+            color: theme.primaryColor,
             onPressed: () {
               _showHelpDialog();
             },
@@ -845,6 +811,9 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   Widget _buildReviewStep() {
     final lang = Provider.of<LanguageProvider>(context);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -857,6 +826,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
           ),
           const SizedBox(height: 24),
           Card(
+            color: theme.cardColor,
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -885,7 +855,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                   if (_selectedSubcategory != null) ...[
                     const SizedBox(height: 8),
                     Padding(
-                      padding: const EdgeInsets.only(left: 32),
+                      padding: const EdgeInsetsDirectional.only(start: 32),
                       child: _buildReviewItem(
                         label: lang.tr('subcategory', category: 'service'),
                         value: _selectedSubcategory!.getTranslatedName(lang),
@@ -944,19 +914,19 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: kPrimaryBlue.withOpacity(0.05),
+              color: theme.primaryColor.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+              border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: kPrimaryBlue, size: 20),
+                Icon(Icons.info_outline, color: theme.primaryColor, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     lang.tr('review_info', category: 'service'),
                     style: TextStyle(
-                      color: kDarkTextColor,
+                      color: isDark ? Colors.white70 : kDarkTextColor,
                       fontSize: 12,
                     ),
                   ),
@@ -993,6 +963,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     required String title,
     required String subtitle,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1001,10 +973,10 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kPrimaryBlue.withOpacity(0.1),
+                color: theme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 24, color: kPrimaryBlue),
+              child: Icon(icon, size: 24, color: theme.primaryColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1013,10 +985,10 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: kDarkTextColor,
+                      color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1024,7 +996,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: kMutedTextColor,
+                      color: isDark ? Colors.white54 : kMutedTextColor,
                     ),
                   ),
                 ],
@@ -1042,32 +1014,34 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     required String title,
     required String description,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: kLightBackgroundColor,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 48, color: kMutedTextColor),
+          Icon(icon, size: 48, color: isDark ? Colors.white38 : kMutedTextColor),
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: kDarkTextColor,
+              color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             description,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: kMutedTextColor,
+              color: isDark ? Colors.white54 : kMutedTextColor,
             ),
           ),
         ],
@@ -1081,6 +1055,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     required String description,
     required Color color,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1107,9 +1082,9 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: kDarkTextColor,
+                    color: isDark ? Colors.white70 : kDarkTextColor,
                   ),
                 ),
               ],
@@ -1126,6 +1101,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     required IconData icon,
     required bool isValid,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1134,7 +1111,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             Icon(
               icon,
               size: 18,
-              color: isValid ? kSuccessGreen : kMutedTextColor,
+              color: isValid ? kSuccessGreen : (isDark ? Colors.white38 : kMutedTextColor),
             ),
             const SizedBox(width: 8),
             Text(
@@ -1142,7 +1119,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleSmall?.color ?? kDarkTextColor,
               ),
             ),
             const Spacer(),
@@ -1155,12 +1132,12 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         ),
         const SizedBox(height: 8),
         Padding(
-          padding: const EdgeInsets.only(left: 26),
+          padding: const EdgeInsetsDirectional.only(start: 26),
           child: Text(
             value,
             style: TextStyle(
               fontSize: 14,
-              color: kDarkTextColor.withOpacity(0.8),
+              color: isDark ? Colors.white70 : kDarkTextColor.withOpacity(0.8),
             ),
           ),
         ),
@@ -1169,23 +1146,25 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Widget _buildTipCard(String tip) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kPrimaryBlue.withOpacity(0.05),
+        color: theme.primaryColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline, color: kPrimaryBlue, size: 20),
+          Icon(Icons.lightbulb_outline, color: theme.primaryColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               tip,
               style: TextStyle(
-                color: kDarkTextColor,
+                color: isDark ? Colors.white70 : kDarkTextColor,
                 fontSize: 12,
                 height: 1.5,
               ),
@@ -1198,11 +1177,13 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
   void _showHelpDialog() {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(lang.tr('help_title', category: 'service')),
+        backgroundColor: theme.cardColor,
+        title: Text(lang.tr('help_title', category: 'service'), style: TextStyle(color: theme.textTheme.titleLarge?.color)),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -1211,22 +1192,27 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step1_title', category: 'service'),
                   lang.tr('help_step1_desc', category: 'service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step2_title', category: 'service'),
                   lang.tr('help_step2_desc', category: 'service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step3_title', category: 'service'),
                   lang.tr('help_step3_desc', category: 'service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step4_title', category: 'service'),
                   lang.tr('help_step4_desc', category: 'service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step5_title', category: 'service'),
                   lang.tr('help_step5_desc', category: 'service'),
                 ),
@@ -1237,14 +1223,15 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(lang.tr('got_it', category: 'service')),
+            child: Text(lang.tr('got_it', category: 'service'), style: TextStyle(color: theme.primaryColor)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHelpItem(String title, String description) {
+  Widget _buildHelpItem(ThemeData theme, String title, String description) {
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -1252,16 +1239,16 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
-              color: kDarkTextColor,
+              color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             description,
             style: TextStyle(
-              color: kMutedTextColor,
+              color: isDark ? Colors.white54 : kMutedTextColor,
               fontSize: 12,
             ),
           ),

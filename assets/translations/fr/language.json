@@ -2,6 +2,6 @@
   "language": "Langue",
   "english": "English",
   "french": "Français",
-  "arabic": "العربية",
-  "languageChanged": "Langue changée avec succès"
+  "arabic": "Arabe",
+  "language_changed_success": "Langue mise à jour avec succès !"
 }

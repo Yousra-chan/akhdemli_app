@@ -6,6 +6,7 @@ import 'package:service_app/Services/firestore_service.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/screens/service/edit_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class MyServicesPage extends StatefulWidget {
   const MyServicesPage({super.key});
@@ -47,7 +48,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
       if (currentUser != null) {
         final services =
-            await _firestoreService.getProviderServices(currentUser.uid);
+        await _firestoreService.getProviderServices(currentUser.uid);
         setState(() {
           _services = services;
         });
@@ -110,6 +111,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
   }
 
   Widget _buildMainContent() {
+    final lang = Provider.of<LanguageProvider>(context);
     return RefreshIndicator(
       onRefresh: _refreshServices,
       child: CustomScrollView(
@@ -124,34 +126,54 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
           // Services List or States
           if (_isLoading)
-            SliverFillRemaining(
-              child: _buildLoadingState(),
+            const SliverFillRemaining(
+              child: LoadingWidget(),
             )
           else if (_error != null)
             SliverFillRemaining(
-              child: _buildErrorState(),
+              child: ErrorStateWidget(
+                message: lang.tr(_error!, category: 'my_services'),
+                onRetry: _refreshServices,
+              ),
             )
           else if (_services.isEmpty)
-            SliverFillRemaining(
-              child: _buildEmptyState(),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      bottom: 20,
-                      top: index == 0 ? 0 : 0,
+              SliverFillRemaining(
+                child: EmptyStateWidget(
+                  message: lang.tr('no_services_yet', category: 'my_services'),
+                  subtitle: lang.tr('create_first_service_hint', category: 'my_services'),
+                  action: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/create-service');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
                     ),
-                    child: _buildServiceCard(_services[index]),
-                  );
-                },
-                childCount: _services.length,
+                    child: Text(
+                        lang.tr('create_first_service', category: 'my_services')),
+                  ),
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        bottom: 20,
+                        top: index == 0 ? 0 : 0,
+                      ),
+                      child: _buildServiceCard(_services[index]),
+                    );
+                  },
+                  childCount: _services.length,
+                ),
               ),
-            ),
         ],
       ),
     );
@@ -310,7 +332,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                           _getStatusText(service['status'] ?? 'active', lang),
                           style: TextStyle(
                             color:
-                                _getStatusColor(service['status'] ?? 'active'),
+                            _getStatusColor(service['status'] ?? 'active'),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -363,13 +385,13 @@ class _MyServicesPageState extends State<MyServicesPage> {
                     label: lang.tr('price', category: 'my_services'),
                     value: service['price'] != null
                         ? lang.trParams('price_with_unit',
-                            category: 'my_services',
-                            params: {
-                                'price': service['price'].toString(),
-                                'unit': service['priceUnit'] ??
-                                    lang.tr('per_service',
-                                        category: 'my_services')
-                              })
+                        category: 'my_services',
+                        params: {
+                          'price': service['price'].toString(),
+                          'unit': service['priceUnit'] ??
+                              lang.tr('per_service',
+                                  category: 'my_services')
+                        })
                         : lang.tr('price_not_set', category: 'my_services'),
                   ),
                   const SizedBox(height: 12),
@@ -389,8 +411,8 @@ class _MyServicesPageState extends State<MyServicesPage> {
                     label: lang.tr('rating', category: 'my_services'),
                     value: service['rating'] != null
                         ? lang.trParams('rating_value',
-                            category: 'my_services',
-                            params: {'rating': service['rating'].toString()})
+                        category: 'my_services',
+                        params: {'rating': service['rating'].toString()})
                         : lang.tr('no_ratings', category: 'my_services'),
                   ),
                 ],
@@ -483,123 +505,6 @@ class _MyServicesPageState extends State<MyServicesPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildLoadingState() {
-    final lang = Provider.of<LanguageProvider>(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: kPrimaryBlue),
-          const SizedBox(height: 20),
-          Text(
-            lang.tr('loading_services', category: 'my_services'),
-            style: const TextStyle(color: kMutedTextColor),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    final lang = Provider.of<LanguageProvider>(context);
-
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: kErrorRed,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              lang.tr('unable_to_load_services', category: 'my_services'),
-              style: TextStyle(
-                color: kDarkTextColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _error != null ? lang.tr(_error!, category: 'my_services') : '',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: kMutedTextColor,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _refreshServices,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryBlue,
-              ),
-              child: Text(lang.tr('try_again', category: 'my_services')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    final lang = Provider.of<LanguageProvider>(context);
-
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.work_outline,
-              size: 64,
-              color: kMutedTextColor,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              lang.tr('no_services_yet', category: 'my_services'),
-              style: TextStyle(
-                color: kDarkTextColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              lang.tr('create_first_service_hint', category: 'my_services'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: kMutedTextColor,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/create-service');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryBlue,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-              ),
-              child: Text(
-                  lang.tr('create_first_service', category: 'my_services')),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -700,13 +605,13 @@ class _MyServicesPageState extends State<MyServicesPage> {
                         lang.tr('pricing', category: 'my_services'),
                         service['price'] != null
                             ? lang.trParams('price_with_unit_details',
-                                category: 'my_services',
-                                params: {
-                                    'price': service['price'].toString(),
-                                    'unit': service['priceUnit'] ??
-                                        lang.tr('per_service',
-                                            category: 'my_services')
-                                  })
+                            category: 'my_services',
+                            params: {
+                              'price': service['price'].toString(),
+                              'unit': service['priceUnit'] ??
+                                  lang.tr('per_service',
+                                      category: 'my_services')
+                            })
                             : lang.tr('not_specified', category: 'my_services'),
                         Icons.attach_money,
                       ),

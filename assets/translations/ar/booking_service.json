@@ -1,0 +1,20 @@
+{
+  "log_booking_created": "✅ تم إنشاء الحجز بالمعرف: {{bookingId}}",
+  "log_attempting_notification": "📤 جاري محاولة إرسال إشعار الحجز...",
+  "log_notification_sent": "✅ تم إرسال إشعار الحجز بنجاح إلى مقدم الخدمة",
+  "log_notification_failed": "⚠️ فشل إرسال إشعار الحجز",
+  "log_notification_error": "⚠️ خطأ في إرسال إشعار الحجز: {{error}}",
+  "log_error_creating_booking": "❌ خطأ في إنشاء الحجز: {{error}}",
+  "log_error_getting_bookings": "خطأ في الحصول على الحجوزات: {{error}}",
+  "log_error_updating_status": "خطأ في تحديث الحالة: {{error}}",
+  "log_error_deleting_booking": "خطأ في حذف الحجز: {{error}}",
+  "error_booking_creation_failed": "فشل إنشاء الحجز",
+  "error_status_update_failed": "فشل تحديث حالة الحجز",
+  "error_booking_deletion_failed": "فشل حذف الحجز",
+  "status_pending": "قيد الانتظار",
+  "status_accepted": "مقبول",
+  "status_confirmed": "مؤكد",
+  "status_completed": "مكتمل",
+  "status_cancelled": "ملغي",
+  "status_rejected": "مرفوض"
+}

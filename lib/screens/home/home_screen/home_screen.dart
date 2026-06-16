@@ -15,6 +15,7 @@ import 'package:service_app/screens/home/providers_list/provider_list_page.dart'
 import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/screens/service/create_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 import 'home_constants.dart';
 
 class HomePage extends StatefulWidget {
@@ -220,6 +221,7 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Directionality(
@@ -227,7 +229,7 @@ class _HomePageState extends State<HomePage>
               ? ui.TextDirection.rtl
               : ui.TextDirection.ltr,
           child: Scaffold(
-            backgroundColor: kLightBackgroundColor,
+            backgroundColor: theme.scaffoldBackgroundColor,
             body: SafeArea(
               child: Column(
                 children: [
@@ -350,8 +352,8 @@ class _HomePageState extends State<HomePage>
           ),
         ),
         if (_notificationCount > 0)
-          Positioned(
-            right: 0,
+          PositionedDirectional(
+            end: 0,
             top: 0,
             child: Container(
               padding: const EdgeInsets.all(2),
@@ -377,6 +379,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildCategoriesSection(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
@@ -385,7 +388,7 @@ class _HomePageState extends State<HomePage>
           Text(
             lang.tr('categories', category: 'home_page'),
             style: TextStyle(
-              color: kDarkTextColor,
+              color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
               fontSize: 22,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -393,9 +396,12 @@ class _HomePageState extends State<HomePage>
           ),
           const SizedBox(height: 16),
           if (_isLoadingCategories)
-            _buildLoadingCategories(lang)
+            const LoadingWidget()
           else if (_categories.isEmpty)
-            _buildEmptyCategories(lang)
+            EmptyStateWidget(
+              icon: Icons.category_outlined,
+              message: lang.tr('no_services_available', category: 'home_page'),
+            )
           else
             _buildCategoriesGrid(lang),
         ],
@@ -421,6 +427,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildCategoryItem(
       CategoryModel category, int index, LanguageProvider lang) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => _onCategorySelected(category),
       child: Container(
@@ -452,7 +459,7 @@ class _HomePageState extends State<HomePage>
               getTranslatedCategoryName(category.name, lang),
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: kDarkTextColor,
+                color: theme.textTheme.bodyMedium?.color ?? kDarkTextColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 fontFamily: 'Exo2',
@@ -461,60 +468,6 @@ class _HomePageState extends State<HomePage>
               overflow: TextOverflow.ellipsis,
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingCategories(LanguageProvider lang) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
-        childAspectRatio: 0.9,
-      ),
-      itemCount: 6,
-      itemBuilder: (context, index) => _buildShimmerCategory(),
-    );
-  }
-
-  Widget _buildShimmerCategory() {
-    return Column(
-      children: [
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          width: 70,
-          height: 12,
-          color: Colors.grey.shade200,
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 50,
-          height: 10,
-          color: Colors.grey.shade200,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyCategories(LanguageProvider lang) {
-    return SizedBox(
-      height: 300,
-      child: Center(
-        child: _EmptyState(
-          icon: Icons.category_outlined,
-          message: lang.tr('no_services_available', category: 'home_page'),
         ),
       ),
     );
@@ -537,35 +490,5 @@ class _HomePageState extends State<HomePage>
     _searchController.dispose();
     _notificationCountSubscription?.cancel();
     super.dispose();
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-
-  const _EmptyState({
-    required this.icon,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 48, color: kMutedTextColor),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            style: TextStyle(
-              color: kMutedTextColor,
-              fontFamily: 'Exo2',
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

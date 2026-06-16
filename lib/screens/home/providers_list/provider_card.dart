@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:service_app/screens/auth/constants.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ProviderCard extends StatefulWidget {
   final ProviderModel provider;
@@ -568,5 +569,80 @@ class _ProviderCardState extends State<ProviderCard>
     }
 
     return lang.tr('location_not_specified', category: 'providers_list_page');
+  }
+}
+
+class ProviderSkeleton extends StatelessWidget {
+  const ProviderSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(width: 120, height: 16, color: Colors.white),
+                      const SizedBox(height: 10),
+                      Container(width: 80, height: 12, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(width: double.infinity, height: 12, color: Colors.white),
+            const SizedBox(height: 8),
+            Container(width: 200, height: 12, color: Colors.white),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

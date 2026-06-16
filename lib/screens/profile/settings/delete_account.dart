@@ -5,6 +5,7 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key});
@@ -29,26 +30,21 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
   Future<void> _deleteAccount(LanguageProvider languageProvider) async {
     if (!_understandConsequences) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.tr('pleaseConfirmDelete', category: 'profile'),
-          ),
-          backgroundColor: kDangerColor,
-        ),
+      AppSnackBar.showError(
+        context,
+        languageProvider.tr('pleaseConfirmDelete', category: 'profile'),
       );
       return;
     }
 
+    final confirmationText = languageProvider.tr('delete_my_account_cmd', category: 'profile');
     if (_confirmationController.text.trim().toLowerCase() !=
-        'delete my account') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.tr('typeDeleteMyAccount', category: 'profile'),
-          ),
-          backgroundColor: kDangerColor,
-        ),
+        confirmationText.toLowerCase()) {
+      AppSnackBar.showError(
+        context,
+        languageProvider.trParams('type_exact_to_confirm', 
+            category: 'profile', 
+            params: {'cmd': confirmationText}),
       );
       return;
     }
@@ -111,20 +107,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             languageProvider.tr('incorrectPassword', category: 'profile');
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: kDangerColor,
-        ),
-      );
+      AppSnackBar.showError(context, errorMessage);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
-          ),
-          backgroundColor: kDangerColor,
-        ),
+      AppSnackBar.showError(
+        context,
+        '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
       );
     } finally {
       if (mounted) {
@@ -150,26 +137,18 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       await authViewModel.logout();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('accountDeletedSuccess', category: 'profile'),
-            ),
-            backgroundColor: kSuccessColor,
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.tr('accountDeletedSuccess', category: 'profile'),
         );
 
         // Navigate to login screen
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
-          ),
-          backgroundColor: kDangerColor,
-        ),
+      AppSnackBar.showError(
+        context,
+        '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
       );
     }
   }

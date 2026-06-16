@@ -16,6 +16,9 @@ import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/profile/subscription_page.dart';
 import 'package:service_app/screens/admin/admin_codes_page.dart';
+import 'package:service_app/utils/ui_widgets.dart';
+
+import 'package:service_app/screens/profile/about_us_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final UserModel user;
@@ -98,8 +101,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch LanguageProvider for real-time changes
+    // Watch LanguageProvider and ThemeProvider for real-time changes
     final languageProvider = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
 
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, child) {
@@ -108,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage> {
         final bool isProvider = currentUser.isProvider;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: Stack(
             children: [
               SingleChildScrollView(
@@ -127,7 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildStatisticsRow(currentUser, languageProvider),
 
                     // Settings Section
-                    _buildSettingsSection(context),
+                    _buildSettingsSection(context, languageProvider),
 
                     // Role Switch Button
                     _buildRoleSwitchSection(
@@ -174,6 +178,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -181,15 +186,15 @@ class _ProfilePageState extends State<ProfilePage> {
         right: 20,
         bottom: 15,
       ),
-      color: Colors.white,
+      color: theme.cardColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const SizedBox(width: 40),
-          const Text(
-            'Profile',
+          Text(
+            languageProvider.tr('profileTitle', category: 'common'),
             style: TextStyle(
-              color: Colors.black87,
+              color: theme.textTheme.titleLarge?.color ?? Colors.black87,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -205,11 +210,11 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -217,7 +222,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: Icon(
                 Icons.settings_outlined,
-                color: const Color.fromARGB(255, 12, 94, 153),
+                color: theme.primaryColor,
                 size: 24,
               ),
             ),
@@ -228,6 +233,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader(UserModel user) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
@@ -237,16 +244,16 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               CircleAvatar(
                 radius: 50,
-                backgroundColor: Colors.white,
+                backgroundColor: isDark ? Colors.white10 : theme.cardColor,
                 backgroundImage: ImageUtils.getImageProvider(user.photoUrl),
                 child: _buildImageLoadingFallback(user),
               ),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 12, 94, 153),
+                  color: theme.primaryColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: theme.cardColor, width: 2),
                 ),
                 child: const Icon(
                   Icons.camera_alt,
@@ -259,8 +266,8 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 16),
           Text(
             user.name,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: theme.textTheme.titleLarge?.color ?? Colors.black87,
               fontSize: 24,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
@@ -271,7 +278,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Text(
               user.profession!,
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: isDark ? Colors.white70 : Colors.grey.shade600,
                 fontSize: 16,
               ),
             )
@@ -279,7 +286,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Text(
               user.phone,
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: isDark ? Colors.white70 : Colors.grey.shade600,
                 fontSize: 16,
               ),
             ),
@@ -287,13 +294,13 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.1),
+              color: theme.primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               user.role.toUpperCase(),
               style: TextStyle(
-                color: const Color.fromARGB(255, 12, 94, 153),
+                color: theme.primaryColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -307,14 +314,15 @@ class _ProfilePageState extends State<ProfilePage> {
   // Build User Info Section - Wrapped to ensure it rebuilds with language
   Widget _buildUserInfoSection(
       UserModel user, LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -324,20 +332,20 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _buildInfoItem(
             icon: Icons.email_outlined,
-            label: 'Email',
+            label: languageProvider.tr('email', category: 'common'),
             value: user.email,
           ),
           const Divider(height: 1, indent: 20, endIndent: 20),
           _buildInfoItem(
             icon: Icons.phone_outlined,
-            label: 'Phone',
+            label: languageProvider.tr('phone', category: 'common'),
             value: user.phone,
           ),
           if (user.profession != null && user.profession!.isNotEmpty) ...[
             const Divider(height: 1, indent: 20, endIndent: 20),
             _buildInfoItem(
               icon: Icons.work_outline,
-              label: 'Profession',
+              label: languageProvider.tr('profession', category: 'common'),
               value: user.profession!,
             ),
           ],
@@ -345,7 +353,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const Divider(height: 1, indent: 20, endIndent: 20),
             _buildInfoItem(
               icon: Icons.location_on_outlined,
-              label: 'Location',
+              label: languageProvider.tr('location', category: 'common'),
               value:
                   '${user.commune ?? ''}${user.commune != null && user.wilaya != null ? ', ' : ''}${user.wilaya ?? ''}',
             ),
@@ -360,6 +368,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required String label,
     required String value,
   }) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       child: Row(
@@ -377,15 +386,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
+                    color: theme.textTheme.bodySmall?.color ?? Colors.grey.shade600,
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    color: Colors.black87,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color ?? Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -398,7 +407,8 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildSettingsSection(BuildContext context) {
+  Widget _buildSettingsSection(
+      BuildContext context, LanguageProvider languageProvider) {
     final auth = context.read<AuthViewModel>();
     final user = auth.currentUser ?? widget.user;
 
@@ -408,20 +418,29 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           if (user.isProvider)
             ListTile(
-              leading: Icon(Icons.subscriptions_outlined, color: Colors.blue),
-              title: Text('My Subscription'),
-              trailing: Icon(Icons.chevron_right),
+              leading: const Icon(Icons.subscriptions_outlined, color: Colors.blue),
+              title: Text(
+                  languageProvider.tr('mySubscription', category: 'common')),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const SubscriptionPage())),
             ),
           if (user.isAdmin)
             ListTile(
-              leading: Icon(Icons.vpn_key_outlined, color: Colors.purple),
-              title: Text('Manage Subscription Codes'),
-              trailing: Icon(Icons.chevron_right),
+              leading: const Icon(Icons.vpn_key_outlined, color: Colors.purple),
+              title: Text(
+                  languageProvider.tr('manageSubCodes', category: 'common')),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const AdminCodesPage())),
             ),
+          ListTile(
+            leading: const Icon(Icons.info_outline, color: Colors.teal),
+            title: Text(languageProvider.tr('aboutUs', category: 'common')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const AboutUsPage())),
+          ),
         ],
       ),
     );
@@ -435,15 +454,18 @@ class _ProfilePageState extends State<ProfilePage> {
         ? languageProvider.tr('viewManageRequests', category: 'common')
         : languageProvider.tr('viewManageBookings', category: 'common');
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -468,13 +490,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 12, 94, 153)
-                          .withOpacity(0.1),
+                      color: theme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       CupertinoIcons.calendar_today,
-                      color: const Color.fromARGB(255, 12, 94, 153),
+                      color: theme.primaryColor,
                       size: 24,
                     ),
                   ),
@@ -486,7 +507,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           title,
                           style: TextStyle(
-                            color: Colors.grey.shade800,
+                            color: theme.textTheme.bodyLarge?.color ?? Colors.grey.shade800,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Exo2',
@@ -496,7 +517,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           subtitle,
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
                             fontSize: 12,
                           ),
                         ),
@@ -505,7 +526,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Icon(
                     CupertinoIcons.chevron_right,
-                    color: Colors.grey.shade500,
+                    color: isDark ? Colors.white24 : Colors.grey.shade500,
                     size: 20,
                   ),
                 ],
@@ -602,22 +623,23 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildFallbackAvatar(UserModel user) {
+    final theme = Theme.of(context);
     return CircleAvatar(
       radius: 50,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.cardColor,
       child: user.name.isNotEmpty
           ? Text(
               user.name[0].toUpperCase(),
               style: TextStyle(
                 fontSize: 36,
-                color: const Color.fromARGB(255, 12, 94, 153),
+                color: theme.primaryColor,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Exo2',
               ),
             )
           : Icon(
               CupertinoIcons.person_fill,
-              color: const Color.fromARGB(255, 12, 94, 153),
+              color: theme.primaryColor,
               size: 60,
             ),
     );
@@ -629,16 +651,18 @@ class _ProfilePageState extends State<ProfilePage> {
     final String title = languageProvider.tr('myServices', category: 'common');
     final String subtitle =
         languageProvider.tr('manageServices', category: 'common');
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -661,13 +685,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 12, 94, 153)
-                          .withOpacity(0.1),
+                      color: theme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       CupertinoIcons.wrench_fill,
-                      color: const Color.fromARGB(255, 12, 94, 153),
+                      color: theme.primaryColor,
                       size: 24,
                     ),
                   ),
@@ -679,7 +702,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           title,
                           style: TextStyle(
-                            color: Colors.grey.shade800,
+                            color: theme.textTheme.bodyLarge?.color ?? Colors.grey.shade800,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Exo2',
@@ -689,7 +712,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           subtitle,
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
                             fontSize: 12,
                           ),
                         ),
@@ -698,7 +721,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Icon(
                     CupertinoIcons.chevron_right,
-                    color: Colors.grey.shade500,
+                    color: isDark ? Colors.white24 : Colors.grey.shade500,
                     size: 20,
                   ),
                 ],
@@ -840,6 +863,8 @@ class _ProfilePageState extends State<ProfilePage> {
         : languageProvider.tr('asProvider', category: 'common');
     final String cancelBtn = languageProvider.tr('cancel', category: 'common');
     final String switchBtn = languageProvider.tr('switch', category: 'common');
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     showDialog(
       context: context,
@@ -853,7 +878,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Container(
             padding: const EdgeInsets.all(25),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -870,15 +895,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color:
-                        const Color.fromARGB(255, 12, 94, 153).withOpacity(0.1),
+                    color: theme.primaryColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     user.isProvider
                         ? CupertinoIcons.person_fill
                         : CupertinoIcons.briefcase_fill,
-                    color: const Color.fromARGB(255, 12, 94, 153),
+                    color: theme.primaryColor,
                     size: 32,
                   ),
                 ),
@@ -888,7 +912,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Colors.black87,
+                    color: theme.textTheme.titleLarge?.color ?? Colors.black87,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Exo2',
@@ -901,7 +925,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   '$description $currentRole to $targetRole.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -912,19 +936,17 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 12, 94, 153)
-                        .withOpacity(0.05),
+                    color: theme.primaryColor.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color.fromARGB(255, 12, 94, 153)
-                          .withOpacity(0.2),
+                      color: theme.primaryColor.withOpacity(0.2),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         CupertinoIcons.info_circle_fill,
-                        color: const Color.fromARGB(255, 12, 94, 153),
+                        color: theme.primaryColor,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
@@ -932,7 +954,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Text(
                           descriptionDetail,
                           style: TextStyle(
-                            color: Colors.black87,
+                            color: theme.textTheme.bodyMedium?.color ?? Colors.black87,
                             fontSize: 12,
                             height: 1.3,
                           ),
@@ -951,8 +973,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.grey.shade600,
-                          side: BorderSide(color: Colors.grey.shade300),
+                          foregroundColor: isDark ? Colors.white70 : Colors.grey.shade600,
+                          side: BorderSide(color: theme.dividerColor),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -977,8 +999,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               authViewModel, languageProvider);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color.fromARGB(255, 12, 94, 153),
+                          backgroundColor: theme.primaryColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -989,7 +1010,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
+                            const Icon(
                               CupertinoIcons.arrow_2_circlepath,
                               size: 18,
                             ),
@@ -1041,13 +1062,7 @@ class _ProfilePageState extends State<ProfilePage> {
         // Show success message - Gets translated text in real-time
         final successMsg =
             languageProvider.tr('roleSwitchSuccess', category: 'common');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(successMsg),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        AppSnackBar.showSuccess(context, successMsg);
       }
     } catch (e) {
       print('❌ Error during role switch: $e');
@@ -1060,13 +1075,7 @@ class _ProfilePageState extends State<ProfilePage> {
         // Show error message - Gets translated text in real-time
         final errorMsg =
             languageProvider.tr('failedSwitch', category: 'common');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$errorMsg: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        AppSnackBar.showError(context, '$errorMsg: $e');
       }
     }
   }
@@ -1084,17 +1093,19 @@ class _ProfilePageState extends State<ProfilePage> {
         languageProvider.tr('rating', category: 'common');
     final String completedLabel =
         languageProvider.tr('completed', category: 'common');
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     Widget statItem(String label, dynamic value, IconData icon) {
       return Expanded(
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1103,7 +1114,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             children: [
               Icon(icon,
-                  color: const Color.fromARGB(255, 12, 94, 153), size: 24),
+                  color: theme.primaryColor, size: 24),
               const SizedBox(height: 8),
               Text(
                 label == ratingLabel
@@ -1111,17 +1122,17 @@ class _ProfilePageState extends State<ProfilePage> {
                         ? value.toStringAsFixed(1)
                         : value.toString())
                     : value.toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 12, 94, 153),
+                  color: theme.primaryColor,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color),
               ),
             ],
           ),
@@ -1175,16 +1186,19 @@ class _ProfilePageState extends State<ProfilePage> {
     required String content,
     required IconData icon,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -1196,26 +1210,26 @@ class _ProfilePageState extends State<ProfilePage> {
             Row(
               children: [
                 Icon(icon,
-                    color: const Color.fromARGB(255, 12, 94, 153), size: 20),
+                    color: theme.primaryColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Color.fromARGB(255, 12, 94, 153),
+                  style: TextStyle(
+                    color: theme.primaryColor,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-            const Divider(
-              color: Color.fromARGB(255, 240, 240, 240),
+            Divider(
+              color: theme.dividerColor,
               height: 20,
             ),
             Text(
               content,
-              style: const TextStyle(
-                color: Colors.black87,
+              style: TextStyle(
+                color: theme.textTheme.bodyMedium?.color,
                 fontSize: 14,
                 height: 1.5,
               ),

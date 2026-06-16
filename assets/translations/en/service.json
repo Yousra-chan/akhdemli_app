@@ -69,7 +69,13 @@
   "error_description_min_length": "Description must be at least 20 characters",
   "error_permission_denied": "Permission denied. You don't have access to perform this action",
   "error_network": "Network error. Please check your internet connection and try again",
-  
+  "error_service_not_found": "Service not found",
+  "error_loading_services": "Failed to load services",
+  "error_update_failed": "Failed to update service",
+  "error_delete_failed": "Failed to delete service",
+  "error_select_category": "Please select a category",
+  "error_select_subcategory": "Please select a subcategory",
+
   "success_service_created": "Service created successfully!",
   
   "help_title": "Creating a Service",

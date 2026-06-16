@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/Services/subscription_service.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 import 'package:service_app/screens/auth/constants.dart';
 
@@ -26,6 +28,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
   Future<void> _openWhatsApp() async {
     final auth = context.read<AuthViewModel>();
+    final lang = context.read<LanguageProvider>();
 
     try {
       String? adminPhone;
@@ -41,7 +44,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       }
 
       if (adminPhone == null || adminPhone.isEmpty) {
-        showErrorSnackBar(context, 'Admin phone not configured');
+        AppSnackBar.showError(
+            context, lang.tr('admin_phone_not_configured', category: 'profile'));
         return;
       }
 
@@ -59,23 +63,24 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      showErrorSnackBar(context, 'Error: $e');
+      AppSnackBar.showError(context, '${lang.tr('error_occurred', category: 'common')}: $e');
     }
   }
 
   Future<void> _applyCode() async {
     final auth = context.read<AuthViewModel>();
+    final lang = context.read<LanguageProvider>();
     final user = auth.currentUser;
 
     final code = _codeCtrl.text.trim();
 
     if (code.isEmpty) {
-      showErrorSnackBar(context, 'Enter a code');
+      AppSnackBar.showError(context, lang.tr('enter_code_error', category: 'profile'));
       return;
     }
 
     if (user == null) {
-      showErrorSnackBar(context, 'Please sign in');
+      AppSnackBar.showError(context, lang.tr('pleaseSignIn', category: 'profile'));
       return;
     }
 
@@ -88,7 +93,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       );
 
       if (mounted) {
-        showSuccessSnackBar(context, 'Subscription activated');
+        AppSnackBar.showSuccess(context, lang.tr('subscription_activated_success', category: 'profile'));
       }
 
       try {
@@ -101,7 +106,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       _codeCtrl.clear();
     } catch (e) {
       if (mounted) {
-        showErrorSnackBar(context, 'Failed: $e');
+        AppSnackBar.showError(context, lang.tr('subscription_failed', category: 'profile'));
       }
     } finally {
       if (mounted) {
@@ -113,7 +118,16 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthViewModel>();
+    final lang = context.watch<LanguageProvider>();
     final user = auth.currentUser;
+
+    // Subscription only for providers
+    if (user != null && !user.isProvider && !user.isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: Text(lang.tr('mySubscription', category: 'common'))),
+        body: Center(child: Text(lang.tr('permission_error', category: 'common'))),
+      );
+    }
 
     final expiry = user?.subscriptionExpiresAt ?? user?.subscriptionExpiry;
 
@@ -121,18 +135,22 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         expiry != null &&
         expiry.toDate().isAfter(DateTime.now());
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text(
-          'My Subscription',
+        iconTheme: IconThemeData(color: theme.textTheme.titleLarge?.color),
+        title: Text(
+          lang.tr('mySubscription', category: 'common'),
           style: TextStyle(
-            color: Colors.black87,
+            color: theme.textTheme.titleLarge?.color,
             fontWeight: FontWeight.w600,
+            fontFamily: 'Exo2'
           ),
         ),
       ),
@@ -140,25 +158,26 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildStatusCard(isActive, expiry),
+            _buildStatusCard(isActive, expiry, lang, theme),
             const SizedBox(height: 16),
-            _buildActionCard(),
+            _buildActionCard(lang, theme),
             const SizedBox(height: 16),
-            _buildCodeCard(),
+            _buildCodeCard(lang, theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusCard(bool isActive, dynamic expiry) {
+  Widget _buildStatusCard(bool isActive, dynamic expiry, LanguageProvider lang, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorderColor),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,10 +185,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
           Row(
             children: [
               Text(
-                'Subscription Status',
-                style: TextStyle(
+                lang.tr('subscription_status', category: 'profile'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
+                  fontFamily: 'Exo2'
                 ),
               ),
               const Spacer(),
@@ -185,11 +205,12 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  isActive ? 'Active' : 'Inactive',
+                  isActive ? lang.tr('active', category: 'profile') : lang.tr('inactive', category: 'profile'),
                   style: TextStyle(
                     color: isActive ? Colors.green : Colors.red,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
+                    fontFamily: 'Exo2'
                   ),
                 ),
               ),
@@ -198,10 +219,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
           const SizedBox(height: 12),
           Text(
             expiry != null
-                ? 'Expires: ${expiry.toDate().toString().split(" ")[0]}'
-                : 'No active subscription',
-            style: const TextStyle(
-              color: kMutedTextColor,
+                ? lang.trParams('expires', category: 'profile', params: {'date': expiry.toDate().toString().split(" ")[0]})
+                : lang.tr('no_active_subscription', category: 'profile'),
+            style: TextStyle(
+              color: isDark ? Colors.white38 : kMutedTextColor,
+              fontFamily: 'Exo2'
             ),
           ),
         ],
@@ -209,29 +231,31 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 
-  Widget _buildActionCard() {
+  Widget _buildActionCard(LanguageProvider lang, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorderColor),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Need a subscription?',
-            style: TextStyle(
+          Text(
+            lang.tr('need_subscription', category: 'profile'),
+            style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 15,
+              fontFamily: 'Exo2'
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Contact admin directly on WhatsApp to purchase or activate your plan.',
-            style: TextStyle(color: kMutedTextColor),
+          Text(
+            lang.tr('contact_admin_instructions', category: 'profile'),
+            style: TextStyle(color: isDark ? Colors.white38 : kMutedTextColor, fontFamily: 'Exo2'),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -239,9 +263,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             child: ElevatedButton.icon(
               onPressed: _openWhatsApp,
               icon: const Icon(Icons.chat),
-              label: const Text('Contact Admin'),
+              label: Text(lang.tr('contact_admin', category: 'profile')),
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryColor,
+                backgroundColor: theme.primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -255,32 +279,36 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 
-  Widget _buildCodeCard() {
+  Widget _buildCodeCard(LanguageProvider lang, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorderColor),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Activate with Code',
-            style: TextStyle(
+          Text(
+            lang.tr('activate_with_code', category: 'profile'),
+            style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 15,
+              fontFamily: 'Exo2'
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _codeCtrl,
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color),
             decoration: InputDecoration(
-              hintText: 'Enter subscription code',
+              hintText: lang.tr('enter_code_hint', category: 'profile'),
+              hintStyle: TextStyle(fontFamily: 'Exo2', color: isDark ? Colors.white24 : Colors.grey),
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
@@ -293,7 +321,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             child: ElevatedButton(
               onPressed: _loading ? null : _applyCode,
               style: ElevatedButton.styleFrom(
-                backgroundColor: kSuccessColor,
+                backgroundColor: Colors.green, // Changed from kSuccessColor for clarity
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -309,7 +337,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Activate Subscription'),
+                  : Text(lang.tr('activate_subscription', category: 'profile'), style: const TextStyle(fontFamily: 'Exo2')),
             ),
           ),
         ],

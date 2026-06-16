@@ -89,7 +89,7 @@ class ServiceViewModel with ChangeNotifier {
       return true;
     } catch (e) {
       setLoading(false);
-      setError('Failed to create service: $e');
+      setError('error_create_failed');
       print('❌ Error in createServiceFromData: $e');
       print('Stack trace: ${e.toString()}');
       return false;
@@ -115,7 +115,7 @@ class ServiceViewModel with ChangeNotifier {
       return _services;
     } catch (e) {
       setLoading(false);
-      setError('Failed to fetch services: $e');
+      setError('error_loading_services');
       _services = [];
       return [];
     }
@@ -136,12 +136,12 @@ class ServiceViewModel with ChangeNotifier {
         return service;
       } else {
         setLoading(false);
-        setError('Service not found');
+        setError('error_service_not_found');
         return null;
       }
     } catch (e) {
       setLoading(false);
-      setError('Failed to fetch service: $e');
+      setError('error_loading_services');
       return null;
     }
   }
@@ -168,7 +168,7 @@ class ServiceViewModel with ChangeNotifier {
       // Get the existing service first to preserve some fields
       final existingService = await getServiceById(serviceId);
       if (existingService == null) {
-        setError('Service not found');
+        setError('error_service_not_found');
         setLoading(false);
         return false;
       }
@@ -230,7 +230,7 @@ class ServiceViewModel with ChangeNotifier {
       return true;
     } catch (e) {
       setLoading(false);
-      setError('Failed to update service: $e');
+      setError('error_update_failed');
       print('❌ Error in updateService: $e');
       return false;
     }
@@ -250,7 +250,7 @@ class ServiceViewModel with ChangeNotifier {
       return true;
     } catch (e) {
       setLoading(false);
-      setError('Failed to delete service: $e');
+      setError('error_delete_failed');
       return false;
     }
   }
@@ -277,7 +277,7 @@ class ServiceViewModel with ChangeNotifier {
       return true;
     } catch (e) {
       setLoading(false);
-      setError('Failed to update service status: $e');
+      setError('error_update_failed');
       return false;
     }
   }

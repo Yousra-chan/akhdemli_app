@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:service_app/screens/auth/language_selection_screen.dart';
+import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/auth/constants.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -14,50 +16,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<OnboardingItem> _onboardingData = [
-    // PAGE 1: Logo / Welcome - GET STARTED BUTTON HERE
-    OnboardingItem(
-      title: 'Welcome to Akhdem Li',
-      description:
-          'Your trusted platform for finding and offering professional services',
-      image: 'assets/images/logo.png',
-    ),
-    // PAGE 2: Find Services
-    OnboardingItem(
-      title: 'Find Services',
-      description:
-          'Browse through hundreds of trusted professionals in your area',
-      image: 'assets/images/1.png',
-    ),
-    // PAGE 3: Offer Your Skills
-    OnboardingItem(
-      title: 'Offer Your Skills',
-      description: 'Showcase your expertise and grow your client base',
-      image: 'assets/images/2.png',
-    ),
-    // PAGE 4: Get Started (final page)
-    OnboardingItem(
-      title: 'Get Started',
-      description: 'Join our community today and experience the difference',
-      image: 'assets/images/3.png',
-    ),
-  ];
+  List<OnboardingItem> _getOnboardingData(LanguageProvider lang) {
+    return [
+      OnboardingItem(
+        title: lang.tr('page_1_title', category: 'onboarding'),
+        description: lang.tr('page_1_description', category: 'onboarding'),
+        image: 'assets/images/logo.png',
+      ),
+      OnboardingItem(
+        title: lang.tr('page_2_title', category: 'onboarding'),
+        description: lang.tr('page_2_description', category: 'onboarding'),
+        image: 'assets/images/1.png',
+      ),
+      OnboardingItem(
+        title: lang.tr('page_3_title', category: 'onboarding'),
+        description: lang.tr('page_3_description', category: 'onboarding'),
+        image: 'assets/images/2.png',
+      ),
+      OnboardingItem(
+        title: lang.tr('page_4_title', category: 'onboarding'),
+        description: lang.tr('page_4_description', category: 'onboarding'),
+        image: 'assets/images/3.png',
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+    final onboardingData = _getOnboardingData(lang);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button - only show on pages after first?
+            // Skip button
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
                 onPressed: _completeOnboarding,
-                child: const Text(
-                  'Skip',
-                  style: TextStyle(
+                child: Text(
+                  lang.tr('skip', category: 'onboarding'),
+                  style: const TextStyle(
                     color: kPrimaryBlue,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -71,14 +72,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _onboardingData.length,
+                itemCount: onboardingData.length,
                 onPageChanged: (int page) {
                   setState(() {
                     _currentPage = page;
                   });
                 },
                 itemBuilder: (context, index) {
-                  return _buildOnboardingPage(_onboardingData[index]);
+                  return _buildOnboardingPage(onboardingData[index]);
                 },
               ),
             ),
@@ -87,7 +88,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                _onboardingData.length,
+                onboardingData.length,
                 (index) => _buildPageIndicator(index == _currentPage),
               ),
             ),
@@ -101,7 +102,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _currentPage == _onboardingData.length - 1
+                  onPressed: _currentPage == onboardingData.length - 1
                       ? _completeOnboarding
                       : _nextPage,
                   style: ElevatedButton.styleFrom(
@@ -113,9 +114,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     elevation: 0,
                   ),
                   child: Text(
-                    _currentPage == _onboardingData.length - 1
-                        ? 'Get Started'
-                        : 'Next',
+                    _currentPage == onboardingData.length - 1
+                        ? lang.tr('get_started', category: 'onboarding')
+                        : lang.tr('next', category: 'onboarding'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -221,12 +222,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasSeenOnboarding', true);
 
-    print('✅ Onboarding completed - navigating to language selection');
+    print('✅ Onboarding completed - navigating to login');
 
-    // Navigate to language selection screen
+    // Navigate to login screen
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     }
   }

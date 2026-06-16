@@ -1,5 +1,5 @@
 {
-  "hello_user": "Hello, {name}!",
+  "hello_user": "Hello, {{name}}!",
   "hello_guest": "Welcome, Guest!",
   "find_service_providers": "Find the best service providers near you",
   "manage_services": "Manage your services and bookings",

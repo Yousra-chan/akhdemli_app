@@ -5,12 +5,10 @@
   "step_location": "Emplacement",
   "step_review": "Aperçu",
   "step_progress": "Étape {{current}}/{{total}}: {{step}}",
-  
   "service_title": "Titre du service",
   "service_title_hint": "ex: Nettoyage professionnel de maison",
   "service_description": "Description",
   "service_description_hint": "Décrivez votre service en détail...",
-  
   "category_title": "Choisir une catégorie",
   "category_subtitle": "Sélectionnez la catégorie qui correspond le mieux à votre service",
   "category": "Catégorie",
@@ -18,12 +16,10 @@
   "category_section_title": "Choisir une catégorie",
   "category_section_desc": "Sélectionnez la catégorie qui correspond le mieux à votre service",
   "total_categories": "{{count}} catégories",
-  
   "pricing_title": "Fixez votre prix",
   "pricing_subtitle": "Combien facturez-vous pour ce service ?",
   "price": "Prix",
   "price_with_unit_review": "{{price}} {{unit}}",
-  
   "location_title": "Lieu du service",
   "location_subtitle": "Où allez-vous fournir ce service ?",
   "location": "Emplacement",
@@ -31,16 +27,13 @@
   "location_required_desc": "Veuillez définir l'emplacement de votre service pour continuer",
   "location_detected": "Emplacement défini",
   "location_tip": "💡 Astuce : Fournir un emplacement précis aide les clients à trouver votre service plus facilement et augmente les chances de réservation",
-  
   "review_title": "Aperçu et création",
   "review_subtitle": "Vérifiez les détails de votre service avant de publier",
   "review_info": "Votre service sera publié immédiatement après sa création. Vous pourrez le modifier plus tard depuis votre profil.",
-  
   "features": "Caractéristiques",
   "description": "Description",
   "not_set": "Non défini",
   "not_selected": "Non sélectionné",
-  
   "next": "Suivant",
   "back": "Retour",
   "cancel": "Annuler",
@@ -50,13 +43,11 @@
   "login_required_title": "Connexion requise",
   "login_required_message": "Vous devez être connecté pour créer un service",
   "go_to_login": "Aller à la connexion",
-  
   "validation_service_details": "Veuillez fournir un titre (min 5 car.) et une description (min 20 car.)",
   "validation_category": "Veuillez sélectionner une catégorie et une sous-catégorie",
   "validation_price": "Veuillez entrer un prix valide (0-1,000,000)",
   "validation_location": "Veuillez définir l'emplacement de votre service",
   "validation_complete": "Veuillez remplir tous les champs obligatoires",
-  
   "error_login_required": "Vous devez être connecté pour créer un service",
   "error_complete_fields": "Veuillez remplir tous les champs obligatoires",
   "error_create_failed": "Échec de la création du service. Veuillez réessayer",
@@ -68,9 +59,13 @@
   "error_description_min_length": "La description doit comporter au moins 20 caractères",
   "error_permission_denied": "Permission refusée. Vous n'avez pas accès à cette action",
   "error_network": "Erreur réseau. Veuillez vérifier votre connexion internet et réessayer",
-  
+  "error_service_not_found": "Service non trouvé",
+  "error_loading_services": "Échec du chargement des services",
+  "error_update_failed": "Échec de la mise à jour du service",
+  "error_delete_failed": "Échec de la suppression du service",
+  "error_select_category": "Veuillez sélectionner une catégorie",
+  "error_select_subcategory": "Veuillez sélectionner une sous-catégorie",
   "success_service_created": "Service créé avec succès !",
-  
   "help_title": "Création d'un service",
   "help_step1_title": "Étape 1 : Détails du service",
   "help_step1_desc": "Saisissez un titre clair et une description détaillée de votre service. Soyez précis sur ce que vous proposez.",
@@ -82,14 +77,13 @@
   "help_step4_desc": "Spécifiez où vous fournissez ce service. Cela aide à montrer votre service aux clients à proximité.",
   "help_step5_title": "Étape 5 : Aperçu",
   "help_step5_desc": "Vérifiez toutes les informations avant de publier votre service.",
-  
   "category_color_blue": "Bleu",
   "category_color_green": "Vert",
   "category_color_orange": "Orange",
   "category_color_purple": "Violet",
   "category_color_red": "Rouge",
   "category_color_teal": "Sarcelle",
-   "location_section_title": "Emplacement",
+  "location_section_title": "Emplacement",
   "location_getting": "Obtention de la position...",
   "location_found": "Position trouvée",
   "location_detect": "Détecter la position",
@@ -102,7 +96,6 @@
   "location_permission_denied": "Permission de localisation refusée",
   "location_service_disabled": "Les services de localisation sont désactivés",
   "location_error": "Échec de l'obtention de la position. Veuillez réessayer",
-  
   "location_permission_title": "Autorisation de localisation requise",
   "location_permission_message": "Nous avons besoin d'accéder à votre position pour détecter votre adresse actuelle. Cela aide les clients à trouver votre service.",
   "location_permission_enable": "Activer la localisation",
@@ -111,7 +104,6 @@
   "price_currency": "DZD",
   "price_hint": "0.00",
   "price_clear": "Effacer",
-  
   "price_billing_method": "Mode de facturation",
   "price_unit_hour": "par heure",
   "price_unit_hour_desc": "Par heure travaillée",
@@ -125,32 +117,25 @@
   "price_unit_item_desc": "Prix par unité",
   "price_unit_session": "par séance",
   "price_unit_session_desc": "Par rendez-vous",
-  
   "price_summary": "{{price}} DZD {{unit}}",
   "price_summary_label": "Basé sur {{unit}}",
-  
   "price_below_avg": "{{percentage}}% en dessous de la moyenne",
   "price_above_avg": "{{percentage}}% au-dessus de la moyenne",
   "price_at_avg": "Au prix du marché",
   "price_market_avg": "Moy. marché : {{price}} DZD",
-  
   "price_tooltip_hour": "Par heure travaillée",
   "price_tooltip_day": "Par jour travaillé",
   "price_tooltip_service": "Prix fixe",
   "price_tooltip_square_meter": "Basé sur la surface",
   "price_tooltip_item": "Prix par unité",
   "price_tooltip_session": "Par rendez-vous",
-   "service_subcategory": "Sous-catégorie",
+  "service_subcategory": "Sous-catégorie",
   "service_subcategory_desc_select": "Choisissez une sous-catégorie pour {{category}}",
   "service_subcategory_desc_no_select": "Sélectionnez d'abord une catégorie pour voir les sous-catégories",
-  
   "select_category": "Sélectionnez une catégorie",
   "select_category_desc": "Veuillez d'abord sélectionner une catégorie pour voir les sous-catégories disponibles",
-  
   "no_subcategories": "Aucune sous-catégorie",
   "no_subcategories_desc": "Aucune sous-catégorie disponible pour {{category}}",
-  
   "subcategory_selected": "Sous-catégorie sélectionnée",
-  
   "subcategory_count": "{{count}} sous-catégories"
 }

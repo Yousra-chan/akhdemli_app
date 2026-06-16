@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class UpdateEmailPage extends StatefulWidget {
   const UpdateEmailPage({super.key});
@@ -48,41 +49,28 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
       await user.verifyBeforeUpdateEmail(_newEmailController.text);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('updateEmailSuccess', category: 'profile'),
-            ),
-            backgroundColor: kSuccessColor,
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.tr('updateEmailSuccess', category: 'profile'),
         );
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage =
-          languageProvider.tr('failedUpdateEmail', category: 'profile');
+      languageProvider.tr('failedUpdateEmail', category: 'profile');
       if (e.code == 'wrong-password') {
         errorMessage =
             languageProvider.tr('wrongPassword', category: 'profile');
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: kDangerColor,
-          ),
-        );
+        AppSnackBar.showError(context, errorMessage);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${languageProvider.tr('failedUpdateEmail', category: 'profile')}: $e',
-            ),
-            backgroundColor: kDangerColor,
-          ),
+        AppSnackBar.showError(
+          context,
+          '${languageProvider.tr('failedUpdateEmail', category: 'profile')}: $e',
         );
       }
     } finally {
@@ -92,12 +80,12 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
     }
   }
 
-  String? _validateEmail(String? value) {
+  String? _validateEmail(String? value, LanguageProvider lang) {
     if (value == null || value.isEmpty) {
-      return 'Please enter an email';
+      return lang.tr('validation_email_required', category: 'auth');
     }
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Please enter a valid email';
+      return lang.tr('validation_email_invalid', category: 'auth');
     }
     return null;
   }
@@ -119,7 +107,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                 // Form
                 Container(
                   margin:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   decoration: BoxDecoration(
                     color: kCardBackgroundColor,
                     borderRadius: BorderRadius.circular(15),
@@ -140,7 +128,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                           controller: _newEmailController,
                           label: languageProvider.tr('newEmail',
                               category: 'profile'),
-                          validator: _validateEmail,
+                          validator: (val) => _validateEmail(val, languageProvider),
                         ),
                         const Divider(height: 1, indent: 20, endIndent: 20),
 
@@ -150,7 +138,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                           label: languageProvider.tr('confirmEmail',
                               category: 'profile'),
                           validator: (value) {
-                            final validation = _validateEmail(value);
+                            final validation = _validateEmail(value, languageProvider);
                             if (validation != null) return validation;
                             if (value != _newEmailController.text) {
                               return languageProvider.tr('emailMismatch',
@@ -168,7 +156,8 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                               category: 'profile'),
                           obscureText: _obscurePassword,
                           onToggle: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                                  () => _obscurePassword = !_obscurePassword),
+                          languageProvider: languageProvider,
                         ),
                       ],
                     ),
@@ -291,6 +280,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
     required String label,
     required bool obscureText,
     required VoidCallback onToggle,
+    required LanguageProvider languageProvider,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -337,7 +327,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return languageProvider.tr('validation_password_required', category: 'auth');
                     }
                     return null;
                   },
@@ -366,20 +356,20 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
         ),
         child: _isLoading
             ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        )
             : Text(
-                languageProvider.tr('updateEmail', category: 'profile'),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          languageProvider.tr('updateEmail', category: 'profile'),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

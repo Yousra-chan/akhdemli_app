@@ -170,6 +170,9 @@ Widget buildChatTile(
         ],
       ),
       onTap: () {
+        final chatVM = Provider.of<ChatViewModel?>(context, listen: false);
+        if (chatVM == null) return;
+        
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -178,7 +181,8 @@ Widget buildChatTile(
               isOnline: isOnline,
               chatId: chat.chatId,
               currentUserId: currentUserId,
-              chatViewModel: ChatViewModel(userId: currentUserId),
+              chatViewModel: chatVM,
+              contactUserId: otherUserId,
             ),
           ),
         );

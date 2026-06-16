@@ -7,6 +7,7 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/screens/auth/constants.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/screens/auth/register/registration_widget.dart'
     hide
         kAppFont,
@@ -68,7 +69,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       if (user != null) {
-        showSuccessSnackBar(
+        AppSnackBar.showSuccess(
             context, lang.tr('google_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
@@ -76,14 +77,14 @@ class _RegisterPageState extends State<RegisterPage> {
           (route) => false,
         );
       } else {
-        showErrorSnackBar(
+        AppSnackBar.showError(
             context,
             authViewModel.error ??
                 lang.tr('google_sign_in_failed', category: 'auth'));
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(
+      AppSnackBar.showError(
           context, lang.tr('google_sign_in_failed', category: 'auth'));
     }
   }
@@ -97,7 +98,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       if (user != null) {
-        showSuccessSnackBar(
+        AppSnackBar.showSuccess(
             context, lang.tr('apple_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
@@ -105,14 +106,14 @@ class _RegisterPageState extends State<RegisterPage> {
           (route) => false,
         );
       } else {
-        showErrorSnackBar(
+        AppSnackBar.showError(
             context,
             authViewModel.error ??
                 lang.tr('apple_sign_in_failed', category: 'auth'));
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(
+      AppSnackBar.showError(
           context, lang.tr('apple_sign_in_failed', category: 'auth'));
     }
   }
@@ -212,7 +213,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       if (user != null) {
-        showSuccessSnackBar(
+        AppSnackBar.showSuccess(
             context,
             lang.trParams('register_success',
                 category: 'auth', params: {'name': user.name ?? ''}));
@@ -223,12 +224,12 @@ class _RegisterPageState extends State<RegisterPage> {
           (route) => false,
         );
       } else {
-        showErrorSnackBar(context,
+        AppSnackBar.showError(context,
             authViewModel.error ?? lang.tr('register_error', category: 'auth'));
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(
+      AppSnackBar.showError(
           context,
           authViewModel.error ??
               lang.tr('register_unexpected_error', category: 'auth'));

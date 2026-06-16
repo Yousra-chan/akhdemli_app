@@ -48,7 +48,7 @@ class ChatViewModel extends ChangeNotifier {
       await _chatService.sendMessage(chatId, message);
       return true;
     } catch (e) {
-      _setError('Error sending message: $e');
+      _setError('failed_to_send_message');
       return false;
     } finally {
       _setLoading(false);
@@ -69,8 +69,9 @@ class ChatViewModel extends ChangeNotifier {
       );
       return chatId;
     } catch (e) {
-      _setError('Error creating chat: $e');
-      return null;
+      debugPrint('❌ ChatViewModel.createChat error: $e');
+      _setError(e.toString());
+      rethrow; // Rethrow to let the UI handle specific errors
     } finally {
       _setLoading(false);
     }

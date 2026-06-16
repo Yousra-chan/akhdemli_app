@@ -5,12 +5,10 @@
   "step_location": "الموقع",
   "step_review": "المراجعة",
   "step_progress": "الخطوة {{current}}/{{total}} - {{step}}",
-
   "service_title": "عنوان الخدمة",
   "service_title_hint": "مثال: تنظيف منزل احترافي",
   "service_description": "الوصف",
   "service_description_hint": "صف خدمتك بالتفصيل...",
-
   "category_title": "اختر الفئة",
   "category_subtitle": "اختر الفئة التي تناسب خدمتك أكثر",
   "category": "الفئة",
@@ -18,12 +16,10 @@
   "category_section_title": "اختر الفئة",
   "category_section_desc": "اختر الفئة التي تناسب خدمتك أكثر",
   "total_categories": "{{count}} فئة",
-
   "pricing_title": "حدد السعر",
   "pricing_subtitle": "كم تبلغ تكلفة هذه الخدمة؟",
   "price": "السعر",
   "price_with_unit_review": "{{price}} {{unit}}",
-
   "location_title": "موقع الخدمة",
   "location_subtitle": "أين ستقدم هذه الخدمة؟",
   "location": "الموقع",
@@ -31,33 +27,27 @@
   "location_required_desc": "يرجى تحديد موقع خدمتك للمتابعة",
   "location_detected": "تم تحديد الموقع",
   "location_tip": "💡 نصيحة: تحديد موقع دقيق يساعد العملاء في العثور على خدمتك بسهولة ويزيد فرص الحجز",
-
   "review_title": "المراجعة والإنشاء",
   "review_subtitle": "راجع تفاصيل خدمتك قبل النشر",
   "review_info": "سيتم نشر خدمتك فور إنشائها. يمكنك تعديلها لاحقًا من ملفك الشخصي.",
-
   "features": "المميزات",
   "description": "الوصف",
   "not_set": "غير محدد",
   "not_selected": "غير مختار",
-
   "next": "التالي",
   "back": "رجوع",
   "cancel": "إلغاء",
   "create": "إنشاء الخدمة",
   "got_it": "حسنًا",
-
   "login_required": "تسجيل الدخول مطلوب",
   "login_required_title": "تسجيل الدخول مطلوب",
   "login_required_message": "يجب تسجيل الدخول لإنشاء خدمة",
   "go_to_login": "الانتقال إلى تسجيل الدخول",
-
   "validation_service_details": "يرجى إدخال عنوان (5 أحرف على الأقل) ووصف (20 حرفًا على الأقل)",
   "validation_category": "يرجى اختيار الفئة والفئة الفرعية",
   "validation_price": "يرجى إدخال سعر صحيح (بين 0 و 1,000,000)",
   "validation_location": "يرجى تحديد موقع خدمتك",
   "validation_complete": "يرجى إكمال جميع الحقول المطلوبة",
-
   "error_login_required": "يجب تسجيل الدخول لإنشاء خدمة",
   "error_complete_fields": "يرجى إكمال جميع الحقول المطلوبة",
   "error_create_failed": "فشل إنشاء الخدمة. يرجى المحاولة مرة أخرى",
@@ -69,9 +59,13 @@
   "error_description_min_length": "يجب أن يكون الوصف 20 حرفًا على الأقل",
   "error_permission_denied": "تم رفض الإذن. ليس لديك صلاحية للقيام بهذا الإجراء",
   "error_network": "خطأ في الشبكة. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
-
+  "error_service_not_found": "الخدمة غير موجودة",
+  "error_loading_services": "فشل تحميل الخدمات",
+  "error_update_failed": "فشل تحديث الخدمة",
+  "error_delete_failed": "فشل حذف الخدمة",
+  "error_select_category": "يرجى اختيار فئة",
+  "error_select_subcategory": "يرجى اختيار فئة فرعية",
   "success_service_created": "تم إنشاء الخدمة بنجاح!",
-
   "help_title": "إنشاء خدمة",
   "help_step1_title": "الخطوة 1: تفاصيل الخدمة",
   "help_step1_desc": "أدخل عنوانًا واضحًا ووصفًا مفصلًا لخدمتك. كن محددًا فيما تقدمه.",
@@ -83,14 +77,12 @@
   "help_step4_desc": "حدد أين تقدم هذه الخدمة. هذا يساعد في عرض خدمتك للعملاء القريبين.",
   "help_step5_title": "الخطوة 5: المراجعة",
   "help_step5_desc": "تحقق من جميع المعلومات قبل نشر خدمتك.",
-
   "category_color_blue": "أزرق",
   "category_color_green": "أخضر",
   "category_color_orange": "برتقالي",
   "category_color_purple": "بنفسجي",
   "category_color_red": "أحمر",
   "category_color_teal": "فيروزي",
-
   "location_section_title": "الموقع",
   "location_getting": "جارٍ الحصول على الموقع...",
   "location_found": "تم العثور على الموقع",
@@ -104,17 +96,14 @@
   "location_permission_denied": "تم رفض إذن الموقع",
   "location_service_disabled": "خدمات الموقع معطلة",
   "location_error": "فشل في الحصول على الموقع. يرجى المحاولة مرة أخرى",
-
   "location_permission_title": "مطلوب إذن الوصول إلى الموقع",
   "location_permission_message": "نحتاج إلى الوصول إلى موقعك لتحديد عنوانك الحالي. هذا يساعد العملاء في العثور على خدمتك.",
   "location_permission_enable": "تفعيل الموقع",
   "location_permission_cancel": "ليس الآن",
-
   "price_section_title": "السعر",
   "price_currency": "دج",
   "price_hint": "0.00",
   "price_clear": "مسح",
-
   "price_billing_method": "طريقة الفوترة",
   "price_unit_hour": "لكل ساعة",
   "price_unit_hour_desc": "لكل ساعة عمل",
@@ -128,15 +117,12 @@
   "price_unit_item_desc": "سعر لكل وحدة",
   "price_unit_session": "لكل جلسة",
   "price_unit_session_desc": "لكل موعد",
-
   "price_summary": "{{price}} دج {{unit}}",
   "price_summary_label": "بناءً على {{unit}}",
-
   "price_below_avg": "{{percentage}}% أقل من متوسط السوق",
   "price_above_avg": "{{percentage}}% أعلى من متوسط السوق",
   "price_at_avg": "مطابق لسعر السوق",
   "price_market_avg": "متوسط السوق: {{price}} دج",
-
   "price_tooltip_hour": "لكل ساعة عمل",
   "price_tooltip_day": "لكل يوم عمل",
   "price_tooltip_service": "سعر ثابت",
@@ -146,14 +132,10 @@
   "service_subcategory": "الفئة الفرعية",
   "service_subcategory_desc_select": "اختر فئة فرعية لـ {{category}}",
   "service_subcategory_desc_no_select": "اختر فئة أولاً لعرض الفئات الفرعية",
-  
   "select_category": "اختر فئة",
   "select_category_desc": "يرجى اختيار فئة أولاً لعرض الفئات الفرعية المتاحة",
-  
   "no_subcategories": "لا توجد فئات فرعية",
   "no_subcategories_desc": "لا توجد فئات فرعية متاحة لـ {{category}}",
-  
   "subcategory_selected": "تم اختيار الفئة الفرعية",
-  
   "subcategory_count": "{{count}} فئات فرعية"
 }

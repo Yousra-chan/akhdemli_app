@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/Services/subscription_service.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 const Color kPrimaryBlue = Color(0xFF143EAE);
 const Color kMutedTextColor = Color(0xFF5A6670);
@@ -70,9 +71,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
+        AppSnackBar.showError(context, 'Error loading data: $e');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -255,8 +254,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
             TextButton(
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: code));
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(const SnackBar(content: Text('Code copied')));
+                AppSnackBar.showSuccess(context, 'Code copied');
               },
               child: const Text('Copy'),
             ),
@@ -269,8 +267,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Generate failed: $e')));
+        AppSnackBar.showError(context, 'Generate failed: $e');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -335,13 +332,11 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       await _service.deleteCode(code);
       await _loadAll();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Code deleted')));
+        AppSnackBar.showSuccess(context, 'Code deleted');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+        AppSnackBar.showError(context, 'Failed to delete: $e');
       }
     }
   }
@@ -350,8 +345,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     final usedCodes =
         _codes.where((c) => (c['used'] ?? false) == true).toList();
     if (usedCodes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No used codes to delete')));
+      AppSnackBar.showWarning(context, 'No used codes to delete');
       return;
     }
 
@@ -386,13 +380,11 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       }
       await _loadAll();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${usedCodes.length} used code(s) deleted')));
+        AppSnackBar.showSuccess(context, '${usedCodes.length} used code(s) deleted');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Bulk delete failed: $e')));
+        AppSnackBar.showError(context, 'Bulk delete failed: $e');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -414,8 +406,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       buffer.writeln('$code,$note,$validDays days,$validUntil,$used,$usedBy');
     }
     Clipboard.setData(ClipboardData(text: buffer.toString()));
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Codes exported to clipboard (CSV)')));
+    AppSnackBar.showSuccess(context, 'Codes exported to clipboard (CSV)');
   }
 
   void _showCodeDetail(Map<String, dynamic> codeData) {
@@ -504,8 +495,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                   child: OutlinedButton.icon(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: code));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Code copied')));
+                      AppSnackBar.showSuccess(context, 'Code copied');
                     },
                     icon: const Icon(Icons.copy, color: kPrimaryBlue),
                     label: const Text('Copy',
@@ -1064,8 +1054,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                   OutlinedButton.icon(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: code));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Code copied')));
+                      AppSnackBar.showSuccess(context, 'Code copied');
                     },
                     icon: const Icon(Icons.copy, size: 18, color: kPrimaryBlue),
                     label: const Text('Copy',
@@ -1336,8 +1325,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                 icon: const Icon(Icons.copy, size: 18, color: kMutedTextColor),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: email));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Email copied')));
+                  AppSnackBar.showSuccess(context, 'Email copied');
                 },
               ),
               IconButton(

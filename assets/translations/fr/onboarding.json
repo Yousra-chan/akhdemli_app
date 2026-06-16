@@ -1,10 +1,13 @@
 {
   "skip": "Passer",
   "get_started": "Commencer",
-  "page_1_title": "Service Rapide & Fiable",
-  "page_1_description": "Connectez-vous avec des professionnels qualifiés pour tous vos besoins, rapidement et efficacement.",
-  "page_2_title": "Qualité Garantie",
-  "page_2_description": "Notre plateforme garantit un service de qualité supérieure de la part d'experts vérifiés et hautement notés.",
-  "page_3_title": "Facile à Utiliser",
-  "page_3_description": "Trouvez, réservez et gérez des services en toute transparence grâce à notre interface d'application intuitive."
+  "next": "Suivant",
+  "page_1_title": "Bienvenue sur Akhdem Li",
+  "page_1_description": "Votre plateforme de confiance pour trouver et proposer des services professionnels",
+  "page_2_title": "Trouver des Services",
+  "page_2_description": "Parcourez des centaines de professionnels de confiance dans votre région",
+  "page_3_title": "Proposez vos Compétences",
+  "page_3_description": "Mettez en avant votre expertise et développez votre clientèle",
+  "page_4_title": "C'est Parti",
+  "page_4_description": "Rejoignez notre communauté aujourd'hui et vivez l'expérience"
 }

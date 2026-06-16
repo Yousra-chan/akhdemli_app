@@ -7,6 +7,7 @@ import 'package:service_app/models/BookingModel.dart';
 import 'package:service_app/services/booking_service.dart';
 import 'package:service_app/services/booking_notification_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 import 'dart:ui' as ui;
 
 const kPrimaryBlue = Color(0xFF007BFF);
@@ -119,27 +120,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(successMessage),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        AppSnackBar.showSuccess(context, successMessage);
       }
     } catch (e) {
       print('❌ Error updating booking: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.trParams(
-                'failed_to_update_booking',
-                category: 'bookings',
-                params: {'error': e.toString()},
-              ),
-            ),
-            backgroundColor: Colors.red,
+        AppSnackBar.showError(
+          context,
+          languageProvider.trParams(
+            'failed_to_update_booking',
+            category: 'bookings',
+            params: {'error': e.toString()},
           ),
         );
       }
@@ -228,29 +219,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   }
 
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          languageProvider.tr('booking_cancelled_success',
-                              category: 'bookings'),
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
+                    AppSnackBar.showSuccess(
+                      context,
+                      languageProvider.tr('booking_cancelled_success',
+                          category: 'bookings'),
                     );
                   }
                 } catch (e) {
                   print('❌ Error cancelling booking: $e');
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          languageProvider.trParams(
-                            'failed_to_cancel_booking',
-                            category: 'bookings',
-                            params: {'error': e.toString()},
-                          ),
-                        ),
-                        backgroundColor: Colors.red,
+                    AppSnackBar.showError(
+                      context,
+                      languageProvider.trParams(
+                        'failed_to_cancel_booking',
+                        category: 'bookings',
+                        params: {'error': e.toString()},
                       ),
                     );
                   }
@@ -327,11 +310,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: kCardBackground,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -376,7 +359,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                             .format(booking.appointmentDate),
                         style: TextStyle(
                           fontSize: 14,
-                          color: kMutedTextColor,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                           fontWeight: FontWeight.w600,
                           fontFamily: 'Exo2',
                         ),
@@ -397,12 +380,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: kPrimaryBlue.withOpacity(0.1),
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.work_outline,
-                              color: kPrimaryBlue,
+                              color: Theme.of(context).primaryColor,
                               size: 24,
                             ),
                           ),
@@ -417,6 +400,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'Exo2',
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -424,7 +408,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                   '${booking.servicePrice} DZD',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: kPrimaryBlue,
+                                    color: Theme.of(context).primaryColor,
                                     fontWeight: FontWeight.w600,
                                     fontFamily: 'Exo2',
                                   ),
@@ -445,7 +429,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               color: Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.person_outline,
                               color: Colors.green,
                               size: 24,
@@ -464,6 +448,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     fontFamily: 'Exo2',
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -473,7 +458,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                       : booking.providerPhone,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: kMutedTextColor,
+                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                                     fontFamily: 'Exo2',
                                   ),
                                 ),
@@ -493,7 +478,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               color: Colors.orange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.access_time,
                               color: Colors.orange,
                               size: 24,
@@ -513,6 +498,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     fontFamily: 'Exo2',
+                                    color: Theme.of(context).textTheme.bodyLarge?.color,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -522,7 +508,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                       .format(booking.appointmentDate),
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: kMutedTextColor,
+                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                                     fontFamily: 'Exo2',
                                   ),
                                 ),
@@ -540,7 +526,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: kDarkTextColor,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontFamily: 'Exo2',
                           ),
                         ),
@@ -549,7 +535,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                           booking.notes,
                           style: TextStyle(
                             fontSize: 14,
-                            color: kMutedTextColor,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                             fontFamily: 'Exo2',
                           ),
                         ),
@@ -739,7 +725,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   onPressed: () => _showContactProviderDialog(
                       booking.providerName, booking.providerPhone, lang),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryBlue,
+                    backgroundColor: Theme.of(context).primaryColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -826,6 +812,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     final authViewModel = Provider.of<AuthViewModel>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
     final currentUser = authViewModel.currentUser;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (currentUser == null) {
       return Directionality(
@@ -833,22 +821,27 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             ? ui.TextDirection.rtl
             : ui.TextDirection.ltr,
         child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.person_off, size: 60, color: kMutedTextColor),
+                Icon(Icons.person_off, size: 60, color: isDark ? Colors.white38 : kMutedTextColor),
                 const SizedBox(height: 16),
                 Text(
                   languageProvider.tr('please_sign_in', category: 'bookings'),
                   style: TextStyle(
-                      fontSize: 16, color: kMutedTextColor, fontFamily: 'Exo2'),
+                      fontSize: 16, color: isDark ? Colors.white70 : kMutedTextColor, fontFamily: 'Exo2'),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pushNamed(context, '/login');
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
                   child: Text(
                     languageProvider.tr('sign_in', category: 'bookings'),
                     style: const TextStyle(fontFamily: 'Exo2'),
@@ -870,24 +863,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             ? ui.TextDirection.rtl
             : ui.TextDirection.ltr,
         child: Scaffold(
-          backgroundColor: kLightBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
             title: Text(
               languageProvider.tr('my_bookings', category: 'bookings'),
-              style: const TextStyle(fontFamily: 'Exo2'),
+              style: TextStyle(fontFamily: 'Exo2', color: theme.textTheme.titleLarge?.color),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: theme.cardColor,
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: kPrimaryBlue),
+              icon: Icon(Icons.arrow_back, color: theme.primaryColor),
               onPressed: () => Navigator.pop(context),
             ),
             bottom: TabBar(
               controller: _tabController,
-              labelColor: kPrimaryBlue,
-              unselectedLabelColor: kMutedTextColor,
-              indicatorColor: kPrimaryBlue,
+              labelColor: theme.primaryColor,
+              unselectedLabelColor: isDark ? Colors.white38 : kMutedTextColor,
+              indicatorColor: theme.primaryColor,
               tabs: [
                 Tab(text: languageProvider.tr('active', category: 'bookings')),
                 Tab(
@@ -921,58 +914,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               _bookingService.getUserBookings(userId, isProvider, filterType),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: kPrimaryBlue,
-                ),
-              );
+              return const LoadingWidget();
             }
 
             if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error, size: 60, color: kErrorRed),
-                    const SizedBox(height: 16),
-                    Text(
-                      languageProvider.tr('error_loading_bookings',
-                          category: 'bookings'),
-                      style: TextStyle(
-                          fontSize: 16,
-                          color: kDarkTextColor,
-                          fontFamily: 'Exo2'),
-                    ),
-                  ],
-                ),
+              return ErrorStateWidget(
+                message: languageProvider.tr('error_loading_bookings',
+                    category: 'bookings'),
+                onRetry: () => setState(() {}),
               );
             }
 
             final bookings = snapshot.data ?? [];
 
             if (bookings.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      _getEmptyStateIcon(filterType),
-                      size: 80,
-                      color: kMutedTextColor.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _getEmptyStateMessage(
-                          filterType, isProvider, languageProvider),
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: kMutedTextColor,
-                        fontFamily: 'Exo2',
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+              return EmptyStateWidget(
+                icon: _getEmptyStateIcon(filterType),
+                message:
+                    _getEmptyStateMessage(filterType, isProvider, languageProvider),
               );
             }
 

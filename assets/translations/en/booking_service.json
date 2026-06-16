@@ -1,0 +1,20 @@
+{
+  "log_booking_created": "✅ Booking created with ID: {{bookingId}}",
+  "log_attempting_notification": "📤 Attempting to send booking notification...",
+  "log_notification_sent": "✅ Booking notification sent successfully to provider",
+  "log_notification_failed": "⚠️ Booking notification failed to send",
+  "log_notification_error": "⚠️ Error sending booking notification: {{error}}",
+  "log_error_creating_booking": "❌ Error creating booking: {{error}}",
+  "log_error_getting_bookings": "Error getting bookings: {{error}}",
+  "log_error_updating_status": "Error updating booking status: {{error}}",
+  "log_error_deleting_booking": "Error deleting booking: {{error}}",
+  "error_booking_creation_failed": "Failed to create booking",
+  "error_status_update_failed": "Failed to update booking status",
+  "error_booking_deletion_failed": "Failed to delete booking",
+  "status_pending": "pending",
+  "status_accepted": "accepted",
+  "status_confirmed": "confirmed",
+  "status_completed": "completed",
+  "status_cancelled": "cancelled",
+  "status_rejected": "rejected"
+}

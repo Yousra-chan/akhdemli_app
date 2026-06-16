@@ -23,6 +23,7 @@ class UserModel {
   final bool isAdmin;
   final Timestamp? fcmTokenUpdatedAt;
   final List<String> chatIds;
+  final List<String> portfolio;
 
   // Location fields
   final String? wilaya;
@@ -51,6 +52,7 @@ class UserModel {
     this.isAdmin = false,
     this.fcmTokenUpdatedAt,
     this.chatIds = const [],
+    this.portfolio = const [],
 
     // Location fields
     this.wilaya,
@@ -81,6 +83,7 @@ class UserModel {
       'subscriptionExpiresAt': subscriptionExpiresAt ?? subscriptionExpiry,
       'isAdmin': isAdmin,
       'chatIds': chatIds,
+      'portfolio': portfolio,
 
       // Location fields
       'wilaya': wilaya,
@@ -110,6 +113,7 @@ class UserModel {
       subscriptionExpiry: data['subscriptionExpiry'],
       fcmTokenUpdatedAt: data['fcmTokenUpdatedAt'],
       chatIds: List<String>.from(data['chatIds'] ?? []),
+      portfolio: List<String>.from(data['portfolio'] ?? []),
 
       // Location fields
       wilaya: data['wilaya'],
@@ -141,6 +145,7 @@ class UserModel {
     bool? isAdmin,
     Timestamp? fcmTokenUpdatedAt,
     List<String>? chatIds,
+    List<String>? portfolio,
     String? wilaya,
     String? commune,
   }) {
@@ -166,6 +171,7 @@ class UserModel {
       isAdmin: isAdmin ?? this.isAdmin,
       fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt,
       chatIds: chatIds ?? this.chatIds,
+      portfolio: portfolio ?? this.portfolio,
       wilaya: wilaya ?? this.wilaya,
       commune: commune ?? this.commune,
     );

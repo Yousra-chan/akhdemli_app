@@ -53,7 +53,10 @@ class LanguageProvider with ChangeNotifier {
       'my_services',
       'edit_service',
       'auth_service',
-      'booking_notification_service'
+      'booking_notification_service',
+      'booking_service',
+      'notification_service',
+      'about_us'
     ];
 
     // Load each JSON file

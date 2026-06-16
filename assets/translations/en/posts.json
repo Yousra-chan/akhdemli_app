@@ -29,20 +29,19 @@
   "gallery": "Gallery",
   "camera": "Camera",
   "publish_post": "Publish Post",
-  "selected_images": "Selected Images ({count}/3)",
+  "selected_images": "Selected Images ({{count}}/3)",
   "maximum_3_images": "Maximum 3 images allowed",
   "maximum_3_images_reached": "Maximum 3 images reached",
-  "image_too_large": "Image too large ({size}KB). Max 2MB.",
-  "error_selecting_images": "Error selecting images: {error}",
-  "error_taking_photo": "Error taking photo: {error}",
+  "image_too_large": "Image too large ({{size}}KB). Max 2MB.",
+  "error_selecting_images": "Error selecting images: {{error}}",
+  "error_taking_photo": "Error taking photo: {{error}}",
   "must_be_logged_in": "You must be logged in to create a post",
   "post_created_successfully": "Post created successfully",
-  "post_created_with_images": "Post created successfully with {count} image(s)",
-  "error_creating_post": "Error creating post: {error}",
+  "post_created_with_images": "Post created successfully with {{count}} image(s)",
+  "error_creating_post": "Error creating post: {{error}}",
   "request_published": "Request published successfully!",
   "offer_published": "Offer published successfully!",
   "please_sign_in": "Please sign in to create a post",
-  
   "just_now": "Just now",
   "min_ago": "min ago",
   "mins_ago": "mins ago",
@@ -62,7 +61,7 @@
   "view": "View",
   "please_sign_in_to_contact": "Please sign in to contact this user",
   "cannot_message_yourself": "You cannot message yourself",
-  "failed_to_start_chat": "Failed to start chat: {error}",
+  "failed_to_start_chat": "Failed to start chat: {{error}}",
   "unable_to_load_image": "Unable to load image",
   "failed_to_load_image": "Failed to load image",
   "categories": {
@@ -75,5 +74,4 @@
     "general": "General"
   },
   "try_again_later": "Please try again later"
- 
 }

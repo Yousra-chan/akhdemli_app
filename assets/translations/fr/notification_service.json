@@ -1,0 +1,15 @@
+{
+  "new_message_from": "Nouveau message de {{name}}",
+  "booking_confirmed_title": "Réservation Confirmée !",
+  "booking_confirmed_body": "Votre réservation pour {{serviceName}} a été confirmée",
+  "booking_cancelled_title": "Réservation Annulée",
+  "booking_cancelled_body": "Votre réservation pour {{serviceName}} a été annulée",
+  "booking_reminder_title": "Rappel de Réservation",
+  "booking_reminder_body": "Rappel : Votre {{serviceName}} est demain",
+  "booking_update_title": "Mise à jour de Réservation",
+  "booking_update_body": "Mise à jour pour votre réservation {{serviceName}}",
+  "test_notification_title": "Notification de Test",
+  "test_notification_body": "Vos notifications fonctionnent correctement ! 🎉",
+  "default_new_message": "Nouveau Message",
+  "default_notification_body": "Vous avez une nouvelle notification"
+}

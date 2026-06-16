@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 import 'package:flutter/services.dart'; // Add this for Clipboard
 
 class LocationSection extends StatefulWidget {
@@ -120,13 +121,7 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    AppSnackBar.showError(context, message);
   }
 
   Future<void> _updateLocationData(
@@ -181,25 +176,18 @@ class _LocationSectionState extends State<LocationSection> {
 
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(lang.tr('location_copied', category: 'service')),
-        duration: const Duration(seconds: 2),
-        backgroundColor: _successColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppSnackBar.showSuccess(context, lang.tr('location_copied', category: 'service'));
   }
 
   // UI Components
-  Widget _buildHeader() {
+  Widget _buildHeader(ThemeData theme) {
     final lang = Provider.of<LanguageProvider>(context);
 
     return Row(
       children: [
         Icon(
           Icons.location_on,
-          color: _primaryColor,
+          color: theme.primaryColor,
           size: 24,
         ),
         const SizedBox(width: 12),
@@ -208,24 +196,25 @@ class _LocationSectionState extends State<LocationSection> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: _textPrimary,
+            color: theme.textTheme.bodyLarge?.color,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLocationButton() {
+  Widget _buildLocationButton(ThemeData theme) {
     final lang = Provider.of<LanguageProvider>(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: _isGettingLocation ? null : _getCurrentLocation,
       child: Container(
         height: 56,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _borderColor),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Row(
           children: [
@@ -235,8 +224,8 @@ class _LocationSectionState extends State<LocationSection> {
               height: 32,
               decoration: BoxDecoration(
                 color: _currentPosition != null
-                    ? _successColor.withOpacity(0.1)
-                    : _primaryColor.withOpacity(0.1),
+                    ? Colors.green.withOpacity(0.1)
+                    : theme.primaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: _isGettingLocation
@@ -246,7 +235,7 @@ class _LocationSectionState extends State<LocationSection> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: _primaryColor,
+                          color: theme.primaryColor,
                         ),
                       ),
                     )
@@ -257,8 +246,8 @@ class _LocationSectionState extends State<LocationSection> {
                             : Icons.my_location,
                         size: 18,
                         color: _currentPosition != null
-                            ? _successColor
-                            : _primaryColor,
+                            ? Colors.green
+                            : theme.primaryColor,
                       ),
                     ),
             ),
@@ -277,7 +266,7 @@ class _LocationSectionState extends State<LocationSection> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: _textPrimary,
+                      color: theme.textTheme.bodyLarge?.color,
                     ),
                   ),
                 ],
@@ -290,22 +279,23 @@ class _LocationSectionState extends State<LocationSection> {
     );
   }
 
-  Widget _buildAddressField() {
+  Widget _buildAddressField(ThemeData theme) {
     final lang = Provider.of<LanguageProvider>(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _borderColor),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
           const SizedBox(width: 16),
           Icon(
             Icons.place,
-            color: _textPrimary.withOpacity(0.6),
+            color: isDark ? Colors.white38 : Colors.grey.shade600,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -317,18 +307,18 @@ class _LocationSectionState extends State<LocationSection> {
                 hintText: lang.tr('location_address_hint', category: 'service'),
                 border: InputBorder.none,
                 hintStyle: TextStyle(
-                  color: _textPrimary.withOpacity(0.4),
+                  color: isDark ? Colors.white24 : Colors.grey.shade400,
                 ),
               ),
               style: TextStyle(
                 fontSize: 14,
-                color: _textPrimary,
+                color: theme.textTheme.bodyLarge?.color,
               ),
             ),
           ),
           if (_locationController.text.isNotEmpty)
             IconButton(
-              icon: Icon(Icons.copy, size: 18, color: _primaryColor),
+              icon: Icon(Icons.copy, size: 18, color: theme.primaryColor),
               onPressed: () => _copyToClipboard(_locationController.text),
               tooltip: lang.tr('location_copy', category: 'service'),
             ),
@@ -338,7 +328,7 @@ class _LocationSectionState extends State<LocationSection> {
     );
   }
 
-  Widget _buildCoordinates() {
+  Widget _buildCoordinates(ThemeData theme) {
     final lang = Provider.of<LanguageProvider>(context);
 
     if (!widget.showCoordinates) return const SizedBox.shrink();
@@ -346,12 +336,14 @@ class _LocationSectionState extends State<LocationSection> {
     return Row(
       children: [
         _buildCoordinateItem(
+          theme,
           lang.tr('location_coordinate_lat', category: 'service'),
           _latitudeController.text,
           lang,
         ),
         const SizedBox(width: 8),
         _buildCoordinateItem(
+          theme,
           lang.tr('location_coordinate_lng', category: 'service'),
           _longitudeController.text,
           lang,
@@ -361,15 +353,16 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   Widget _buildCoordinateItem(
-      String label, String value, LanguageProvider lang) {
+      ThemeData theme, String label, String value, LanguageProvider lang) {
+    final isDark = theme.brightness == Brightness.dark;
     return Expanded(
       child: Container(
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _borderColor),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Row(
           children: [
@@ -377,7 +370,7 @@ class _LocationSectionState extends State<LocationSection> {
               '$label: ',
               style: TextStyle(
                 fontSize: 12,
-                color: _textPrimary.withOpacity(0.6),
+                color: isDark ? Colors.white38 : Colors.grey.shade600,
               ),
             ),
             Expanded(
@@ -388,7 +381,7 @@ class _LocationSectionState extends State<LocationSection> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: _textPrimary,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -409,20 +402,21 @@ class _LocationSectionState extends State<LocationSection> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Consumer<LanguageProvider>(
       builder: (context, lang, child) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildHeader(),
+            _buildHeader(theme),
             const SizedBox(height: 16),
-            _buildLocationButton(),
+            _buildLocationButton(theme),
             const SizedBox(height: 12),
-            _buildAddressField(),
+            _buildAddressField(theme),
             if (widget.showCoordinates) ...[
               const SizedBox(height: 12),
-              _buildCoordinates(),
+              _buildCoordinates(theme),
             ],
           ],
         );

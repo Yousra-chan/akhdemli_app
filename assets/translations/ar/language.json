@@ -3,5 +3,5 @@
   "english": "English",
   "french": "Français",
   "arabic": "العربية",
-  "languageChanged": "تم تغيير اللغة بنجاح"
+  "language_changed_success": "تم تحديث اللغة بنجاح!"
 }

@@ -86,7 +86,7 @@ class AuthViewModel with ChangeNotifier {
       final uid = userCredential.user?.uid;
       if (uid == null) {
         throw AuthViewModelException(
-          'Failed to retrieve user ID after login',
+          'error_login_failed',
           code: 'no-user-id',
         );
       }
@@ -268,7 +268,7 @@ class AuthViewModel with ChangeNotifier {
       return await _encodeImageToBase64(pickedFile);
     } catch (e) {
       print('❌ Error picking image: $e');
-      _setError('Failed to pick image. Please try again.');
+      _setError('error_image_pick_failed');
       rethrow;
     }
   }
@@ -308,7 +308,7 @@ class AuthViewModel with ChangeNotifier {
       return 'data:image/jpeg;base64,$base64Image';
     } catch (e) {
       print('❌ Error encoding image: $e');
-      _setError('Failed to encode image. Please try a smaller image.');
+      _setError('error_image_encode_failed');
       rethrow;
     }
   }
@@ -347,7 +347,7 @@ class AuthViewModel with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('❌ Error during initialization: $e');
-      _setError('Failed to initialize auth state');
+      _setError('error_initialization_failed');
       _initialized = true; // Mark as initialized even on error
       notifyListeners();
     }
@@ -413,11 +413,11 @@ class AuthViewModel with ChangeNotifier {
         _setUser(userModel);
       } else {
         print('❌ User profile not found in Firestore');
-        _setError('User profile not found');
+        _setError('error_user_not_found');
       }
     } catch (e) {
       print('❌ Error loading user profile: $e');
-      _setError('Failed to load user profile');
+      _setError('error_loading_profile');
     }
   }
 
@@ -442,7 +442,7 @@ class AuthViewModel with ChangeNotifier {
       return userModel;
     } catch (e) {
       print('❌ Failed to load user profile: $e');
-      _setError('User profile not found');
+      _setError('error_loading_profile');
       return null;
     }
   }

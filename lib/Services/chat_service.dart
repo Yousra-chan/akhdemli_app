@@ -108,26 +108,12 @@ class ChatService {
         return chatId;
       }
 
-      // Verify both users exist
+      // Fetch user data
       final clientDoc = await _usersRef.doc(clientId).get();
       final providerDoc = await _usersRef.doc(providerId).get();
 
-      if (!clientDoc.exists || !providerDoc.exists) {
-        throw ChatException(
-          'One or both users do not exist',
-          code: 'users-not-found',
-        );
-      }
-
       final clientData = clientDoc.data();
       final providerData = providerDoc.data();
-
-      if (clientData == null || providerData == null) {
-        throw ChatException(
-          'Could not retrieve user data',
-          code: 'invalid-user-data',
-        );
-      }
 
       // Create chat document
       final chatData = {
@@ -138,27 +124,23 @@ class ChatService {
         _lastMessageTimeField: Timestamp.now(),
         _participantsField: [clientId, providerId],
         _participantNamesField: {
-          clientId: clientData[_nameField] ?? 'Client',
-          providerId: providerData[_nameField] ?? 'Provider'
+          clientId: clientData?[_nameField] ?? 'User',
+          providerId: providerData?[_nameField] ?? 'Contact'
         },
         _participantRolesField: {
-          clientId: clientData[_roleField] ?? _roleClient,
-          providerId: providerData[_roleField] ?? _roleProvider
+          clientId: clientData?[_roleField] ?? _roleClient,
+          providerId: providerData?[_roleField] ?? _roleProvider
         },
         _unreadCountField: {clientId: 0, providerId: 0},
         _createdAtField: FieldValue.serverTimestamp(),
       };
 
-      // Create chat and update user documents
-      await _firestore.runTransaction((transaction) async {
-        transaction.set(docRef, chatData);
-        transaction.update(_usersRef.doc(clientId), {
-          _chatIdsField: FieldValue.arrayUnion([chatId]),
-        });
-        transaction.update(_usersRef.doc(providerId), {
-          _chatIdsField: FieldValue.arrayUnion([chatId]),
-        });
-      });
+      // Create chat document
+      // We use set() directly instead of a transaction to avoid Permission Denied 
+      // when trying to update the other user's document.
+      // The chat participants are already stored in the 'participants' array in the chat document,
+      // which is what we use for querying.
+      await docRef.set(chatData);
 
       developer.log('✅ Chat created successfully: $chatId',
           name: 'ChatService');
@@ -168,6 +150,15 @@ class ChatService {
     } catch (e, stackTrace) {
       developer.log('❌ Error creating chat: $e',
           name: 'ChatService', error: e, stackTrace: stackTrace);
+      
+      // If it's a permission error, it might be due to the users not existing or rules
+      if (e.toString().contains('permission-denied')) {
+        throw ChatException(
+          'Permission denied. Please check your Firestore rules.',
+          code: 'permission-denied',
+        );
+      }
+
       rethrow;
     }
   }

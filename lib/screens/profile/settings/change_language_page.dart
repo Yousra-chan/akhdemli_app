@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/profile/profile_constants.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class LanguagePage extends StatefulWidget {
   const LanguagePage({super.key});
@@ -217,19 +218,11 @@ class _LanguagePageState extends State<LanguagePage> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _getLanguageName(languageCode),
-              style: const TextStyle(
-                fontFamily: 'Exo2',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            backgroundColor: kSuccessColor,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.tr(
+            'language_changed_success',
+            category: 'language',
           ),
         );
       }
@@ -243,38 +236,15 @@ class _LanguagePageState extends State<LanguagePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error changing language: $e',
-              style: const TextStyle(
-                fontFamily: 'Exo2',
-              ),
-            ),
-            backgroundColor: kDangerColor,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-          ),
+        AppSnackBar.showError(
+          context,
+          '${languageProvider.tr('error_occurred', category: 'common')}: $e',
         );
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  String _getLanguageName(String languageCode) {
-    switch (languageCode) {
-      case 'en':
-        return '✅ English selected';
-      case 'fr':
-        return '✅ Français sélectionné';
-      case 'ar':
-        return '✅ تم تحديد العربية';
-      default:
-        return '✅ Language changed';
     }
   }
 }

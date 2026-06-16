@@ -48,6 +48,8 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
   // Helper method to build navigation items
   List<BottomNavigationBarItem> _buildNavigationItems(
     LanguageProvider languageProvider,
+    Color selectedColor,
+    Color unselectedColor,
   ) {
     return [
       BottomNavigationBarItem(
@@ -56,6 +58,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.briefcase,
           CupertinoIcons.briefcase_fill,
           selectedColor,
+          unselectedColor,
         ),
         label: languageProvider.tr('services', category: 'nav_bottom'),
       ),
@@ -65,6 +68,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.map,
           CupertinoIcons.map_fill,
           selectedColor,
+          unselectedColor,
         ),
         label: languageProvider.tr('search', category: 'nav_bottom'),
       ),
@@ -74,6 +78,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.home,
           CupertinoIcons.home,
           selectedColor,
+          unselectedColor,
         ),
         label: languageProvider.tr('home', category: 'nav_bottom'),
       ),
@@ -83,6 +88,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.chat_bubble,
           CupertinoIcons.chat_bubble_2_fill,
           selectedColor,
+          unselectedColor,
         ),
         label: languageProvider.tr('chat', category: 'nav_bottom'),
       ),
@@ -92,6 +98,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.person,
           CupertinoIcons.person_fill,
           selectedColor,
+          unselectedColor,
         ),
         label: languageProvider.tr('profile', category: 'nav_bottom'),
       ),
@@ -106,9 +113,9 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
       clipBehavior: Clip.none,
       children: [
         child,
-        Positioned(
+        PositionedDirectional(
           top: -2,
-          right: -2,
+          end: -2,
           child: Container(
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
@@ -138,7 +145,8 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
     int index,
     IconData outline,
     IconData filled,
-    Color highlight, {
+    Color highlight,
+    Color unselectedColor, {
     int badgeCount = 0,
   }) {
     final bool selected = selectorIndex == index;
@@ -162,7 +170,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: selectedColor.withOpacity(0.3),
+                  color: highlight.withOpacity(0.3),
                   blurRadius: 8,
                   spreadRadius: 1,
                   offset: const Offset(0, 2),
@@ -234,6 +242,15 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
   Widget build(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+
+    // Dynamic colors based on theme
+    final Color selectedColor = theme.primaryColor;
+    final Color unselectedColor = theme.brightness == Brightness.dark
+        ? Colors.white38
+        : const Color.fromARGB(255, 150, 180, 220);
+    final Color backgroundColor = theme.scaffoldBackgroundColor;
+    final Color navBackgroundColor = theme.cardColor;
 
     // Check if user is logged in
     if (authViewModel.currentUser == null) {
@@ -272,7 +289,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
       );
     }
 
-    if (!user.hasValidSubscription) {
+    if (user.isProvider && !user.hasValidSubscription) {
       return Directionality(
         textDirection: languageProvider.isRtl
             ? ui.TextDirection.rtl
@@ -310,14 +327,9 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: selectedColor.withOpacity(0.1),
+                        color: selectedColor.withOpacity(theme.brightness == Brightness.dark ? 0.05 : 0.1),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
@@ -327,13 +339,13 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                       backgroundColor: navBackgroundColor,
                       selectedItemColor: selectedColor,
                       unselectedItemColor: unselectedColor,
-                      selectedLabelStyle: TextStyle(
+                      selectedLabelStyle: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         height: 1.2,
                         fontFamily: 'Exo2',
                       ),
-                      unselectedLabelStyle: TextStyle(
+                      unselectedLabelStyle: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         height: 1.2,
@@ -344,6 +356,8 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                       elevation: 0,
                       items: _buildNavigationItems(
                         languageProvider,
+                        selectedColor,
+                        unselectedColor,
                       ),
                       onTap: (val) {
                         setState(() {

@@ -9,10 +9,13 @@ import 'package:service_app/utils/image_optimizer.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 import 'posts_constants.dart';
 import 'package:service_app/screens/posts/posts_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:service_app/models/UserModel.dart';
+import 'package:service_app/models/CategoryModel.dart';
+import 'package:service_app/screens/home/home_screen/home_constants.dart' as home_const;
 
 enum PostFilterType { all, seeking, offering }
 
@@ -64,37 +67,26 @@ class _FeedScreenState extends State<FeedScreen> {
 
   void _handleCreatePost(Post post) async {
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
 
     try {
       await _firestoreService.addPost(post);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              post.type == PostType.seeking
-                  ? languageProvider.tr('request_published', category: 'posts')
-                  : languageProvider.tr('offer_published', category: 'posts'),
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          post.type == PostType.seeking
+              ? languageProvider.tr('request_published', category: 'posts')
+              : languageProvider.tr('offer_published', category: 'posts'),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.trParams(
-                'error_creating_post',
-                category: 'posts',
-                params: {'error': e.toString()},
-              ),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
+        AppSnackBar.showError(
+          context,
+          languageProvider.trParams(
+            'error_creating_post',
+            category: 'posts',
+            params: {'error': e.toString()},
           ),
         );
       }
@@ -104,18 +96,13 @@ class _FeedScreenState extends State<FeedScreen> {
   void _showCreatePostModal() {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.tr('please_sign_in', category: 'posts'),
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
+      AppSnackBar.showError(
+        context,
+        languageProvider.tr('please_sign_in', category: 'posts'),
       );
       return;
     }
@@ -161,7 +148,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
   Widget _buildFilterChip(PostFilterType type, String labelKey) {
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
     final isSelected = _selectedFilter == type;
 
     return GestureDetector(
@@ -177,7 +164,7 @@ class _FeedScreenState extends State<FeedScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? const Color.fromARGB(255, 12, 94, 153)
+                ? Theme.of(context).primaryColor
                 : Colors.white.withOpacity(0.6),
             width: 1,
           ),
@@ -186,7 +173,7 @@ class _FeedScreenState extends State<FeedScreen> {
           languageProvider.tr(labelKey, category: 'posts'),
           style: TextStyle(
             color: isSelected
-                ? const Color.fromARGB(255, 12, 94, 153)
+                ? Theme.of(context).primaryColor
                 : Colors.white,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             fontSize: 13,
@@ -197,142 +184,66 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildLoadingState() {
-    final languageProvider = Provider.of<LanguageProvider>(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 60,
-            height: 60,
-            child: CircularProgressIndicator(
-              color: Colors.white,
-              strokeWidth: 3,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            languageProvider.tr('loading_posts', category: 'posts'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 5,
+      itemBuilder: (context, index) => const PostSkeleton(),
     );
   }
 
   Widget _buildErrorState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.white,
-              size: 60,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              languageProvider.tr('unable_to_load_posts', category: 'posts'),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                languageProvider.tr('check_internet', category: 'posts'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _refreshData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color.fromARGB(255, 12, 94, 153),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.refresh, size: 18),
-                  const SizedBox(width: 8),
-                  Text(languageProvider.tr('try_again', category: 'posts')),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ErrorStateWidget(
+      message: languageProvider.tr('unable_to_load_posts', category: 'posts'),
+      onRetry: _refreshData,
     );
   }
 
   Widget _buildEmptyState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.description_outlined,
-              color: Colors.white,
-              size: 80,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              languageProvider.tr('no_posts_yet', category: 'posts'),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                languageProvider.tr('be_first_to_share', category: 'posts'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _showCreatePostModal,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color.fromARGB(255, 12, 94, 153),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                languageProvider.tr('create_first_post', category: 'posts'),
-              ),
-            ),
-          ],
+    return EmptyStateWidget(
+      icon: Icons.description_outlined,
+      message: languageProvider.tr('no_posts_yet', category: 'posts'),
+      subtitle: languageProvider.tr('be_first_to_share', category: 'posts'),
+      action: ElevatedButton(
+        onPressed: _showCreatePostModal,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Theme.of(context).primaryColor,
+          padding:
+          const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
+        child: Text(
+          languageProvider.tr('create_first_post', category: 'posts'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostsList(List<Post> filteredPosts) {
+    final theme = Theme.of(context);
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: theme.primaryColor,
+      backgroundColor: theme.cardColor,
+      displacement: 40,
+      edgeOffset: 0,
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: filteredPosts.length,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: PostCard(post: filteredPosts[index]),
+          );
+        },
       ),
     );
   }
@@ -340,61 +251,32 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget _buildFilteredEmptyState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _selectedFilter == PostFilterType.seeking
-                  ? Icons.search
-                  : Icons.work_outline,
-              color: Colors.white,
-              size: 80,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _selectedFilter == PostFilterType.seeking
-                  ? languageProvider.tr('no_requests_yet', category: 'posts')
-                  : languageProvider.tr('no_offers_yet', category: 'posts'),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                _selectedFilter == PostFilterType.seeking
-                    ? languageProvider.tr('no_one_looking', category: 'posts')
-                    : languageProvider.tr('no_services_offered',
-                        category: 'posts'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _showCreatePostModal,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color.fromARGB(255, 12, 94, 153),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                _selectedFilter == PostFilterType.seeking
-                    ? languageProvider.tr('post_request', category: 'posts')
-                    : languageProvider.tr('offer_service', category: 'posts'),
-              ),
-            ),
-          ],
+    return EmptyStateWidget(
+      icon: _selectedFilter == PostFilterType.seeking
+          ? Icons.search
+          : Icons.work_outline,
+      message: _selectedFilter == PostFilterType.seeking
+          ? languageProvider.tr('no_requests_yet', category: 'posts')
+          : languageProvider.tr('no_offers_yet', category: 'posts'),
+      subtitle: _selectedFilter == PostFilterType.seeking
+          ? languageProvider.tr('no_one_looking', category: 'posts')
+          : languageProvider.tr('no_services_offered',
+          category: 'posts'),
+      action: ElevatedButton(
+        onPressed: _showCreatePostModal,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Theme.of(context).primaryColor,
+          padding:
+          const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Text(
+          _selectedFilter == PostFilterType.seeking
+              ? languageProvider.tr('post_request', category: 'posts')
+              : languageProvider.tr('offer_service', category: 'posts'),
         ),
       ),
     );
@@ -404,18 +286,19 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
+    final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color.fromARGB(255, 12, 94, 153),
-                Color(0xFF4A6FDC),
-                Color(0xFF667EEA),
-                Color(0xFF764BA2),
+                theme.primaryColor,
+                theme.primaryColor.withOpacity(0.8),
+                theme.primaryColor.withOpacity(0.6),
+                theme.primaryColor.withOpacity(0.4),
               ],
             ),
           ),
@@ -442,7 +325,7 @@ class _FeedScreenState extends State<FeedScreen> {
                             Text(
                               languageProvider.tr('service_exchange',
                                   category: 'posts'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
                                 fontWeight: FontWeight.w800,
@@ -454,7 +337,7 @@ class _FeedScreenState extends State<FeedScreen> {
                         ),
                         IconButton(
                           onPressed: () {},
-                          icon: Icon(
+                          icon: const Icon(
                             CupertinoIcons.search,
                             color: Colors.white,
                             size: 24,
@@ -483,12 +366,12 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ),
 
-              // White content area with rounded top corners
+              // Content area with rounded top corners
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(40),
                       topRight: Radius.circular(40),
                     ),
@@ -521,8 +404,8 @@ class _FeedScreenState extends State<FeedScreen> {
 
                       return RefreshIndicator(
                         onRefresh: _refreshData,
-                        color: const Color.fromARGB(255, 12, 94, 153),
-                        backgroundColor: Colors.white,
+                        color: theme.primaryColor,
+                        backgroundColor: theme.cardColor,
                         displacement: 40,
                         edgeOffset: 0,
                         child: ListView.builder(
@@ -549,20 +432,20 @@ class _FeedScreenState extends State<FeedScreen> {
       ),
       floatingActionButton: _showScrollToTop
           ? FloatingActionButton(
-              onPressed: _scrollToTop,
-              backgroundColor: const Color.fromARGB(255, 12, 94, 153),
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.arrow_upward),
-            )
+        onPressed: _scrollToTop,
+        backgroundColor: theme.primaryColor,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.arrow_upward),
+      )
           : FloatingActionButton(
-              onPressed: _showCreatePostModal,
-              backgroundColor: Colors.white,
-              foregroundColor: const Color.fromARGB(255, 12, 94, 153),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.add),
-            ),
+        onPressed: _showCreatePostModal,
+        backgroundColor: theme.cardColor,
+        foregroundColor: theme.primaryColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(Icons.add),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -627,7 +510,7 @@ class _ImageViewerDialogState extends State<ImageViewerDialog> {
               },
               itemBuilder: (context, index) {
                 final imageProvider =
-                    ImageUtils.getImageProvider(widget.imageUrls[index]);
+                ImageUtils.getImageProvider(widget.imageUrls[index]);
 
                 if (imageProvider == null) {
                   return Center(
@@ -673,9 +556,9 @@ class _ImageViewerDialogState extends State<ImageViewerDialog> {
               },
             ),
           ),
-          Positioned(
+          PositionedDirectional(
             top: 40,
-            right: 20,
+            end: 20,
             child: IconButton(
               icon: const Icon(Icons.close, color: Colors.white, size: 30),
               onPressed: () => Navigator.pop(context),
@@ -708,47 +591,47 @@ class _ImageViewerDialogState extends State<ImageViewerDialog> {
               ),
             ),
           if (widget.imageUrls.length > 1)
-            Positioned(
-              left: 20,
+            PositionedDirectional(
+              start: 20,
               top: 0,
               bottom: 0,
               child: Center(
                 child: IconButton(
-                  icon: const Icon(
-                    Icons.chevron_left,
+                  icon: Icon(
+                    languageProvider.isRtl ? Icons.chevron_right : Icons.chevron_left,
                     color: Colors.white,
                     size: 40,
                   ),
                   onPressed: _currentIndex > 0
                       ? () {
-                          _pageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        }
+                    _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
                       : null,
                 ),
               ),
             ),
           if (widget.imageUrls.length > 1)
-            Positioned(
-              right: 20,
+            PositionedDirectional(
+              end: 20,
               top: 0,
               bottom: 0,
               child: Center(
                 child: IconButton(
-                  icon: const Icon(
-                    Icons.chevron_right,
+                  icon: Icon(
+                    languageProvider.isRtl ? Icons.chevron_left : Icons.chevron_right,
                     color: Colors.white,
                     size: 40,
                   ),
                   onPressed: _currentIndex < widget.imageUrls.length - 1
                       ? () {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        }
+                    _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
                       : null,
                 ),
               ),
@@ -780,28 +663,34 @@ class _CreatePostModalState extends State<CreatePostModal> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   PostType _type = PostType.seeking;
-  String _serviceCategory = 'Electrician';
+  late List<CategoryModel> _categories;
+  CategoryModel? _selectedCategory;
+  SubcategoryModel? _selectedSubcategory;
   List<File> _selectedImages = [];
   bool _isUploading = false;
-
-  final List<String> categories = [
-    "Electrician",
-    "Plumbing",
-    "Tutoring",
-    "Handyman",
-    "Cleaning",
-    "Other",
-  ];
 
   @override
   void initState() {
     super.initState();
     _type = widget.user.isProvider ? PostType.offering : PostType.seeking;
+    _categories = home_const.defaultCategories;
+
+    // Set default category
+    if (_categories.isNotEmpty) {
+      _selectedCategory = _categories.firstWhere(
+            (c) => c.name == 'Other',
+        orElse: () => _categories.first,
+      );
+      if (_selectedCategory != null &&
+          _selectedCategory!.subcategories.isNotEmpty) {
+        _selectedSubcategory = _selectedCategory!.subcategories.first;
+      }
+    }
   }
 
   Future<void> _pickImages() async {
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
 
     try {
       final List<XFile> pickedFiles = await widget.imagePicker.pickMultiImage(
@@ -857,7 +746,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
   Future<void> _takePhoto() async {
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
 
     try {
       final XFile? photo = await widget.imagePicker.pickImage(
@@ -908,13 +797,13 @@ class _CreatePostModalState extends State<CreatePostModal> {
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (color == Colors.red) {
+      AppSnackBar.showError(context, message);
+    } else if (color == Colors.green) {
+      AppSnackBar.showSuccess(context, message);
+    } else {
+      AppSnackBar.showWarning(context, message);
+    }
   }
 
   void _removeImage(int index) {
@@ -925,7 +814,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
   void _submitPost() async {
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
 
     if (!_formKey.currentState!.validate()) {
       return;
@@ -980,7 +869,8 @@ class _CreatePostModalState extends State<CreatePostModal> {
         user: widget.user.name,
         userId: widget.user.uid,
         type: _type,
-        serviceCategory: _serviceCategory,
+        serviceCategory: _selectedCategory?.name ?? 'Other',
+        serviceSubcategory: _selectedSubcategory?.name ?? '',
         timestamp: DateTime.now(),
         imageUrls: base64Images,
       );
@@ -992,12 +882,12 @@ class _CreatePostModalState extends State<CreatePostModal> {
         _showSnackBar(
           base64Images.isEmpty
               ? languageProvider.tr('post_created_successfully',
-                  category: 'posts')
+              category: 'posts')
               : languageProvider.trParams(
-                  'post_created_with_images',
-                  category: 'posts',
-                  params: {'count': base64Images.length.toString()},
-                ),
+            'post_created_with_images',
+            category: 'posts',
+            params: {'count': base64Images.length.toString()},
+          ),
           Colors.green,
         );
       }
@@ -1076,9 +966,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
                           },
                         ),
                       ),
-                      Positioned(
+                      PositionedDirectional(
                         top: 2,
-                        right: 2,
+                        end: 2,
                         child: GestureDetector(
                           onTap: () => _removeImage(index),
                           child: Container(
@@ -1110,14 +1000,15 @@ class _CreatePostModalState extends State<CreatePostModal> {
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
     final typeColor =
-        _type == PostType.seeking ? kSeekingColor : kOfferingColor;
+    _type == PostType.seeking ? kSeekingColor : kOfferingColor;
     final bool isProvider = widget.user.isProvider;
 
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: const BoxDecoration(
-        color: kLightBackgroundColor,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
@@ -1136,14 +1027,14 @@ class _CreatePostModalState extends State<CreatePostModal> {
                   Text(
                     languageProvider.tr('create_post', category: 'posts'),
                     style: TextStyle(
-                      color: const Color.fromARGB(255, 12, 94, 153),
+                      color: theme.primaryColor,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 24),
-                    color: kMutedTextColor,
+                    color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -1153,9 +1044,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 isProvider
                     ? languageProvider.tr('share_services', category: 'posts')
                     : languageProvider.tr('let_providers_know',
-                        category: 'posts'),
+                    category: 'posts'),
                 style: TextStyle(
-                  color: kMutedTextColor,
+                  color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
                   fontSize: 13,
                 ),
               ),
@@ -1178,9 +1069,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
                     Text(
                       isProvider
                           ? languageProvider.tr('i_offer_service',
-                              category: 'posts')
+                          category: 'posts')
                           : languageProvider.tr('i_need_service',
-                              category: 'posts'),
+                          category: 'posts'),
                       style: TextStyle(
                         color: typeColor,
                         fontSize: 15,
@@ -1196,17 +1087,18 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 decoration: InputDecoration(
                   labelText: languageProvider.tr('title', category: 'posts'),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: theme.cardColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.all(16),
                 ),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 maxLength: 60,
                 validator: (value) => value!.isEmpty
                     ? languageProvider.tr('title_cannot_be_empty',
-                        category: 'posts')
+                    category: 'posts')
                     : null,
               ),
               const SizedBox(height: 12),
@@ -1214,57 +1106,102 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 controller: _bodyController,
                 decoration: InputDecoration(
                   labelText:
-                      languageProvider.tr('description', category: 'posts'),
+                  languageProvider.tr('description', category: 'posts'),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: theme.cardColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.all(16),
                 ),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 maxLines: 4,
                 maxLength: 300,
                 validator: (value) => value!.length < 10
                     ? languageProvider.tr('description_too_short',
-                        category: 'posts')
+                    category: 'posts')
                     : null,
               ),
               const SizedBox(height: 12),
+              // Category Selection
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.cardColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: theme.dividerColor),
                 ),
-                child: DropdownButton<String>(
-                  value: _serviceCategory,
+                child: DropdownButton<CategoryModel>(
+                  value: _selectedCategory,
                   isExpanded: true,
+                  dropdownColor: theme.cardColor,
                   icon: Icon(Icons.arrow_drop_down,
-                      color: const Color.fromARGB(255, 12, 94, 153)),
-                  style: TextStyle(color: kDarkTextColor, fontSize: 15),
+                      color: theme.primaryColor),
+                  style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color, fontSize: 15, fontFamily: 'Exo2'),
                   underline: const SizedBox(),
-                  onChanged: (String? newValue) {
+                  onChanged: (CategoryModel? newValue) {
                     if (newValue != null) {
-                      setState(() => _serviceCategory = newValue);
+                      setState(() {
+                        _selectedCategory = newValue;
+                        _selectedSubcategory = newValue.subcategories.isNotEmpty
+                            ? newValue.subcategories.first
+                            : null;
+                      });
                     }
                   },
-                  items: categories.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
+                  items: _categories.map((CategoryModel cat) {
+                    return DropdownMenuItem<CategoryModel>(
+                      value: cat,
+                      child: Text(cat.getTranslatedName(languageProvider)),
                     );
                   }).toList(),
                 ),
               ),
+              const SizedBox(height: 12),
+              // Subcategory Selection
+              if (_selectedCategory != null &&
+                  _selectedCategory!.subcategories.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: DropdownButton<SubcategoryModel>(
+                    value: _selectedSubcategory,
+                    isExpanded: true,
+                    dropdownColor: theme.cardColor,
+                    icon: Icon(Icons.arrow_drop_down,
+                        color: theme.primaryColor),
+                    style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 15,
+                        fontFamily: 'Exo2'),
+                    underline: const SizedBox(),
+                    onChanged: (SubcategoryModel? newValue) {
+                      if (newValue != null) {
+                        setState(() => _selectedSubcategory = newValue);
+                      }
+                    },
+                    items: _selectedCategory!.subcategories
+                        .map((SubcategoryModel sub) {
+                      return DropdownMenuItem<SubcategoryModel>(
+                        value: sub,
+                        child: Text(sub.getTranslatedName(languageProvider)),
+                      );
+                    }).toList(),
+                  ),
+                ),
               const SizedBox(height: 20),
               Text(
                 languageProvider.tr('add_images', category: 'posts'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: kDarkTextColor,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1277,13 +1214,13 @@ class _CreatePostModalState extends State<CreatePostModal> {
                       label: Text(
                           languageProvider.tr('gallery', category: 'posts')),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color.fromARGB(255, 12, 94, 153),
+                        backgroundColor: theme.cardColor,
+                        foregroundColor: theme.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                           side: BorderSide(
-                              color: const Color.fromARGB(255, 12, 94, 153)),
+                              color: theme.primaryColor),
                         ),
                       ),
                     ),
@@ -1296,13 +1233,13 @@ class _CreatePostModalState extends State<CreatePostModal> {
                       label: Text(
                           languageProvider.tr('camera', category: 'posts')),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color.fromARGB(255, 12, 94, 153),
+                        backgroundColor: theme.cardColor,
+                        foregroundColor: theme.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                           side: BorderSide(
-                              color: const Color.fromARGB(255, 12, 94, 153)),
+                              color: theme.primaryColor),
                         ),
                       ),
                     ),
@@ -1314,7 +1251,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
               ElevatedButton(
                 onPressed: _isUploading ? null : _submitPost,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 12, 94, 153),
+                  backgroundColor: theme.primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1322,21 +1259,21 @@ class _CreatePostModalState extends State<CreatePostModal> {
                 ),
                 child: _isUploading
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
                     : Text(
-                        languageProvider.tr('publish_post', category: 'posts'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
+                  languageProvider.tr('publish_post', category: 'posts'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
             ],

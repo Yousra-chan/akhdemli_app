@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:service_app/screens/auth/constants.dart';
+import 'package:service_app/providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 const Color kPrimaryBlue = Color(0xFF143EAE);
 const Color kLightBackgroundColor = Color(0xFFF0F4F8);
@@ -38,6 +40,7 @@ class RegisterButton extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return SizedBox(
       width: double.infinity,
       height: 54,
@@ -60,9 +63,9 @@ class RegisterButton extends StatelessWidget {
                   strokeWidth: 3,
                 ),
               )
-            : const Text(
-                'Register',
-                style: TextStyle(
+            : Text(
+                lang.tr('register', category: 'auth'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontFamily: kAppFont,
@@ -78,6 +81,7 @@ class OrDivider extends StatelessWidget {
   const OrDivider({super.key});
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Row(
       children: <Widget>[
         const Expanded(
@@ -86,7 +90,7 @@ class OrDivider extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
-            "OR",
+            lang.tr('or', category: 'auth'),
             style: TextStyle(
               color: kMutedTextColor.withOpacity(0.8),
               fontSize: 14,
@@ -175,23 +179,24 @@ class SignInLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return GestureDetector(
       onTap: onTap,
       child: Center(
         child: RichText(
-          text: const TextSpan(
-            style: TextStyle(
+          text: TextSpan(
+            style: const TextStyle(
               color: kMutedTextColor,
               fontFamily: kAppFont,
               fontSize: 15,
             ),
             children: [
               TextSpan(
-                text: "Already have an account? ",
+                text: lang.tr('already_have_account', category: 'auth'),
               ),
               TextSpan(
-                text: 'Sign in',
-                style: TextStyle(
+                text: lang.tr('sign_in_now', category: 'auth'),
+                style: const TextStyle(
                   color: kPrimaryBlue,
                   fontWeight: FontWeight.w700,
                 ),

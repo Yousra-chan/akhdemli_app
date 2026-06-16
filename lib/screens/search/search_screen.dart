@@ -1,8 +1,9 @@
 import 'dart:ui' as ui;
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
@@ -16,6 +17,8 @@ import 'package:service_app/services/wilaya_service.dart';
 import 'package:service_app/services/categories_service.dart';
 import 'package:service_app/services/location_service.dart';
 import 'package:service_app/services/geocoding_service.dart';
+import 'package:service_app/utils/ui_widgets.dart';
+import 'package:latlong2/latlong.dart';
 
 // Modern Color Palette
 const Color kPrimaryColor = Color(0xFF6C63FF);
@@ -30,7 +33,6 @@ const Color kLightText = Color(0xFFA0AEC0);
 const Color kBorderColor = Color(0xFFE2E8F0);
 const Color kShadowColor = Color(0x1A000000);
 
-// Custom Gradients
 const LinearGradient kPrimaryGradient = LinearGradient(
   colors: [Color(0xFF6C63FF), Color(0xFF4A90E2)],
   begin: Alignment.topLeft,
@@ -45,28 +47,30 @@ class MapSearchPage extends StatefulWidget {
 }
 
 class _MapSearchPageState extends State<MapSearchPage> {
-  late GoogleMapController _mapController;
-  CameraPosition? _initialCameraPosition;
-  Set<Marker> _markers = {};
-  final Map<String, BitmapDescriptor> _markerCache = {};
+  late MapController _mapController;
+  LatLng? _initialCenter;
+  double _initialZoom = 13.5;
+  List<Marker> _markers = [];
 
-  // ViewModel
   late SearchViewModel _searchViewModel;
 
-  // Services
   final CategoriesService _categoriesService = CategoriesService();
   final LocationService _locationService = LocationService();
 
-  // Current filters
   Map<String, dynamic> _currentFilters = {};
   LatLng? _userLocation;
   bool _isLoadingLocation = false;
   List<String> _wilayas = [];
   Map<String, List<String>> _categoriesWithSubcategories = {};
 
+  // ─────────────────────────────────────────────────────────────
+  // LIFECYCLE
+  // ─────────────────────────────────────────────────────────────
+
   @override
   void initState() {
     super.initState();
+    _mapController = MapController();
     _searchViewModel = SearchViewModel();
     _initializeMap();
     _loadInitialData();
@@ -80,51 +84,37 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   void _clearResources() {
     _markers.clear();
-    _markerCache.clear();
-    try {
-      _mapController.dispose();
-    } catch (e) {
-      print('Error clearing map resources: $e');
-    }
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────────────────────
 
   Future<void> _initializeMap() async {
     try {
-      setState(() {
-        _isLoadingLocation = true;
-      });
+      setState(() => _isLoadingLocation = true);
 
       final position = await _locationService.getCurrentLocation();
       if (position != null) {
         _userLocation = LatLng(position.latitude, position.longitude);
         setState(() {
-          _initialCameraPosition = CameraPosition(
-            target: _userLocation!,
-            zoom: 13.5,
-            tilt: 0,
-            bearing: 0,
-          );
+          _initialCenter = _userLocation!;
+          _initialZoom = 13.5;
         });
       } else {
         setState(() {
-          _initialCameraPosition = const CameraPosition(
-            target: LatLng(36.7525, 3.0420),
-            zoom: 13.5,
-          );
+          _initialCenter = LatLng(36.7525, 3.0420);
+          _initialZoom = 13.5;
         });
       }
     } catch (e) {
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
       setState(() {
-        _initialCameraPosition = const CameraPosition(
-          target: LatLng(36.7525, 3.0420),
-          zoom: 13.5,
-        );
+        _initialCenter = LatLng(36.7525, 3.0420);
+        _initialZoom = 13.5;
       });
     } finally {
-      setState(() {
-        _isLoadingLocation = false;
-      });
+      setState(() => _isLoadingLocation = false);
     }
   }
 
@@ -132,12 +122,16 @@ class _MapSearchPageState extends State<MapSearchPage> {
     try {
       _wilayas = WilayaService.getAllWilayaNames();
       _categoriesWithSubcategories =
-          await _categoriesService.getCategoriesForFilter();
+      await _categoriesService.getCategoriesForFilter();
       await _searchProvidersWithCurrentFilters();
     } catch (e) {
-      print('Error loading initial data: $e');
+      debugPrint('Error loading initial data: $e');
     }
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // SEARCH & MARKERS
+  // ─────────────────────────────────────────────────────────────
 
   Future<void> _searchProvidersWithCurrentFilters() async {
     try {
@@ -154,259 +148,160 @@ class _MapSearchPageState extends State<MapSearchPage> {
         await _createMarkersFromProviders(_searchViewModel.providerResults);
       }
     } catch (e) {
-      print('Error searching providers: $e');
+      debugPrint('Error searching providers: $e');
       _centerMapOnSelectedLocation();
     }
   }
 
-  Future<void> _createMarkersFromProviders(
-    List<ProviderModel> providers,
-  ) async {
-    final Set<Marker> newMarkers = {};
+  Future<void> _createMarkersFromProviders(List<ProviderModel> providers) async {
+    final List<Marker> newMarkers = [];
 
     for (var provider in providers) {
       if (provider.location == null) continue;
 
-      print(
-          'Creating marker for ${provider.name} - Has photo: ${provider.photoUrl != null && provider.photoUrl!.isNotEmpty}');
-
-      final marker = Marker(
-        markerId: MarkerId(
-          provider.uid ??
-              '${provider.name}_${DateTime.now().millisecondsSinceEpoch}',
+      newMarkers.add(
+        Marker(
+          point: provider.location!,
+          width: 80,
+          height: 104,
+          alignment: Alignment.bottomCenter,
+          child: GestureDetector(
+            onTap: () => _handleMarkerTap(provider),
+            child: _buildCustomMarkerWidget(provider),
+          ),
         ),
-        position: provider.location!,
-        infoWindow: InfoWindow(
-          title: provider.name,
-          snippet: '${provider.profession} • ${provider.wilaya}',
-          onTap: () => _handleMarkerTap(provider),
-        ),
-        icon: await _createCustomMarkerIcon(provider),
-        anchor: const Offset(0.5, 0.5),
-        onTap: () => _handleMarkerTap(provider),
       );
-
-      newMarkers.add(marker);
     }
 
     if (mounted) {
-      setState(() {
-        _markers = newMarkers;
-      });
+      setState(() => _markers = newMarkers);
     }
   }
 
-  Future<BitmapDescriptor> _createCustomMarkerIcon(
-    ProviderModel provider,
-  ) async {
-    try {
-      const double markerSize = 70.0;
-      const double borderWidth = 3.0;
-      const double imageSize = markerSize - (borderWidth * 2);
+  Widget _buildCustomMarkerWidget(ProviderModel provider) {
+    final profColor = _getProfessionColor(provider.profession);
+    const double avatarR = 30.0;
+    const double outerR = avatarR + 4;
 
-      final pictureRecorder = ui.PictureRecorder();
-      final canvas = Canvas(pictureRecorder);
-      final paint = Paint();
-
-      // Draw outer glow effect
-      paint
-        ..color = kPrimaryColor.withOpacity(0.15)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(markerSize / 2, markerSize / 2),
-        markerSize / 2,
-        paint,
-      );
-
-      // Draw white border
-      paint
-        ..color = Colors.white
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(markerSize / 2, markerSize / 2),
-        markerSize / 2 - 1,
-        paint,
-      );
-
-      // Draw inner circle background with gradient
-      final gradient = LinearGradient(
-        colors: [
-          _getProfessionColor(provider.profession),
-          _getProfessionColor(provider.profession).withOpacity(0.8),
-        ],
-      );
-      paint.shader = gradient.createShader(
-        Rect.fromCircle(
-          center: Offset(markerSize / 2, markerSize / 2),
-          radius: imageSize / 2,
-        ),
-      );
-      canvas.drawCircle(
-        Offset(markerSize / 2, markerSize / 2),
-        imageSize / 2,
-        paint,
-      );
-
-      // Check if provider has a base64 image
-      bool hasImage = false;
-      if (provider.photoUrl != null && provider.photoUrl!.isNotEmpty) {
-        try {
-          // Check if it's a base64 string (starts with data:image)
-          if (provider.photoUrl!.startsWith('data:image')) {
-            // Extract base64 data
-            final base64String = provider.photoUrl!.split(',').last;
-
-            // Decode base64 to bytes
-            final bytes = base64Decode(base64String);
-
-            // Decode the image
-            final codec = await ui.instantiateImageCodec(bytes);
-            final frame = await codec.getNextFrame();
-            final image = frame.image;
-
-            // Create circular clip path
-            final Path clipPath = Path()
-              ..addOval(Rect.fromCircle(
-                center: Offset(markerSize / 2, markerSize / 2),
-                radius: imageSize / 2 - 2,
-              ));
-
-            canvas.save();
-            canvas.clipPath(clipPath);
-
-            // Draw the image
-            final src = Rect.fromLTWH(
-                0, 0, image.width.toDouble(), image.height.toDouble());
-            final dst = Rect.fromCircle(
-              center: Offset(markerSize / 2, markerSize / 2),
-              radius: imageSize / 2 - 2,
-            );
-
-            canvas.drawImageRect(image, src, dst, Paint());
-            canvas.restore();
-
-            hasImage = true;
-            print('Successfully loaded base64 image for ${provider.name}');
-          } else if (provider.photoUrl!.startsWith('http')) {
-            // Handle URL images - you can implement network image loading here
-            print(
-                'Network image URL found for ${provider.name}: ${provider.photoUrl}');
-          }
-        } catch (e) {
-          print('Error loading provider image for ${provider.name}: $e');
-        }
-      }
-
-      // Draw profession initial if no image was loaded
-      if (!hasImage) {
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: _getProfessionInitial(provider.profession),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Exo2',
+    return SizedBox(
+      width: 80,
+      height: 104,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          // ── Drop shadow ──
+          Positioned(
+            top: 6,
+            child: Container(
+              width: outerR * 2,
+              height: outerR * 2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.18),
+                    blurRadius: 7,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
             ),
           ),
-          textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(
-            markerSize / 2 - textPainter.width / 2,
-            markerSize / 2 - textPainter.height / 2,
+
+          // ── Pin tail ──
+          Positioned(
+            top: outerR * 2 - 2,
+            child: CustomPaint(
+              size: const Size(20, 36),
+              painter: _PinTailPainter(color: profColor),
+            ),
+          ),
+
+          // ── White outer ring & Gradient fill circle ──
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            width: outerR * 2,
+            height: outerR * 2,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Container(
+              width: avatarR * 2,
+              height: avatarR * 2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [profColor, Color.lerp(profColor, Colors.black, 0.18)!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: _buildMarkerAvatar(provider),
+            ),
+          ),
+
+          // ── Verified badge ──
+          if (provider.subscriptionActive)
+            Positioned(
+              top: 2,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: kSuccessColor,
+                  size: 18,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkerAvatar(ProviderModel provider) {
+    bool hasImage = provider.photoUrl != null && provider.photoUrl!.startsWith('data:image');
+    if (hasImage) {
+      try {
+        final bytes = base64.decode(provider.photoUrl!.split(',').last);
+        return ClipOval(
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: 60,
+            height: 60,
           ),
         );
-      }
-
-      // Add verification badge if provider is verified
-      if (provider.subscriptionActive) {
-        paint
-          ..color = kSuccessColor
-          ..style = PaintingStyle.fill;
-        canvas.drawCircle(
-          Offset(markerSize - 12, 12),
-          8,
-          paint,
-        );
-        paint
-          ..color = Colors.white
-          ..style = PaintingStyle.fill;
-        canvas.drawCircle(
-          Offset(markerSize - 12, 12),
-          5,
-          paint,
-        );
-      }
-
-      final picture = pictureRecorder.endRecording();
-      final image = await picture.toImage(
-        markerSize.toInt(),
-        markerSize.toInt(),
-      );
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final buffer = byteData!.buffer.asUint8List();
-
-      final markerIcon = BitmapDescriptor.fromBytes(buffer);
-
-      // Cache the marker
-      final cacheKey =
-          '${provider.uid}_${provider.photoUrl ?? provider.profession}';
-      _markerCache[cacheKey] = markerIcon;
-
-      return markerIcon;
-    } catch (e) {
-      print('Error creating custom marker for ${provider.name}: $e');
-      return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
-    }
-  }
-
-  // Helper function to decode base64
-  Uint8List base64Decode(String base64String) {
-    // Remove any whitespace and URL encoding
-    final cleanString = base64String
-        .replaceAll(RegExp(r'\s'), '')
-        .replaceAll(RegExp(r'[^A-Za-z0-9+/=]'), '');
-
-    return Uint8List.fromList(_base64Decode(cleanString));
-  }
-
-  List<int> _base64Decode(String input) {
-    final output = <int>[];
-    var chr1, chr2, chr3;
-    var enc1, enc2, enc3, enc4;
-    var i = 0;
-
-    final keyStr =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-
-    input = input.replaceAll(RegExp(r'[^A-Za-z0-9+/=]'), '');
-
-    while (i < input.length) {
-      enc1 = keyStr.indexOf(input[i++]);
-      enc2 = keyStr.indexOf(input[i++]);
-      enc3 = keyStr.indexOf(input[i++]);
-      enc4 = keyStr.indexOf(input[i++]);
-
-      chr1 = (enc1 << 2) | (enc2 >> 4);
-      chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-      chr3 = ((enc3 & 3) << 6) | enc4;
-
-      output.add(chr1);
-      if (enc3 != 64) output.add(chr2);
-      if (enc4 != 64) output.add(chr3);
+      } catch (_) {}
     }
 
-    return output;
+    return Center(
+      child: Text(
+        _getProfessionInitial(provider.profession),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Exo2',
+        ),
+      ),
+    );
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // FILTERS
+  // ─────────────────────────────────────────────────────────────
 
   void _applyFilters(Map<String, dynamic> filters) async {
     setState(() {
       _currentFilters = filters;
       _markers.clear();
-      _markerCache.clear();
     });
 
     if (filters['useDistanceFilter'] == true && _userLocation != null) {
@@ -418,97 +313,62 @@ class _MapSearchPageState extends State<MapSearchPage> {
     await _searchProvidersWithCurrentFilters();
   }
 
+  void _clearFilters() {
+    setState(() {
+      _currentFilters = {};
+      _markers.clear();
+    });
+    _searchProvidersWithCurrentFilters();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // MAP NAVIGATION
+  // ─────────────────────────────────────────────────────────────
+
   void _centerMapOnSelectedLocation() {
     final wilayaCoordinates = _currentFilters['wilayaCoordinates'] as LatLng?;
     final wilayaName = _currentFilters['wilaya'] as String?;
 
     if (wilayaCoordinates != null) {
-      _mapController.animateCamera(
-        CameraUpdate.newLatLngZoom(wilayaCoordinates, 13),
-      );
-      _showNoProvidersMessage(wilayaName ?? 'cette région');
+      _mapController.move(wilayaCoordinates, 13);
+      _showNoProvidersMessage(wilayaName ?? '');
     } else if (wilayaName != null) {
       _getAndCenterWilaya(wilayaName);
     } else if (_userLocation != null) {
-      _mapController.animateCamera(
-        CameraUpdate.newLatLngZoom(_userLocation!, 13),
-      );
+      _mapController.move(_userLocation!, 13);
     }
   }
 
   Future<void> _getAndCenterWilaya(String wilayaName) async {
     try {
-      final coordinates = await GeocodingService.getWilayaCoordinates(
-        wilayaName,
-      );
+      final coordinates = await GeocodingService.getWilayaCoordinates(wilayaName);
       if (coordinates != null) {
-        _mapController.animateCamera(
-          CameraUpdate.newLatLngZoom(coordinates, 13),
-        );
+        _mapController.move(coordinates, 13);
         _showNoProvidersMessage(wilayaName);
       } else {
         _showNoCoordinatesMessage(wilayaName);
       }
     } catch (e) {
-      print('Error getting coordinates for $wilayaName: $e');
       _showNoCoordinatesMessage(wilayaName);
     }
   }
 
-  void _showNoProvidersMessage(String locationName) {
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.white, size: 20),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                languageProvider.trParams('no_providers_found',
-                    category: 'search', params: {'location': locationName}),
-                style: TextStyle(fontFamily: 'Exo2'),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: kAccentColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+  void _centerMapOnUser() {
+    if (_userLocation != null) {
+      _mapController.move(_userLocation!, 14);
+    }
   }
 
-  void _showNoCoordinatesMessage(String locationName) {
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.white, size: 20),
-            SizedBox(width: 12),
-            Text(
-              languageProvider.trParams('unable_to_locate',
-                  category: 'search', params: {'location': locationName}),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+  void _centerMapOnMarkers() {
+    if (_markers.isNotEmpty) {
+      final bounds = LatLngBounds.fromPoints(_markers.map((m) => m.point).toList());
+      _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(100)));
+    }
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // DIALOGS / SHEETS
+  // ─────────────────────────────────────────────────────────────
 
   void _showFilterDialog() {
     showDialog(
@@ -522,9 +382,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
     );
   }
 
-  void _handleMarkerTap(ProviderModel provider) {
-    _showProviderInfoSheet(provider);
-  }
+  void _handleMarkerTap(ProviderModel provider) => _showProviderInfoSheet(provider);
 
   void _showProviderInfoSheet(ProviderModel provider) {
     showModalBottomSheet(
@@ -535,392 +393,369 @@ class _MapSearchPageState extends State<MapSearchPage> {
     );
   }
 
-  Widget _buildProviderInfoSheet(ProviderModel provider) {
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+  // ─────────────────────────────────────────────────────────────
+  // PROVIDER INFO BOTTOM SHEET
+  // ─────────────────────────────────────────────────────────────
 
-    return SingleChildScrollView(
+  Widget _buildProviderInfoSheet(ProviderModel provider) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
+    final profColor = _getProfessionColor(provider.profession);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Directionality(
+      textDirection:
+      languageProvider.isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Container(
-        margin: const EdgeInsets.all(16),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         decoration: BoxDecoration(
-          color: kCardColor,
-          borderRadius: BorderRadius.circular(24),
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 30,
-              spreadRadius: 2,
-              offset: const Offset(0, 10),
+              color: Colors.black.withOpacity(isDark ? 0.45 : 0.15),
+              blurRadius: 40,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 10,
-              decoration: BoxDecoration(
-                gradient: kPrimaryGradient,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      // Provider avatar
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          gradient: kPrimaryGradient,
-                          borderRadius: BorderRadius.circular(35),
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: _getProfessionColor(provider.profession),
-                            borderRadius: BorderRadius.circular(32),
-                            image: provider.photoUrl != null &&
-                                    provider.photoUrl!.startsWith('data:image')
-                                ? DecorationImage(
-                                    image: MemoryImage(
-                                      base64Decode(
-                                          provider.photoUrl!.split(',').last),
-                                    ),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                          ),
-                          child: provider.photoUrl == null ||
-                                  !provider.photoUrl!.startsWith('data:image')
-                              ? Center(
-                                  child: Text(
-                                    _getProfessionInitial(provider.profession),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                )
-                              : null,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Hero header ──
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Gradient background
+                    Container(
+                      height: 110,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            profColor,
+                            Color.lerp(profColor, Colors.black, 0.25)!,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                    ),
+                    // Subtle pattern overlay
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.06,
+                        child: CustomPaint(painter: _DotPatternPainter()),
+                      ),
+                    ),
+                    // Drag handle
+                    Positioned(
+                      top: 10,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          width: 38,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.55),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Verified chip
+                    if (provider.subscriptionActive)
+                      Positioned(
+                        top: 26,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.45)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.verified_rounded,
+                                  color: Colors.white, size: 14),
+                              const SizedBox(width: 5),
+                              Text(
+                                languageProvider.tr('verified',
+                                    category: 'search'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Exo2',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Avatar (overlapping)
+                    Positioned(
+                      bottom: -34,
+                      left: 20,
+                      child: _buildAvatar(provider, profColor, theme),
+                    ),
+                  ],
+                ),
+
+                // ── Name / profession ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 44, 20, 0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               provider.name,
-                              style: const TextStyle(
-                                fontSize: 22,
+                              style: TextStyle(
+                                fontSize: 20,
                                 fontWeight: FontWeight.w700,
                                 fontFamily: 'Exo2',
-                                color: kDarkText,
+                                color: theme.textTheme.titleLarge?.color ??
+                                    kDarkText,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              provider.profession,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: _getProfessionColor(provider.profession),
-                                fontFamily: 'Exo2',
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (provider.rating > 0) ...[
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Icon(Icons.star,
-                                      color: Colors.amber, size: 20),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    provider.rating.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: kDarkText,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  if (provider.subscriptionActive)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: kPrimaryGradient,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        languageProvider.tr('verified',
-                                            category: 'search'),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  if (provider.wilaya.isNotEmpty || provider.commune.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kBackgroundColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: kPrimaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.location_on,
-                              color: kPrimaryColor,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            const SizedBox(height: 3),
+                            Row(
                               children: [
-                                Text(
-                                  languageProvider.tr('location',
-                                      category: 'search'),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: kMediumText,
-                                    fontFamily: 'Exo2',
-                                    fontWeight: FontWeight.w500,
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: profColor,
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(width: 6),
                                 Text(
-                                  '${provider.commune.isNotEmpty ? "${provider.commune}, " : ""}${provider.wilaya}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                  provider.profession,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: profColor,
                                     fontFamily: 'Exo2',
-                                    color: kDarkText,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 16),
-                  if (provider.description.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kBackgroundColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            languageProvider.tr('description',
-                                category: 'search'),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: kMediumText,
-                              fontFamily: 'Exo2',
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            provider.description,
-                            style: TextStyle(
-                              color: kDarkText,
-                              fontSize: 15,
-                              fontFamily: 'Exo2',
-                              height: 1.5,
-                            ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => ProviderProfileScreen(
-                                  provider: provider,
-                                  serviceCategory: provider.profession,
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kCardColor,
-                            foregroundColor: kPrimaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(color: kBorderColor, width: 2),
-                            ),
-                            elevation: 0,
+                      if (provider.rating > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.person_outline, size: 18),
-                              const SizedBox(width: 8),
+                              const Icon(Icons.star_rounded,
+                                  color: Color(0xFFFFA000), size: 18),
+                              const SizedBox(width: 4),
                               Text(
-                                languageProvider.tr('view_profile',
-                                    category: 'search'),
+                                provider.rating.toStringAsFixed(1),
                                 style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF6D4C41),
                                   fontFamily: 'Exo2',
                                 ),
                               ),
                             ],
                           ),
                         ),
+                    ],
+                  ),
+                ),
+
+                // ── Divider ──
+                Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Divider(height: 1, color: theme.dividerColor),
+                ),
+
+                // ── Info rows ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      if (provider.wilaya.isNotEmpty ||
+                          provider.commune.isNotEmpty)
+                        _InfoRow(
+                          icon: Icons.location_on_rounded,
+                          iconColor: profColor,
+                          label: languageProvider.tr('location',
+                              category: 'search'),
+                          value:
+                          '${provider.commune.isNotEmpty ? "${provider.commune}, " : ""}${provider.wilaya}',
+                          theme: theme,
+                        ),
+                      if (provider.description.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _InfoRow(
+                          icon: Icons.info_outline_rounded,
+                          iconColor: profColor,
+                          label: languageProvider.tr('description',
+                              category: 'search'),
+                          value: provider.description,
+                          maxLines: 2,
+                          theme: theme,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── Action buttons ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _OutlineButton(
+                              icon: Icons.person_outline_rounded,
+                              label: languageProvider.tr('view_profile',
+                                  category: 'search'),
+                              color: profColor,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => ProviderProfileScreen(
+                                    provider: provider,
+                                    serviceCategory: provider.profession,
+                                  ),
+                                ));
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _FilledButton(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              label: languageProvider.tr('contact',
+                                  category: 'search'),
+                              color: profColor,
+                              onTap: () async {
+                                Navigator.pop(context);
+                                await _startChatWithProvider(provider);
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            await _startChatWithProvider(provider);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kPrimaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            elevation: 0,
-                            shadowColor: kPrimaryColor.withOpacity(0.3),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.chat_outlined, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                languageProvider.tr('contact',
-                                    category: 'search'),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'Exo2',
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            languageProvider.tr('close', category: 'search'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'Exo2',
+                              color: theme.textTheme.bodySmall?.color ??
+                                  kMediumText,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: kMediumText,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: kBorderColor, width: 1.5),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.close, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          languageProvider.tr('close', category: 'search'),
-                          style: const TextStyle(
-                            fontFamily: 'Exo2',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildAvatar(ProviderModel provider, Color profColor, ThemeData theme) {
+    final bool hasBase64 = provider.photoUrl != null &&
+        provider.photoUrl!.startsWith('data:image');
+
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: theme.cardColor, width: 3.5),
+        boxShadow: [
+          BoxShadow(
+            color: profColor.withOpacity(0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        color: profColor,
+        image: hasBase64
+            ? DecorationImage(
+          image: MemoryImage(
+            base64.decode(provider.photoUrl!.split(',').last),
+          ),
+          fit: BoxFit.cover,
+        )
+            : null,
+      ),
+      child: !hasBase64
+          ? Center(
+        child: Text(
+          _getProfessionInitial(provider.profession),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Exo2',
+          ),
+        ),
+      )
+          : null,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CHAT
+  // ─────────────────────────────────────────────────────────────
+
   Future<void> _startChatWithProvider(ProviderModel provider) async {
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
 
     try {
       final authProvider = Provider.of<AuthViewModel>(context, listen: false);
       final currentUser = authProvider.currentUser;
 
       if (currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.warning, color: Colors.white),
-                const SizedBox(width: 12),
-                Text(languageProvider.tr('login_required_chat',
-                    category: 'search')),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            duration: const Duration(seconds: 3),
-          ),
+        AppSnackBar.showWarning(
+          context,
+          languageProvider.tr('login_required_chat', category: 'search'),
         );
         return;
       }
@@ -932,16 +767,16 @@ class _MapSearchPageState extends State<MapSearchPage> {
         throw Exception(
             languageProvider.tr('invalid_user_id', category: 'search'));
       }
-
       if (providerId.isEmpty) {
         throw Exception(
             languageProvider.tr('invalid_provider_id', category: 'search'));
       }
-
       if (currentUserId == providerId) {
         throw Exception(
             languageProvider.tr('cannot_chat_self', category: 'search'));
       }
+
+      final theme = Theme.of(context);
 
       showDialog(
         context: context,
@@ -951,7 +786,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -968,7 +803,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
                   height: 30,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(kPrimaryColor),
+                    valueColor: AlwaysStoppedAnimation(theme.primaryColor),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -977,7 +812,10 @@ class _MapSearchPageState extends State<MapSearchPage> {
                       category: 'search'),
                   style: TextStyle(
                     fontSize: 12,
-                    color: kMediumText,
+                    fontFamily: 'Exo2',
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white70
+                        : kMediumText,
                   ),
                 ),
               ],
@@ -993,584 +831,332 @@ class _MapSearchPageState extends State<MapSearchPage> {
           providerId: providerId,
         );
 
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
+        if (Navigator.canPop(context)) Navigator.pop(context);
 
         if (chatId != null && chatId.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(children: [
-                Icon(Icons.chat_bubble_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Text(languageProvider.tr('chat_created', category: 'search')),
-              ]),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              duration: const Duration(seconds: 2),
-            ),
+          AppSnackBar.showSuccess(
+            context,
+            languageProvider.tr('chat_created', category: 'search'),
           );
-
           await Future.delayed(const Duration(milliseconds: 500));
-
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DiscussionPage(
+              builder: (_) => DiscussionPage(
                 contactName: provider.name,
                 isOnline: true,
                 chatId: chatId,
                 currentUserId: currentUserId,
                 chatViewModel: chatViewModel,
                 profileImageUrl: provider.photoUrl,
+                contactUserId: providerId,
               ),
             ),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.error_outline, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Text(languageProvider.tr('chat_start_failed',
-                      category: 'search')),
-                ],
-              ),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          AppSnackBar.showError(
+            context,
+            languageProvider.tr('chat_start_failed', category: 'search'),
           );
         }
       } catch (e) {
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    languageProvider.trParams('chat_error',
-                        category: 'search', params: {'error': e.toString()}),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        if (Navigator.canPop(context)) Navigator.pop(context);
+        AppSnackBar.showError(
+          context,
+          languageProvider.trParams('chat_error',
+              category: 'search', params: {'error': e.toString()}),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Text(
-                languageProvider.trParams('initial_error',
-                    category: 'search', params: {'error': e.toString()}),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+      AppSnackBar.showError(
+        context,
+        languageProvider.trParams('initial_error',
+            category: 'search', params: {'error': e.toString()}),
       );
     }
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  void _showNoProvidersMessage(String locationName) {
+    final lp = Provider.of<LanguageProvider>(context, listen: false);
+    AppSnackBar.showWarning(
+      context,
+      lp.trParams('no_providers_found',
+          category: 'search', params: {'location': locationName}),
+    );
+  }
+
+  void _showNoCoordinatesMessage(String locationName) {
+    final lp = Provider.of<LanguageProvider>(context, listen: false);
+    AppSnackBar.showError(
+      context,
+      lp.trParams('unable_to_locate',
+          category: 'search', params: {'location': locationName}),
+    );
+  }
+
   Color _getProfessionColor(String profession) {
-    final lowerProfession = profession.toLowerCase();
-
-    if (lowerProfession.contains('électr') ||
-        lowerProfession.contains('electric')) {
-      return Color(0xFFFFB74D);
-    } else if (lowerProfession.contains('médec') ||
-        lowerProfession.contains('doctor')) {
-      return Color(0xFFEF5350);
-    } else if (lowerProfession.contains('plomb') ||
-        lowerProfession.contains('plumb')) {
-      return Color(0xFF42A5F5);
-    } else if (lowerProfession.contains('profess') ||
-        lowerProfession.contains('teacher') ||
-        lowerProfession.contains('tutor')) {
-      return Color(0xFF66BB6A);
-    } else if (lowerProfession.contains('menuis') ||
-        lowerProfession.contains('carpent')) {
-      return Color(0xFF8D6E63);
-    } else if (lowerProfession.contains('peint') ||
-        lowerProfession.contains('paint')) {
-      return Color(0xFFAB47BC);
-    } else if (lowerProfession.contains('jardin') ||
-        lowerProfession.contains('garden')) {
-      return Color(0xFF9CCC65);
-    } else if (lowerProfession.contains('déménag') ||
-        lowerProfession.contains('move')) {
-      return Color(0xFFFF7043);
-    } else if (lowerProfession.contains('nettoy') ||
-        lowerProfession.contains('clean')) {
-      return Color(0xFF29B6F6);
-    } else if (lowerProfession.contains('répar') ||
-        lowerProfession.contains('repair') ||
-        lowerProfession.contains('handyman')) {
-      return Color(0xFFFFA726);
-    } else if (lowerProfession.contains('install')) {
-      return Color(0xFF26C6DA);
-    }
-
+    final p = profession.toLowerCase();
+    if (p.contains('électr') || p.contains('electric'))
+      return const Color(0xFFFFB74D);
+    if (p.contains('médec') || p.contains('doctor'))
+      return const Color(0xFFEF5350);
+    if (p.contains('plomb') || p.contains('plumb'))
+      return const Color(0xFF42A5F5);
+    if (p.contains('profess') || p.contains('teacher') || p.contains('tutor'))
+      return const Color(0xFF66BB6A);
+    if (p.contains('menuis') || p.contains('carpent'))
+      return const Color(0xFF8D6E63);
+    if (p.contains('peint') || p.contains('paint'))
+      return const Color(0xFFAB47BC);
+    if (p.contains('jardin') || p.contains('garden'))
+      return const Color(0xFF9CCC65);
+    if (p.contains('déménag') || p.contains('move'))
+      return const Color(0xFFFF7043);
+    if (p.contains('nettoy') || p.contains('clean'))
+      return const Color(0xFF29B6F6);
+    if (p.contains('répar') || p.contains('repair') || p.contains('handyman'))
+      return const Color(0xFFFFA726);
+    if (p.contains('install')) return const Color(0xFF26C6DA);
     return kPrimaryColor;
   }
 
-  String _getProfessionInitial(String profession) {
-    if (profession.isEmpty) return "?";
-    return profession.substring(0, 1).toUpperCase();
-  }
+  String _getProfessionInitial(String profession) =>
+      profession.isEmpty ? '?' : profession.substring(0, 1).toUpperCase();
 
   String _buildSearchHint() {
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
-
-    if (_currentFilters.isEmpty) {
-      return languageProvider.tr('filter_hint', category: 'search');
-    }
+    final lp = Provider.of<LanguageProvider>(context, listen: false);
+    if (_currentFilters.isEmpty) return lp.tr('filter_hint', category: 'search');
 
     final wilaya = _currentFilters['wilaya'] ?? '';
     final category = _currentFilters['category'] ?? '';
     final distance = _currentFilters['maxDistance'] ?? 20;
 
-    if (category.isNotEmpty && wilaya.isNotEmpty) {
-      return "$category • $wilaya • ${distance.toInt()}km";
-    } else if (wilaya.isNotEmpty) {
-      return "$wilaya • ${distance.toInt()}km";
-    } else if (category.isNotEmpty) {
-      return "$category • ${distance.toInt()}km";
-    } else {
-      return languageProvider.trParams('active_filters',
-          category: 'search',
-          params: {'distance': distance.toInt().toString()});
-    }
+    if (category.isNotEmpty && wilaya.isNotEmpty)
+      return '$category • $wilaya • ${distance.toInt()}km';
+    if (wilaya.isNotEmpty) return '$wilaya • ${distance.toInt()}km';
+    if (category.isNotEmpty) return '$category • ${distance.toInt()}km';
+    return lp.trParams('active_filters',
+        category: 'search',
+        params: {'distance': distance.toInt().toString()});
   }
 
-  void _clearFilters() {
-    setState(() {
-      _currentFilters = {};
-      _markers.clear();
-      _markerCache.clear();
-    });
-
-    _searchProvidersWithCurrentFilters();
-  }
-
-  void _centerMapOnUser() {
-    if (_userLocation != null) {
-      _mapController.animateCamera(
-        CameraUpdate.newLatLngZoom(_userLocation!, 14),
-      );
-    }
-  }
-
-  void _centerMapOnMarkers() {
-    if (_markers.isNotEmpty) {
-      final bounds = _calculateBounds(_markers.map((m) => m.position).toList());
-      _mapController.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-    }
-  }
-
-  LatLngBounds _calculateBounds(List<LatLng> positions) {
-    double? minLat, maxLat, minLng, maxLng;
-
-    for (var pos in positions) {
-      minLat = minLat != null
-          ? (pos.latitude < minLat ? pos.latitude : minLat)
-          : pos.latitude;
-      maxLat = maxLat != null
-          ? (pos.latitude > maxLat ? pos.latitude : maxLat)
-          : pos.latitude;
-      minLng = minLng != null
-          ? (pos.longitude < minLng ? pos.longitude : minLng)
-          : pos.longitude;
-      maxLng = maxLng != null
-          ? (pos.longitude > maxLng ? pos.longitude : maxLng)
-          : pos.longitude;
-    }
-
-    return LatLngBounds(
-      southwest: LatLng(minLat ?? 0, minLng ?? 0),
-      northeast: LatLng(maxLat ?? 0, maxLng ?? 0),
-    );
-  }
+  // ─────────────────────────────────────────────────────────────
+  // BUILD
+  // ─────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = theme.cardColor;
+
     return WillPopScope(
       onWillPop: () async {
-        _clearResources();
         return true;
       },
       child: ChangeNotifierProvider.value(
         value: _searchViewModel,
         child: Scaffold(
-          backgroundColor: kBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: SafeArea(
             top: false,
             child: Stack(
               children: [
+                // ── Map ──
                 SizedBox.expand(
-                  child: _isLoadingLocation || _initialCameraPosition == null
-                      ? Consumer<LanguageProvider>(
-                          builder: (context, languageProvider, child) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: kCardColor,
-                                      borderRadius: BorderRadius.circular(30),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          blurRadius: 15,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 3,
-                                      valueColor:
-                                          AlwaysStoppedAnimation(kPrimaryColor),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    _isLoadingLocation
-                                        ? languageProvider.tr(
-                                            'loading_location',
-                                            category: 'search')
-                                        : languageProvider.tr('loading_map',
-                                            category: 'search'),
-                                    style: TextStyle(
-                                      color: kMediumText,
-                                      fontSize: 16,
-                                      fontFamily: 'Exo2',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        )
-                      : GoogleMap(
-                          mapType: MapType.normal,
-                          initialCameraPosition: _initialCameraPosition!,
-                          onMapCreated: (controller) {
-                            _mapController = controller;
-                          },
-                          markers: _markers,
-                          myLocationEnabled: true,
-                          myLocationButtonEnabled: false,
-                          zoomControlsEnabled: false,
-                          zoomGesturesEnabled: true,
-                          scrollGesturesEnabled: true,
-                          rotateGesturesEnabled: true,
-                          tiltGesturesEnabled: false,
-                          compassEnabled: true,
-                          mapToolbarEnabled: false,
-                        ),
+                  child: _isLoadingLocation || _initialCenter == null
+                      ? _buildLoadingView(theme, cardColor)
+                      : FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _initialCenter!,
+                      initialZoom: _initialZoom,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.service_app',
+                      ),
+                      MarkerLayer(markers: _markers),
+                    ],
+                  ),
                 ),
+
+                // ── Search bar ──
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
                   child: _buildSearchBar(context),
                 ),
+
+                // ── Loading overlay ──
                 Consumer<SearchViewModel>(
                   builder: (context, viewModel, child) {
-                    if (viewModel.isLoading) {
-                      final languageProvider =
-                          Provider.of<LanguageProvider>(context);
-
-                      return Positioned.fill(
-                        child: Container(
-                          color: Colors.black.withOpacity(0.2),
-                          child: Center(
-                            child: Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: kCardColor,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 20,
-                                    spreadRadius: 2,
+                    if (!viewModel.isLoading) return const SizedBox.shrink();
+                    final lp = Provider.of<LanguageProvider>(context);
+                    return Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.18),
+                        child: Center(
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 30,
+                                  height: 30,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation(
+                                        theme.primaryColor),
                                   ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 30,
-                                    height: 30,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor:
-                                          AlwaysStoppedAnimation(kPrimaryColor),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    languageProvider.tr('searching',
-                                        category: 'search'),
-                                    style: TextStyle(
-                                      color: kMediumText,
-                                      fontSize: 12,
-                                      fontFamily: 'Exo2',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-                Positioned(
-                  right: 20,
-                  bottom: 140,
-                  child: Column(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kCardColor,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: _centerMapOnUser,
-                          icon: Icon(Icons.my_location,
-                              color: kPrimaryColor, size: 24),
-                          style: IconButton.styleFrom(
-                            backgroundColor: kCardColor,
-                            padding: const EdgeInsets.all(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_markers.isNotEmpty)
-                        Container(
-                          decoration: BoxDecoration(
-                            color: kCardColor,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: IconButton(
-                            onPressed: _centerMapOnMarkers,
-                            icon: Icon(Icons.zoom_out_map,
-                                color: kPrimaryColor, size: 24),
-                            style: IconButton.styleFrom(
-                              backgroundColor: kCardColor,
-                              padding: const EdgeInsets.all(12),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kCardColor,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            IconButton(
-                              onPressed: () {
-                                _mapController
-                                    .animateCamera(CameraUpdate.zoomIn());
-                              },
-                              icon: Icon(Icons.add,
-                                  color: kPrimaryColor, size: 24),
-                              style: IconButton.styleFrom(
-                                backgroundColor: kCardColor,
-                                padding: const EdgeInsets.all(12),
-                              ),
-                            ),
-                            Container(
-                              height: 1,
-                              color: kBorderColor.withOpacity(0.5),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                _mapController
-                                    .animateCamera(CameraUpdate.zoomOut());
-                              },
-                              icon: Icon(Icons.remove,
-                                  color: kPrimaryColor, size: 24),
-                              style: IconButton.styleFrom(
-                                backgroundColor: kCardColor,
-                                padding: const EdgeInsets.all(12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Consumer<SearchViewModel>(
-                  builder: (context, viewModel, child) {
-                    if (viewModel.error != null &&
-                        viewModel.error!.isNotEmpty) {
-                      final languageProvider =
-                          Provider.of<LanguageProvider>(context);
-
-                      return Positioned(
-                        top: 100,
-                        left: 20,
-                        right: 20,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.redAccent.withOpacity(0.3),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  viewModel.error!,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  lp.tr('searching', category: 'search'),
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodySmall?.color ??
+                                        kMediumText,
+                                    fontSize: 12,
                                     fontFamily: 'Exo2',
-                                    fontSize: 14,
                                   ),
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                onPressed: () => viewModel.clearError(),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      );
-                    }
-                    return const SizedBox.shrink();
+                      ),
+                    );
                   },
                 ),
-                if (_markers.isNotEmpty)
-                  Positioned(
-                    top: 120,
-                    left: 20,
-                    child: Consumer<LanguageProvider>(
-                      builder: (context, languageProvider, child) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: kCardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: kPrimaryColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                languageProvider.trParams('providers_found',
-                                    category: 'search',
-                                    params: {
-                                      'count': _markers.length.toString()
-                                    }),
-                                style: TextStyle(
-                                  color: kDarkText,
-                                  fontWeight: FontWeight.w600,
+
+                // ── Map controls ──
+                PositionedDirectional(
+                  end: 16,
+                  bottom: 120,
+                  child: _buildMapControls(theme, cardColor),
+                ),
+
+                // ── Error banner ──
+                Consumer<SearchViewModel>(
+                  builder: (context, viewModel, child) {
+                    if (viewModel.error == null || viewModel.error!.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final lp = Provider.of<LanguageProvider>(context);
+                    return Positioned(
+                      top: 100,
+                      left: 16,
+                      right: 16,
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.redAccent.withOpacity(0.3),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.white, size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                lp.tr(viewModel.error!, category: 'common'),
+                                style: const TextStyle(
+                                  color: Colors.white,
                                   fontFamily: 'Exo2',
-                                  fontSize: 14,
+                                  fontSize: 13,
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white, size: 18),
+                              onPressed: () => viewModel.clearError(),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                // ── Result count badge ──
+                if (_markers.isNotEmpty)
+                  PositionedDirectional(
+                    top: 100,
+                    start: 16,
+                    child: Consumer<LanguageProvider>(
+                      builder: (context, lp, child) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              lp.trParams('providers_found',
+                                  category: 'search',
+                                  params: {
+                                    'count': _markers.length.toString()
+                                  }),
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color ??
+                                    kDarkText,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Exo2',
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -1581,123 +1167,448 @@ class _MapSearchPageState extends State<MapSearchPage> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context) {
-    final double statusBarHeight = MediaQuery.of(context).padding.top;
-
+  // ── Loading view ──
+  Widget _buildLoadingView(ThemeData theme, Color cardColor) {
     return Consumer<LanguageProvider>(
-      builder: (context, languageProvider, child) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(20, statusBarHeight + 10, 20, 14),
-          decoration: BoxDecoration(
-            color: kCardColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 5),
+      builder: (context, lp, child) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _showFilterDialog,
-                  child: Container(
-                    height: 52,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: kBackgroundColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: kBorderColor, width: 1.5),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          CupertinoIcons.search,
-                          color: kMediumText,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Consumer<SearchViewModel>(
-                            builder: (context, viewModel, child) {
-                              return Text(
-                                _buildSearchHint(),
-                                style: TextStyle(
-                                  color: kMediumText,
-                                  fontSize: 15,
-                                  fontFamily: 'Exo2',
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              );
-                            },
-                          ),
-                        ),
-                        if (_currentFilters.isNotEmpty)
-                          Container(
-                            margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              gradient: kPrimaryGradient,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation(theme.primaryColor),
               ),
-              const SizedBox(width: 12),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: kPrimaryColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  onPressed: _showFilterDialog,
-                  icon: const Icon(
-                    Icons.filter_alt,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _isLoadingLocation
+                  ? lp.tr('loading_location', category: 'search')
+                  : lp.tr('loading_map', category: 'search'),
+              style: TextStyle(
+                color: theme.textTheme.bodyMedium?.color ?? kMediumText,
+                fontSize: 15,
+                fontFamily: 'Exo2',
               ),
-              if (_currentFilters.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: kAccentColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    onPressed: _clearFilters,
-                    icon: Icon(
-                      Icons.close,
-                      color: kAccentColor,
-                      size: 20,
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+        ),
+      ),
     );
   }
+
+  // ── Map controls column ──
+  Widget _buildMapControls(ThemeData theme, Color cardColor) {
+    return Column(
+      children: [
+        _mapControlButton(
+          theme,
+          cardColor,
+          icon: Icons.my_location_rounded,
+          onTap: _centerMapOnUser,
+        ),
+        const SizedBox(height: 10),
+        if (_markers.isNotEmpty) ...[
+          _mapControlButton(
+            theme,
+            cardColor,
+            icon: Icons.zoom_out_map_rounded,
+            onTap: _centerMapOnMarkers,
+          ),
+          const SizedBox(height: 10),
+        ],
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              IconButton(
+                onPressed: () {
+                  _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1);
+                },
+                icon: Icon(Icons.add_rounded, color: theme.primaryColor, size: 22),
+                padding: const EdgeInsets.all(10),
+              ),
+              Divider(height: 1, color: theme.dividerColor),
+              IconButton(
+                onPressed: () {
+                  _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1);
+                },
+                icon: Icon(Icons.remove_rounded,
+                    color: theme.primaryColor, size: 22),
+                padding: const EdgeInsets.all(10),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mapControlButton(
+      ThemeData theme,
+      Color cardColor, {
+        required IconData icon,
+        required VoidCallback onTap,
+      }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, color: theme.primaryColor, size: 22),
+        padding: const EdgeInsets.all(10),
+      ),
+    );
+  }
+
+  // ── Search bar ──
+  Widget _buildSearchBar(BuildContext context) {
+    final statusBarH = MediaQuery.of(context).padding.top;
+    final theme = Theme.of(context);
+
+    return Consumer<LanguageProvider>(
+      builder: (context, lp, child) => Container(
+        padding: EdgeInsets.fromLTRB(16, statusBarH + 10, 16, 14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black
+                  .withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _showFilterDialog,
+                child: Container(
+                  height: 50,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border:
+                    Border.all(color: theme.dividerColor, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(CupertinoIcons.search,
+                          color: kMediumText, size: 19),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Consumer<SearchViewModel>(
+                          builder: (_, __, ___) => Text(
+                            _buildSearchHint(),
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color ??
+                                  kMediumText,
+                              fontSize: 14,
+                              fontFamily: 'Exo2',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      if (_currentFilters.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.all(5),
+                          decoration: const BoxDecoration(
+                            gradient: kPrimaryGradient,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.check,
+                              color: Colors.white, size: 12),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            _searchBarIconButton(
+              color: theme.primaryColor,
+              icon: Icons.filter_alt_rounded,
+              onTap: _showFilterDialog,
+            ),
+            if (_currentFilters.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _searchBarIconButton(
+                color: kAccentColor.withOpacity(0.15),
+                icon: Icons.close_rounded,
+                iconColor: kAccentColor,
+                onTap: _clearFilters,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchBarIconButton({
+    required Color color,
+    required IconData icon,
+    Color? iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: iconColor ?? Colors.white, size: 20),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// EXTRACTED WIDGETS
+// ─────────────────────────────────────────────────────────────
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final int maxLines;
+  final ThemeData theme;
+
+  const _InfoRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.theme,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment:
+      maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.textTheme.bodySmall?.color ?? kMediumText,
+                  fontFamily: 'Exo2',
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Exo2',
+                  color: theme.textTheme.bodyLarge?.color ?? kDarkText,
+                ),
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OutlineButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _OutlineButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        side: BorderSide(color: color.withOpacity(0.45), width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontFamily: 'Exo2',
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilledButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _FilledButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 15, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontFamily: 'Exo2',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PinTailPainter extends CustomPainter {
+  final Color color;
+  _PinTailPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = ui.Path()
+      ..moveTo(size.width / 2 - 10, 0)
+      ..quadraticBezierTo(
+        size.width / 2 - 5,
+        size.height * 0.7,
+        size.width / 2,
+        size.height,
+      )
+      ..quadraticBezierTo(
+        size.width / 2 + 5,
+        size.height * 0.7,
+        size.width / 2 + 10,
+        0,
+      )
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Subtle dot-grid pattern painted on the hero header
+class _DotPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const spacing = 14.0;
+    const radius = 1.5;
+    final paint = Paint()..color = Colors.white;
+
+    for (double x = 0; x < size.width; x += spacing) {
+      for (double y = 0; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), radius, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

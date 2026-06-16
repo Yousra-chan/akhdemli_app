@@ -125,25 +125,26 @@ class BookingService {
           .where(isProvider ? 'providerId' : 'clientId', isEqualTo: userId)
           .orderBy('appointmentDate', descending: true);
 
-      // Apply filters based on filterType using translated status values
+      // Apply filters based on filterType
+      // We use literal strings for Firestore status values to ensure queries work across all languages
       if (filterType == 'active') {
         query = query.where('status', whereIn: [
-          getStatus('status_pending'),
-          getStatus('status_accepted'),
-          getStatus('status_confirmed')
+          'pending',
+          'accepted',
+          'confirmed'
         ]);
       } else if (filterType == 'upcoming') {
         query = query
             .where('appointmentDate', isGreaterThan: DateTime.now())
             .where('status', whereIn: [
-          getStatus('status_accepted'),
-          getStatus('status_confirmed')
+          'accepted',
+          'confirmed'
         ]);
       } else if (filterType == 'history') {
         query = query.where('status', whereIn: [
-          getStatus('status_completed'),
-          getStatus('status_cancelled'),
-          getStatus('status_rejected')
+          'completed',
+          'cancelled',
+          'rejected'
         ]);
       }
 

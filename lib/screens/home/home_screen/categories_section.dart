@@ -7,14 +7,33 @@ import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'dart:ui' as ui;
 
-class CategoriesPage extends StatelessWidget {
-  static const double _gridSpacing = 16;
-  static const int _crossAxisCount = 3;
-  static const double _childAspectRatio = 0.9;
-  static const double _iconContainerSize = 56;
-  static const double _iconSize = 24;
-  static const double _categoryNameFontSize = 12;
+// ─────────────────────────────────────────────────────────────
+//  Soft Clarity – Category row palette
+//  Each entry: [iconColor, chipBackground]
+// ─────────────────────────────────────────────────────────────
+const List<List<Color>> _kCategoryPalette = [
+  [Color(0xFF2C5F8A), Color(0xFFE4EEF6)],
+  [Color(0xFF3A7C6E), Color(0xFFE2F2EE)],
+  [Color(0xFF6B4FA0), Color(0xFFEEEAF7)],
+  [Color(0xFF9A5D1E), Color(0xFFF7EDE0)],
+  [Color(0xFF963550), Color(0xFFF7E8ED)],
+  [Color(0xFF3D7030), Color(0xFFE6F2E2)],
+  [Color(0xFF2C6B8A), Color(0xFFE2EEF6)],
+  [Color(0xFF7A4A1E), Color(0xFFF5EBDF)],
+  [Color(0xFF1E6B6B), Color(0xFFDFF2F2)],
+  [Color(0xFF4A6B1E), Color(0xFFEAF2DF)],
+  [Color(0xFF8A2C2C), Color(0xFFF6E4E4)],
+  [Color(0xFF7A5A1E), Color(0xFFF5EDE0)],
+  [Color(0xFF2C4A8A), Color(0xFFE2E8F6)],
+  [Color(0xFF1E6B4A), Color(0xFFDFF2EA)],
+  [Color(0xFF8A5A1E), Color(0xFFF6EDE0)],
+  [Color(0xFF5A5A5A), Color(0xFFEDEDED)],
+];
 
+List<Color> _paletteFor(int index) =>
+    _kCategoryPalette[index % _kCategoryPalette.length];
+
+class CategoriesPage extends StatelessWidget {
   final List<CategoryModel> categories;
   final UserModel? currentUser;
 
@@ -33,148 +52,180 @@ class CategoriesPage extends StatelessWidget {
               ? ui.TextDirection.rtl
               : ui.TextDirection.ltr,
           child: Scaffold(
+            backgroundColor: const Color(0xFFF5F4F0),
             appBar: _buildAppBar(context, languageProvider),
-            body: _buildCategoriesGrid(context, languageProvider),
+            body: _buildBody(context, languageProvider),
           ),
         );
       },
     );
   }
 
+  // ── AppBar ────────────────────────────────────────────────
   AppBar _buildAppBar(BuildContext context, LanguageProvider lang) {
     return AppBar(
       title: Text(
         lang.tr('all_categories', category: 'home_categories'),
-        style: TextStyle(
-          color: kDarkTextColor,
+        style: const TextStyle(
+          color: Color(0xFF2D2D2D),
           fontWeight: FontWeight.w700,
+          fontSize: 18,
           fontFamily: 'Exo2',
         ),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFAFAF8),
       elevation: 0,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(0.5),
+        child: Container(height: 0.5, color: const Color(0xFFE2E0DA)),
+      ),
       leading: IconButton(
-        icon: Icon(lang.isRtl ? Icons.arrow_forward : Icons.arrow_back,
-            color: kDarkTextColor),
+        icon: Icon(
+          lang.isRtl
+              ? Icons.arrow_forward_ios_rounded
+              : Icons.arrow_back_ios_rounded,
+          color: const Color(0xFF2D2D2D),
+          size: 18,
+        ),
         onPressed: () => Navigator.pop(context),
       ),
     );
   }
 
-  Widget _buildCategoriesGrid(BuildContext context, LanguageProvider lang) {
+  // ── Body ──────────────────────────────────────────────────
+  Widget _buildBody(BuildContext context, LanguageProvider lang) {
     if (categories.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.category_outlined,
-              size: 64,
-              color: kMutedTextColor,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              lang.tr('no_categories_found', category: 'home_categories'),
-              style: TextStyle(
-                color: kMutedTextColor,
-                fontSize: 16,
-                fontFamily: 'Exo2',
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState(lang);
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(_gridSpacing),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _crossAxisCount,
-        crossAxisSpacing: _gridSpacing,
-        mainAxisSpacing: _gridSpacing,
-        childAspectRatio: _childAspectRatio,
-      ),
-      itemCount: categories.length,
-      itemBuilder: (context, index) => _buildCategoryCard(
-        context,
-        categories[index],
-        index,
-        lang,
+    // Two-column row grid — each column is a vertical list of rows
+    // We split the categories into two columns
+    final int half = (categories.length / 2).ceil();
+    final left = categories.sublist(0, half);
+    final right = categories.sublist(half);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column
+          Expanded(
+            child: Column(
+              children: List.generate(
+                left.length,
+                    (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildCategoryRow(
+                      context, left[i], i * 2, lang),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Right column
+          Expanded(
+            child: Column(
+              children: List.generate(
+                right.length,
+                    (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildCategoryRow(
+                      context, right[i], i * 2 + 1, lang),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCategoryCard(
-    BuildContext context,
-    CategoryModel category,
-    int index,
-    LanguageProvider lang,
-  ) {
+  // ── Single category row pill ──────────────────────────────
+  Widget _buildCategoryRow(
+      BuildContext context,
+      CategoryModel category,
+      int index,
+      LanguageProvider lang,
+      ) {
+    final palette = _paletteFor(index);
+    final iconColor = palette[0];
+    final chipBg = palette[1];
+
     return GestureDetector(
       onTap: () => _navigateToProviders(context, category, lang),
       child: Container(
-        decoration: _categoryCardDecoration(),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAFAF8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E0DA), width: 0.5),
+        ),
+        child: Row(
           children: [
-            _buildCategoryIcon(category, index),
-            const SizedBox(height: 12),
-            _buildCategoryName(category.name),
-            const SizedBox(height: 4),
+            // Icon chip
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(category.icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            // Name
+            Expanded(
+              child: Text(
+                category.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF2D2D2D),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Exo2',
+                ),
+              ),
+            ),
+            // Chevron
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 11,
+              color: Color(0xFFB0B0B0),
+            ),
           ],
         ),
       ),
     );
   }
 
-  BoxDecoration _categoryCardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 10,
-          offset: const Offset(0, 5),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryIcon(CategoryModel category, int index) {
-    return Container(
-      width: _iconContainerSize,
-      height: _iconContainerSize,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _getCategoryColors(index),
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Icon(
-        category.icon,
-        color: Colors.white,
-        size: _iconSize,
-      ),
-    );
-  }
-
-  Widget _buildCategoryName(String name) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        name,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: kDarkTextColor,
-          fontSize: _categoryNameFontSize,
-          fontWeight: FontWeight.w600,
-          fontFamily: 'Exo2',
-        ),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+  // ── Empty state ───────────────────────────────────────────
+  Widget _buildEmptyState(LanguageProvider lang) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE4EEF6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.category_outlined,
+                size: 36, color: Color(0xFF2C5F8A)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            lang.tr('no_categories_found', category: 'home_categories'),
+            style: const TextStyle(
+              color: Color(0xFF9B9B9B),
+              fontSize: 15,
+              fontFamily: 'Exo2',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -186,20 +237,10 @@ class CategoriesPage extends StatelessWidget {
       MaterialPageRoute(
         builder: (context) => ProvidersListPage(
           categoryName: category.name,
-          subCategoryName: lang.tr('all_services', category: 'home_categories'),
+          subCategoryName:
+          lang.tr('all_services', category: 'home_categories'),
         ),
       ),
     );
-  }
-
-  List<Color> _getCategoryColors(int index) {
-    const colorSchemes = [
-      [Color(0xFF667EEA), Color(0xFF764BA2)],
-      [Color(0xFF4FACFE), Color(0xFF00F2FE)],
-      [Color(0xFF43E97B), Color(0xFF38F9D7)],
-      [Color(0xFFFA709A), Color(0xFFFEE140)],
-      [Color(0xFFF093FB), Color(0xFFF5576C)],
-    ];
-    return colorSchemes[index % colorSchemes.length];
   }
 }

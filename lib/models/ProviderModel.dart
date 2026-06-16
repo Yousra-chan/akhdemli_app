@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:service_app/models/UserModel.dart';
 
 class ProviderModel {
@@ -9,19 +9,19 @@ class ProviderModel {
   String address;
   String wilaya;
   String commune;
-  double rating; // Changed from final to mutable
+  double rating; 
   final bool subscriptionActive;
   final Timestamp? subscriptionExpiry;
   final Timestamp? subscriptionExpiresAt;
   LatLng? location;
 
-  // Fields required by the UI
   final String phone;
-  final String whatsapp; // Will use phone number
+  final String whatsapp; 
   final String description;
   final String photoUrl;
   final List<String> serviceIds;
-  final List<String> serviceImages; // Fetched from services collection
+  final List<String> serviceImages; 
+  final List<String> portfolio;
 
   ProviderModel({
     this.uid,
@@ -36,6 +36,7 @@ class ProviderModel {
     required this.photoUrl,
     required this.serviceIds,
     this.serviceImages = const [],
+    this.portfolio = const [],
     this.rating = 0.0,
     this.subscriptionActive = false,
     this.subscriptionExpiry,
@@ -57,11 +58,12 @@ class ProviderModel {
       wilaya: user.wilaya ?? '',
       commune: user.commune ?? '',
       phone: user.phone,
-      whatsapp: user.phone, // Use phone for whatsapp
+      whatsapp: user.phone, 
       description: user.profession ?? 'Professional service provider.',
       photoUrl: user.photoUrl,
       serviceIds: user.serviceIds,
-      serviceImages: const [], // Will be fetched separately
+      serviceImages: const [], 
+      portfolio: user.portfolio,
       rating: user.rating,
       subscriptionActive: user.subscriptionActive,
       subscriptionExpiry: user.subscriptionExpiry,
@@ -70,7 +72,6 @@ class ProviderModel {
     );
   }
 
-  // Factory method to create from Firestore data
   factory ProviderModel.fromFirestore(Map<String, dynamic> data, String id) {
     LatLng? location;
     if (data['location'] != null) {
@@ -86,13 +87,14 @@ class ProviderModel {
       wilaya: data['wilaya'] ?? '',
       commune: data['commune'] ?? '',
       phone: data['phone'] ?? '',
-      whatsapp: data['phone'] ?? '', // Use phone for whatsapp
+      whatsapp: data['phone'] ?? '', 
       description: data['description'] ??
           data['profession'] ??
           'Professional service provider.',
       photoUrl: data['photoUrl'] ?? '',
       serviceIds: List<String>.from(data['serviceIds'] ?? []),
-      serviceImages: const [], // Will be fetched separately
+      serviceImages: const [], 
+      portfolio: List<String>.from(data['portfolio'] ?? []),
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
       subscriptionActive: data['subscriptionActive'] ?? false,
       subscriptionExpiry: data['subscriptionExpiry'],
@@ -116,6 +118,7 @@ class ProviderModel {
       'photoUrl': photoUrl,
       'serviceIds': serviceIds,
       'serviceImages': serviceImages,
+      'portfolio': portfolio,
       'rating': rating,
       'subscriptionActive': subscriptionActive,
       'subscriptionExpiry': subscriptionExpiry,
@@ -126,7 +129,6 @@ class ProviderModel {
     };
   }
 
-  // Helper method to get service images from services collection
   Future<List<String>> fetchServiceImages() async {
     if (serviceIds.isEmpty) return [];
 
@@ -151,7 +153,6 @@ class ProviderModel {
     return images;
   }
 
-  // Create a copy with service images
   ProviderModel copyWithServiceImages(List<String> images) {
     return ProviderModel(
       uid: uid,
@@ -166,6 +167,7 @@ class ProviderModel {
       photoUrl: photoUrl,
       serviceIds: serviceIds,
       serviceImages: images,
+      portfolio: portfolio,
       rating: rating,
       subscriptionActive: subscriptionActive,
       subscriptionExpiry: subscriptionExpiry,
@@ -174,7 +176,6 @@ class ProviderModel {
     );
   }
 
-  // Create a copy with updated rating
   ProviderModel copyWith({
     String? uid,
     String? name,
@@ -191,6 +192,7 @@ class ProviderModel {
     String? photoUrl,
     List<String>? serviceIds,
     List<String>? serviceImages,
+    List<String>? portfolio,
     Timestamp? subscriptionExpiry,
     Timestamp? subscriptionExpiresAt,
   }) {
@@ -207,6 +209,7 @@ class ProviderModel {
       photoUrl: photoUrl ?? this.photoUrl,
       serviceIds: serviceIds ?? this.serviceIds,
       serviceImages: serviceImages ?? this.serviceImages,
+      portfolio: portfolio ?? this.portfolio,
       rating: rating ?? this.rating,
       subscriptionActive: subscriptionActive ?? this.subscriptionActive,
       subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,

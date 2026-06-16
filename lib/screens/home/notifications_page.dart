@@ -14,6 +14,37 @@ import '../../ViewModel/chat_view_model.dart' show ChatViewModel;
 import '../../screens/Booking/my_booking_page.dart';
 import '../../screens/chat/disscussion/disscussion_page.dart';
 import '../../models/notification_item.dart';
+import '../../utils/ui_widgets.dart';
+
+// ─── Dark-theme color helpers ────────────────────────────────────────────────
+class _NC {
+  // call with isDark = Theme.of(context).brightness == Brightness.dark
+  static Color bg(bool d)           => d ? const Color(0xFF0F0F1A) : Colors.white;
+  static Color headerBg(bool d)     => d ? const Color(0xFF16213E) : const Color(0xFFF8F9FF);
+  static Color cardUnread(bool d)   => d ? const Color(0xFF1E2A4A) : const Color(0xFFF0F7FF);
+  static Color cardRead(bool d)     => d ? const Color(0xFF161625) : Colors.white;
+  static Color titleText(bool d)    => d ? const Color(0xFFE0E0E0) : const Color(0xFF333333);
+  static Color subtitleText(bool d) => d ? const Color(0xFFAAAAAA) : const Color(0xFF666666);
+  static Color timeUnread(bool d)   => d ? const Color(0xFF8B9EFF) : const Color(0xFF667EEA);
+  static Color timeRead(bool d)     => d ? const Color(0xFF777777) : const Color(0xFF999999);
+  static Color sectionLabel(bool d) => d ? const Color(0xFFDDDDDD) : const Color(0xFF333333);
+  static Color divider(bool d)      => d ? const Color(0xFF2A2A40) : Colors.grey.shade200;
+  static Color bottomBar(bool d)    => d ? const Color(0xFF16213E) : Colors.white;
+  static Color borderRead(bool d)   => d ? const Color(0xFF2A2A40) : Colors.grey.shade100;
+  static Color shadow(bool d)       => d ? Colors.black54 : Colors.black12;
+  static Color emptyIcon(bool d)    => d ? const Color(0xFF3E3E5E) : const Color(0xFFCCCCCC);
+  static Color emptyText(bool d)    => d ? const Color(0xFF8888AA) : const Color(0xFF999999);
+  static Color msgBg(bool d)        => d ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FF);
+  static Color msgLabel(bool d)     => d ? const Color(0xFF8B9EFF) : const Color(0xFF667EEA);
+  static Color msgBody(bool d)      => d ? const Color(0xFFDDDDDD) : const Color(0xFF333333);
+  static Color bookingInfoBg(bool d)  => d ? const Color(0xFF101B3A) : const Color(0xFFF0F7FF);
+  static Color bookingInfoBorder(bool d) => d ? const Color(0xFF1A3A6E) : const Color(0xFFD1E9FF);
+  static Color bookingInfoTitle(bool d)  => d ? const Color(0xFF5A9FFF) : const Color(0xFF0066CC);
+  static Color detailLabel(bool d)  => d ? const Color(0xFF999999) : Colors.grey.shade600;
+  static Color detailValue(bool d)  => d ? const Color(0xFFDDDDDD) : Colors.grey.shade700;
+  static Color actionBorder(bool d) => d ? const Color(0xFF2A2A40) : Colors.grey.shade200;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 class NotificationsWindow extends StatefulWidget {
   final ChatViewModel? chatViewModel;
@@ -35,7 +66,7 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
   void initState() {
     super.initState();
     _streamController =
-        StreamController<List<HomeNotificationItem>>.broadcast();
+    StreamController<List<HomeNotificationItem>>.broadcast();
     _chatViewModel = widget.chatViewModel ?? ChatViewModel(userId: '');
     _initializeNotifications();
   }
@@ -183,7 +214,7 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
   }
 
   (List<HomeNotificationItem>, List<HomeNotificationItem>)
-      _categorizeNotifications(List<HomeNotificationItem> notifications) {
+  _categorizeNotifications(List<HomeNotificationItem> notifications) {
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
@@ -203,7 +234,7 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
   Future<void> _markAllAsRead() async {
     print('🔵 _markAllAsRead() called');
     final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+    Provider.of<LanguageProvider>(context, listen: false);
 
     try {
       if (_currentUserId == null || _currentUserId!.isEmpty) {
@@ -245,37 +276,17 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
       print('✅ Cleared user unreadCount');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('all_marked_read', category: 'notifications'),
-              style: const TextStyle(
-                fontFamily: 'Exo2',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.tr('all_marked_read', category: 'notifications'),
         );
       }
     } catch (e) {
       print('❌ Error in _markAllAsRead: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.tr('error_mark_read', category: 'notifications'),
-              style: const TextStyle(
-                fontFamily: 'Exo2',
-              ),
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-          ),
+        AppSnackBar.showError(
+          context,
+          languageProvider.tr('error_mark_read', category: 'notifications'),
         );
       }
     }
@@ -324,6 +335,7 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                       .tr('unknown_user', category: 'notifications'),
               isOnline: true,
               chatViewModel: _chatViewModel,
+              contactUserId: notification.senderId,
             ),
           ),
         );
@@ -365,7 +377,8 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
     );
   }
 
-  Widget _buildNotificationItem(HomeNotificationItem notification) {
+  Widget _buildNotificationItem(
+      HomeNotificationItem notification, bool isDark) {
     final languageProvider = Provider.of<LanguageProvider>(context);
     final isBookingNotification =
         notification.type == HomeNotificationType.booking;
@@ -379,19 +392,20 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isRead ? Colors.white : const Color(0xFFF0F7FF),
+          color: isRead ? _NC.cardRead(isDark) : _NC.cardUnread(isDark),
           borderRadius: BorderRadius.circular(12),
           border: isBookingNotification
               ? Border.all(
-                  color: const Color(0xFF667EEA).withOpacity(0.3), width: 2)
+              color: const Color(0xFF667EEA).withOpacity(isDark ? 0.5 : 0.3),
+              width: 2)
               : isRead
-                  ? Border.all(color: Colors.grey.shade100, width: 1)
-                  : Border.all(
-                      color: const Color(0xFF667EEA).withOpacity(0.5),
-                      width: 1.5),
+              ? Border.all(color: _NC.borderRead(isDark), width: 1)
+              : Border.all(
+              color: const Color(0xFF667EEA).withOpacity(isDark ? 0.7 : 0.5),
+              width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(isRead ? 0.05 : 0.1),
+              color: _NC.shadow(isDark).withOpacity(isRead ? 0.05 : 0.12),
               blurRadius: isRead ? 5 : 10,
               offset: const Offset(0, 2),
             ),
@@ -419,23 +433,17 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: _getNotificationGradient(notification.type)
-                      .map((color) => isRead ? color.withOpacity(0.5) : color)
+                      .map((color) =>
+                  isRead ? color.withOpacity(isDark ? 0.6 : 0.5) : color)
                       .toList(),
                 ),
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: isBookingNotification
-                    ? const Icon(
-                        Icons.calendar_today,
-                        color: Colors.white,
-                        size: 20,
-                      )
-                    : Icon(
-                        notification.icon,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                    ? const Icon(Icons.calendar_today,
+                    color: Colors.white, size: 20)
+                    : Icon(notification.icon, color: Colors.white, size: 20),
               ),
             ),
             Expanded(
@@ -452,11 +460,11 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                                   category: 'notifications'),
                           style: TextStyle(
                             color: isRead
-                                ? const Color(0xFF666666)
-                                : const Color(0xFF333333),
+                                ? _NC.subtitleText(isDark)
+                                : _NC.titleText(isDark),
                             fontSize: 14,
                             fontWeight:
-                                isRead ? FontWeight.w500 : FontWeight.w600,
+                            isRead ? FontWeight.w500 : FontWeight.w600,
                             fontFamily: 'Exo2',
                           ),
                           maxLines: 1,
@@ -487,11 +495,11 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                           _formatTime(notification.time, languageProvider),
                           style: TextStyle(
                             color: isRead
-                                ? const Color(0xFF999999)
-                                : const Color(0xFF667EEA),
+                                ? _NC.timeRead(isDark)
+                                : _NC.timeUnread(isDark),
                             fontSize: 12,
                             fontWeight:
-                                isRead ? FontWeight.normal : FontWeight.w500,
+                            isRead ? FontWeight.normal : FontWeight.w500,
                             fontFamily: 'Exo2',
                           ),
                         ),
@@ -502,8 +510,8 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                     _getActionText(notification.type, languageProvider),
                     style: TextStyle(
                       color: isRead
-                          ? const Color(0xFF999999)
-                          : const Color(0xFF666666),
+                          ? _NC.timeRead(isDark)
+                          : _NC.subtitleText(isDark),
                       fontSize: 13,
                       fontFamily: 'Exo2',
                     ),
@@ -513,10 +521,11 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                     notification.message,
                     style: TextStyle(
                       color: isRead
-                          ? const Color(0xFF666666)
-                          : const Color(0xFF333333),
+                          ? _NC.subtitleText(isDark)
+                          : _NC.titleText(isDark),
                       fontSize: 14,
-                      fontWeight: isRead ? FontWeight.normal : FontWeight.w500,
+                      fontWeight:
+                      isRead ? FontWeight.normal : FontWeight.w500,
                       fontFamily: 'Exo2',
                     ),
                     maxLines: 2,
@@ -528,12 +537,12 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                       child: Row(
                         children: [
                           Icon(Icons.access_time,
-                              size: 12, color: const Color(0xFF999999)),
+                              size: 12, color: _NC.timeRead(isDark)),
                           const SizedBox(width: 4),
                           Text(
                             _formatTime(notification.time, languageProvider),
-                            style: const TextStyle(
-                              color: Color(0xFF999999),
+                            style: TextStyle(
+                              color: _NC.timeRead(isDark),
                               fontSize: 12,
                               fontFamily: 'Exo2',
                             ),
@@ -649,6 +658,8 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Dialog(
@@ -657,18 +668,17 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
             width: MediaQuery.of(context).size.width * 0.9,
             height: MediaQuery.of(context).size.height * 0.7,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _NC.bg(isDark),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
               ],
             ),
             child: Directionality(
-              // CORRECTED: Using ui.TextDirection
               textDirection: languageProvider.isRtl
                   ? ui.TextDirection.rtl
                   : ui.TextDirection.ltr,
@@ -683,12 +693,12 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
 
                   return Column(
                     children: [
-                      // Header
+                      // ── Header ──────────────────────────────────────────
                       Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.only(
+                        decoration: BoxDecoration(
+                          color: _NC.headerBg(isDark),
+                          borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(20),
                             topRight: Radius.circular(20),
                           ),
@@ -702,8 +712,8 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                                 Text(
                                   languageProvider.tr('notifications',
                                       category: 'notifications'),
-                                  style: const TextStyle(
-                                    color: Color(0xFF333333),
+                                  style: TextStyle(
+                                    color: _NC.titleText(isDark),
                                     fontSize: 20,
                                     fontWeight: FontWeight.w700,
                                     fontFamily: 'Exo2',
@@ -719,8 +729,8 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                                       'total': notifications.length.toString(),
                                     },
                                   ),
-                                  style: const TextStyle(
-                                    color: Color(0xFF666666),
+                                  style: TextStyle(
+                                    color: _NC.subtitleText(isDark),
                                     fontSize: 12,
                                     fontFamily: 'Exo2',
                                   ),
@@ -728,32 +738,33 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                               ],
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, size: 20),
+                              icon: Icon(Icons.close,
+                                  size: 20, color: _NC.subtitleText(isDark)),
                               onPressed: () => Navigator.of(context).pop(),
                             ),
                           ],
                         ),
                       ),
 
-                      // Main content area
+                      // ── Main content ─────────────────────────────────────
                       Expanded(
                         child: _buildNotificationsBody(snapshot, today, week,
-                            unreadCount, languageProvider),
+                            unreadCount, languageProvider, isDark),
                       ),
 
-                      // Bottom button (only if there are unread notifications)
+                      // ── Bottom "mark all read" button ─────────────────────
                       if (unreadCount > 0)
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _NC.bottomBar(isDark),
                             border: Border(
-                                top: BorderSide(color: Colors.grey.shade200)),
+                                top: BorderSide(
+                                    color: _NC.divider(isDark))),
                           ),
                           child: ElevatedButton.icon(
                             onPressed: () {
                               print('🔘 Button pressed!');
-                              print('🔘 Calling _markAllAsRead()');
                               _markAllAsRead().catchError((e) {
                                 print('❌ Button error: $e');
                               });
@@ -790,19 +801,18 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
   }
 
   Widget _buildNotificationsBody(
-    AsyncSnapshot<List<HomeNotificationItem>> snapshot,
-    List<HomeNotificationItem> today,
-    List<HomeNotificationItem> week,
-    int unreadCount,
-    LanguageProvider lang,
-  ) {
+      AsyncSnapshot<List<HomeNotificationItem>> snapshot,
+      List<HomeNotificationItem> today,
+      List<HomeNotificationItem> week,
+      int unreadCount,
+      LanguageProvider lang,
+      bool isDark,
+      ) {
     if (snapshot.connectionState == ConnectionState.waiting &&
         snapshot.data?.isEmpty == true) {
       return Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(
-            const Color(0xFF667EEA),
-          ),
+          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF667EEA)),
         ),
       );
     }
@@ -812,16 +822,13 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              CupertinoIcons.exclamationmark_circle,
-              size: 60,
-              color: Colors.red,
-            ),
+            Icon(CupertinoIcons.exclamationmark_circle,
+                size: 60, color: Colors.red.withOpacity(isDark ? 0.8 : 1.0)),
             const SizedBox(height: 16),
             Text(
               lang.tr('error_loading', category: 'notifications'),
-              style: const TextStyle(
-                color: Colors.red,
+              style: TextStyle(
+                color: Colors.red.withOpacity(isDark ? 0.8 : 1.0),
                 fontSize: 16,
                 fontFamily: 'Exo2',
               ),
@@ -838,16 +845,13 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              CupertinoIcons.bell_slash,
-              size: 60,
-              color: Color(0xFFCCCCCC),
-            ),
+            Icon(CupertinoIcons.bell_slash,
+                size: 60, color: _NC.emptyIcon(isDark)),
             const SizedBox(height: 16),
             Text(
               lang.tr('no_notifications', category: 'notifications'),
-              style: const TextStyle(
-                color: Color(0xFF999999),
+              style: TextStyle(
+                color: _NC.emptyText(isDark),
                 fontSize: 16,
                 fontFamily: 'Exo2',
               ),
@@ -868,16 +872,15 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   lang.tr('today', category: 'notifications'),
-                  style: const TextStyle(
-                    color: Color(0xFF333333),
+                  style: TextStyle(
+                    color: _NC.sectionLabel(isDark),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Exo2',
                   ),
                 ),
               ),
-              ...today
-                  .map((notification) => _buildNotificationItem(notification)),
+              ...today.map((n) => _buildNotificationItem(n, isDark)),
             ],
           ),
         if (week.isNotEmpty)
@@ -888,16 +891,15 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
                 padding: const EdgeInsets.only(top: 16, bottom: 8),
                 child: Text(
                   lang.tr('this_week', category: 'notifications'),
-                  style: const TextStyle(
-                    color: Color(0xFF333333),
+                  style: TextStyle(
+                    color: _NC.sectionLabel(isDark),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Exo2',
                   ),
                 ),
               ),
-              ...week
-                  .map((notification) => _buildNotificationItem(notification)),
+              ...week.map((n) => _buildNotificationItem(n, isDark)),
             ],
           ),
       ],
@@ -911,54 +913,42 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
     if (difference.inMinutes < 1) {
       return lang.tr('just_now', category: 'notifications');
     } else if (difference.inMinutes < 60) {
-      return lang.trParams(
-        'minutes_ago',
-        category: 'notifications',
-        params: {'minutes': difference.inMinutes.toString()},
-      );
+      return lang.trParams('minutes_ago',
+          category: 'notifications',
+          params: {'minutes': difference.inMinutes.toString()});
     } else if (difference.inHours < 24) {
-      return lang.trParams(
-        'hours_ago',
-        category: 'notifications',
-        params: {'hours': difference.inHours.toString()},
-      );
+      return lang.trParams('hours_ago',
+          category: 'notifications',
+          params: {'hours': difference.inHours.toString()});
     } else if (difference.inDays < 7) {
-      return lang.trParams(
-        'days_ago',
-        category: 'notifications',
-        params: {'days': difference.inDays.toString()},
-      );
+      return lang.trParams('days_ago',
+          category: 'notifications',
+          params: {'days': difference.inDays.toString()});
     } else {
       final weeks = (difference.inDays / 7).floor();
-      return lang.trParams(
-        'weeks_ago',
-        category: 'notifications',
-        params: {'weeks': weeks.toString()},
-      );
+      return lang.trParams('weeks_ago',
+          category: 'notifications',
+          params: {'weeks': weeks.toString()});
     }
   }
 
   void _navigateToChat(
       BuildContext context, HomeNotificationItem notification) {
-    final lang = Provider.of<LanguageProvider>(context, listen: false);
-
     if (notification.chatId != null && _currentUserId != null) {
+      final chatVM = Provider.of<ChatViewModel?>(context, listen: false);
+      if (chatVM == null) return;
+
       Navigator.of(context).pop();
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ChangeNotifierProvider(
-            create: (context) => ChatViewModel(userId: _currentUserId!),
-            child: DiscussionPage(
-              contactName: notification.senderName ??
-                  notification.title
-                      .replaceAll('New message from ', '')
-                      .replaceAll(RegExp(r' \(\d+ new\)'), ''),
-              isOnline: true,
-              chatId: notification.chatId!,
-              currentUserId: _currentUserId!,
-              chatViewModel: ChatViewModel(userId: _currentUserId!),
-            ),
+          builder: (context) => DiscussionPage(
+            contactName: notification.senderName ?? 'Chat',
+            isOnline: true,
+            chatId: notification.chatId!,
+            currentUserId: _currentUserId!,
+            chatViewModel: chatVM,
+            contactUserId: notification.senderId,
           ),
         ),
       );
@@ -976,111 +966,6 @@ void showNotificationsWindow(BuildContext context) {
     },
     barrierColor: Colors.black.withOpacity(0.3),
   );
-}
-
-// =================== Booking Notification Service ===================
-class BookingNotificationService {
-  static Future<void> createNewBookingNotification({
-    required String providerId,
-    required String clientName,
-    required String serviceTitle,
-    required String clientId,
-    required String bookingId,
-  }) async {
-    try {
-      final notificationData = {
-        'receiverId': providerId,
-        'title': 'New Booking Request',
-        'message': '$clientName requested "$serviceTitle"',
-        'senderId': clientId,
-        'senderName': clientName,
-        'type': 'booking',
-        'bookingId': bookingId,
-        'bookingStatus': 'pending',
-        'userRole': 'provider',
-        'timestamp': Timestamp.now(),
-        'isRead': false,
-        'lastMessageTime': Timestamp.now(),
-      };
-
-      await FirebaseFirestore.instance
-          .collection('notifications')
-          .add(notificationData);
-
-      print('✅ Booking notification created for provider $providerId');
-    } catch (e) {
-      print('❌ Error creating booking notification: $e');
-    }
-  }
-
-  static Future<void> updateBookingStatusNotification({
-    required String bookingId,
-    required String newStatus,
-    required String providerId,
-    required String clientId,
-    required String providerName,
-    required String clientName,
-    required String serviceTitle,
-  }) async {
-    try {
-      String title = '';
-      String message = '';
-      String receiverId = '';
-      String senderId = '';
-      String senderName = '';
-
-      if (newStatus == 'accepted') {
-        title = 'Booking Accepted!';
-        message = '$providerName accepted your "$serviceTitle" booking';
-        receiverId = clientId;
-        senderId = providerId;
-        senderName = providerName;
-      } else if (newStatus == 'rejected') {
-        title = 'Booking Declined';
-        message = '$providerName declined your "$serviceTitle" booking';
-        receiverId = clientId;
-        senderId = providerId;
-        senderName = providerName;
-      } else if (newStatus == 'completed') {
-        title = 'Service Completed';
-        message = '$providerName marked "$serviceTitle" as completed';
-        receiverId = clientId;
-        senderId = providerId;
-        senderName = providerName;
-      } else if (newStatus == 'cancelled') {
-        title = 'Booking Cancelled';
-        message = '$clientName cancelled the "$serviceTitle" booking';
-        receiverId = providerId;
-        senderId = clientId;
-        senderName = clientName;
-      }
-
-      if (title.isNotEmpty) {
-        final notificationData = {
-          'receiverId': receiverId,
-          'title': title,
-          'message': message,
-          'senderId': senderId,
-          'senderName': senderName,
-          'type': 'booking',
-          'bookingId': bookingId,
-          'bookingStatus': newStatus,
-          'userRole': newStatus == 'cancelled' ? 'provider' : 'client',
-          'timestamp': Timestamp.now(),
-          'isRead': false,
-          'lastMessageTime': Timestamp.now(),
-        };
-
-        await FirebaseFirestore.instance
-            .collection('notifications')
-            .add(notificationData);
-
-        print('✅ Booking status notification sent for booking $bookingId');
-      }
-    } catch (e) {
-      print('❌ Error creating booking status notification: $e');
-    }
-  }
 }
 
 // =================== Notification Details Page ===================
@@ -1158,7 +1043,7 @@ class _NotificationDetailsPage extends StatelessWidget {
     }
   }
 
-  Widget _buildBookingDetails(LanguageProvider lang) {
+  Widget _buildBookingDetails(LanguageProvider lang, bool isDark) {
     final serviceTitle = _extractServiceTitle(notification.message) ??
         lang.tr('service', category: 'notifications');
     final bookingStatus = _getBookingStatusFromNotification(notification);
@@ -1170,39 +1055,39 @@ class _NotificationDetailsPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F7FF),
+        color: _NC.bookingInfoBg(isDark),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD1E9FF)),
+        border: Border.all(color: _NC.bookingInfoBorder(isDark)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             lang.tr('booking_information', category: 'notifications'),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF0066CC),
+              color: _NC.bookingInfoTitle(isDark),
               fontFamily: 'Exo2',
             ),
           ),
           const SizedBox(height: 12),
           if (bookingStatus != null)
             _buildDetailRow(lang.tr('status', category: 'notifications'),
-                translatedStatus, statusColor, lang),
+                translatedStatus, statusColor, isDark),
           _buildDetailRow(lang.tr('service', category: 'notifications'),
-              '"$serviceTitle"', Colors.grey.shade700, lang),
+              '"$serviceTitle"', _NC.detailValue(isDark), isDark),
           _buildDetailRow(
               lang.tr('from', category: 'notifications'),
               notification.senderName ??
                   lang.tr('unknown_user', category: 'notifications'),
-              Colors.grey.shade700,
-              lang),
+              _NC.detailValue(isDark),
+              isDark),
           _buildDetailRow(
               lang.tr('time', category: 'notifications'),
               _formatDetailedTime(notification.time, lang),
-              Colors.grey.shade700,
-              lang),
+              _NC.detailValue(isDark),
+              isDark),
         ],
       ),
     );
@@ -1241,7 +1126,7 @@ class _NotificationDetailsPage extends StatelessWidget {
   }
 
   Widget _buildDetailRow(
-      String label, String value, Color valueColor, LanguageProvider lang) {
+      String label, String value, Color valueColor, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -1250,7 +1135,7 @@ class _NotificationDetailsPage extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.grey.shade600,
+              color: _NC.detailLabel(isDark),
               fontSize: 14,
               fontFamily: 'Exo2',
             ),
@@ -1271,24 +1156,26 @@ class _NotificationDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Directionality(
-          // CORRECTED: Using ui.TextDirection
           textDirection: languageProvider.isRtl
               ? ui.TextDirection.rtl
               : ui.TextDirection.ltr,
           child: Container(
             height: MediaQuery.of(context).size.height * 0.7,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: _NC.bg(isDark),
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
               ),
             ),
             child: Column(
               children: [
+                // ── Gradient header (stays the same in both themes) ────────
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -1339,12 +1226,15 @@ class _NotificationDetailsPage extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // ── Scrollable body ────────────────────────────────────────
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // sender row
                         Row(
                           children: [
                             Container(
@@ -1361,17 +1251,11 @@ class _NotificationDetailsPage extends StatelessWidget {
                               ),
                               child: Center(
                                 child: notification.type ==
-                                        HomeNotificationType.booking
-                                    ? const Icon(
-                                        Icons.calendar_today,
-                                        color: Colors.white,
-                                        size: 28,
-                                      )
-                                    : Icon(
-                                        notification.icon,
-                                        color: Colors.white,
-                                        size: 28,
-                                      ),
+                                    HomeNotificationType.booking
+                                    ? const Icon(Icons.calendar_today,
+                                    color: Colors.white, size: 28)
+                                    : Icon(notification.icon,
+                                    color: Colors.white, size: 28),
                               ),
                             ),
                             const SizedBox(width: 16),
@@ -1383,18 +1267,18 @@ class _NotificationDetailsPage extends StatelessWidget {
                                     notification.senderName ??
                                         languageProvider.tr('unknown_user',
                                             category: 'notifications'),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF333333),
+                                      color: _NC.titleText(isDark),
                                       fontFamily: 'Exo2',
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     notification.title,
-                                    style: const TextStyle(
-                                      color: Color(0xFF666666),
+                                    style: TextStyle(
+                                      color: _NC.subtitleText(isDark),
                                       fontSize: 14,
                                       fontFamily: 'Exo2',
                                     ),
@@ -1405,10 +1289,12 @@ class _NotificationDetailsPage extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 24),
+
+                        // message box
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FF),
+                            color: _NC.msgBg(isDark),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -1417,19 +1303,19 @@ class _NotificationDetailsPage extends StatelessWidget {
                               Text(
                                 languageProvider.tr('message',
                                     category: 'notifications'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF667EEA),
+                                  color: _NC.msgLabel(isDark),
                                   fontFamily: 'Exo2',
                                 ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 notification.message,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
-                                  color: Color(0xFF333333),
+                                  color: _NC.msgBody(isDark),
                                   height: 1.5,
                                   fontFamily: 'Exo2',
                                 ),
@@ -1438,16 +1324,20 @@ class _NotificationDetailsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
+
                         if (notification.type == HomeNotificationType.booking)
-                          _buildBookingDetails(languageProvider),
+                          _buildBookingDetails(languageProvider, isDark),
                         const SizedBox(height: 32),
+
+                        // action buttons for booking
                         if (notification.type == HomeNotificationType.booking)
                           Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               border: Border(
-                                top: BorderSide(color: Colors.grey.shade200),
-                                bottom: BorderSide(color: Colors.grey.shade200),
+                                top: BorderSide(color: _NC.actionBorder(isDark)),
+                                bottom:
+                                BorderSide(color: _NC.actionBorder(isDark)),
                               ),
                             ),
                             child: Row(
@@ -1460,7 +1350,7 @@ class _NotificationDetailsPage extends StatelessWidget {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            const MyBookingsScreen(),
+                                        const MyBookingsScreen(),
                                       ),
                                     );
                                   },

@@ -1,0 +1,15 @@
+{
+  "new_message_from": "رسالة جديدة من {{name}}",
+  "booking_confirmed_title": "تم تأكيد الحجز!",
+  "booking_confirmed_body": "تم تأكيد حجزك لـ {{serviceName}}",
+  "booking_cancelled_title": "تم إلغاء الحجز",
+  "booking_cancelled_body": "تم إلغاء حجزك لـ {{serviceName}}",
+  "booking_reminder_title": "تذكير بالحجز",
+  "booking_reminder_body": "تذكير: موعدك لـ {{serviceName}} غداً",
+  "booking_update_title": "تحديث الحجز",
+  "booking_update_body": "تحديث لحجز {{serviceName}} الخاص بك",
+  "test_notification_title": "إشعار تجريبي",
+  "test_notification_body": "إشعاراتك تعمل بشكل صحيح! 🎉",
+  "default_new_message": "رسالة جديدة",
+  "default_notification_body": "لديك إشعار جديد"
+}

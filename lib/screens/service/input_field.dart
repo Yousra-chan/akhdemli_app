@@ -24,9 +24,11 @@ class InputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = Color(0xFF6366F1);
-    final Color textPrimary = Color(0xFF1E293B);
-    final Color textSecondary = Color(0xFF64748B);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final Color primaryColor = theme.primaryColor;
+    final Color textPrimary = theme.textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
+    final Color textSecondary = isDark ? Colors.white38 : const Color(0xFF64748B);
 
     Widget buildSectionHeader(String title, {IconData? icon}) {
       return Column(
@@ -43,7 +45,7 @@ class InputField extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 18, color: primaryColor),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
               ],
               Text(
                 title,
@@ -55,7 +57,7 @@ class InputField extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
         ],
       );
     }
@@ -66,14 +68,14 @@ class InputField extends StatelessWidget {
         buildSectionHeader(label, icon: icon),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Color(0xFFE2E8F0)),
+            border: Border.all(color: theme.dividerColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                 blurRadius: 8,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -81,7 +83,7 @@ class InputField extends StatelessWidget {
             controller: controller,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400]),
+              hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.grey[400]),
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
                   horizontal: 16, vertical: maxLines > 1 ? 16 : 18),

@@ -9,6 +9,7 @@ import 'package:service_app/screens/chat/chat_screen.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/screens/home/providers_list/provider_card.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class ProvidersListPage extends StatefulWidget {
   final String categoryName;
@@ -56,42 +57,29 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
     final String? currentUserId = await _getCurrentUserId();
 
     if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.tr('please_login',
-                category: 'providers_list_page'),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppSnackBar.showError(
+        context,
+        languageProvider.tr('please_login', category: 'providers_list_page'),
       );
       return;
     }
 
     // Check if provider UID is available
     if (provider.uid == null || provider.uid!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.tr('cannot_start_chat',
-                category: 'providers_list_page'),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppSnackBar.showError(
+        context,
+        languageProvider.tr('cannot_start_chat',
+            category: 'providers_list_page'),
       );
       return;
     }
 
     // Check if current user is trying to chat with themselves
     if (currentUserId == provider.uid!) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.tr('cannot_chat_self',
-                category: 'providers_list_page'),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppSnackBar.showError(
+        context,
+        languageProvider.tr('cannot_chat_self',
+            category: 'providers_list_page'),
       );
       return;
     }
@@ -126,6 +114,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
               currentUserId: currentUserId,
               chatViewModel: chatViewModel,
               profileImageUrl: provider.photoUrl,
+              contactUserId: provider.uid,
             ),
           ),
         );
@@ -140,16 +129,12 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
     } catch (e) {
       Navigator.of(context).pop(); // Dismiss loading
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.trParams(
-              'failed_to_start_chat',
-              category: 'providers_list_page',
-              params: {'error': e.toString()},
-            ),
-          ),
-          backgroundColor: Colors.red,
+      AppSnackBar.showError(
+        context,
+        languageProvider.trParams(
+          'failed_to_start_chat',
+          category: 'providers_list_page',
+          params: {'error': e.toString()},
         ),
       );
 
@@ -429,16 +414,12 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
         final languageProvider =
             Provider.of<LanguageProvider>(context, listen: false);
         print('Call ${provider.name}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.trParams(
-                'calling',
-                category: 'providers_list_page',
-                params: {'name': provider.name},
-              ),
-              style: const TextStyle(fontFamily: 'Exo2'),
-            ),
+        AppSnackBar.showSuccess(
+          context,
+          languageProvider.trParams(
+            'calling',
+            category: 'providers_list_page',
+            params: {'name': provider.name},
           ),
         );
       },
@@ -520,104 +501,29 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
   Widget _buildEmptyState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.star_outline_rounded,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              languageProvider.tr('no_providers_found',
-                  category: 'providers_list_page'),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Exo2',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              languageProvider.tr('try_adjusting_filter',
-                  category: 'providers_list_page'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontFamily: 'Exo2',
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                setState(() {
-                  _selectedRatingFilter = 'all';
-                });
-                _applyFilters();
-              },
-              child: Text(
-                languageProvider.tr('show_all_providers',
-                    category: 'providers_list_page'),
-                style: const TextStyle(fontFamily: 'Exo2'),
-              ),
-            ),
-          ],
+    return EmptyStateWidget(
+      icon: Icons.star_outline_rounded,
+      message: languageProvider.tr('no_providers_found',
+          category: 'providers_list_page'),
+      subtitle: languageProvider.tr('try_adjusting_filter',
+          category: 'providers_list_page'),
+      action: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSkeletonCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        color: Colors.grey.shade200,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.grey.shade300,
-                  radius: 44,
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        height: 20,
-                        width: 150,
-                        color: Colors.grey.shade300,
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        height: 16,
-                        width: 100,
-                        color: Colors.grey.shade300,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+        onPressed: () {
+          setState(() {
+            _selectedRatingFilter = 'all';
+          });
+          _applyFilters();
+        },
+        child: Text(
+          languageProvider.tr('show_all_providers',
+              category: 'providers_list_page'),
+          style: const TextStyle(fontFamily: 'Exo2'),
         ),
       ),
     );
@@ -665,8 +571,9 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
             ),
             body: _isLoading
                 ? ListView.builder(
+                    padding: const EdgeInsets.only(top: 8),
                     itemCount: 5,
-                    itemBuilder: (context, index) => _buildSkeletonCard(),
+                    itemBuilder: (context, index) => const ProviderSkeleton(),
                   )
                 : Column(
                     children: [

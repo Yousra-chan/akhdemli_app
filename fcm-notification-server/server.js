@@ -1,12 +1,4 @@
-// ============================================================================
-// COMPLETE FCM NOTIFICATION SERVER (FIXED + PING FOR KEEP-ALIVE)
-// ============================================================================
-// CHANGES:
-// - Disabled Firestore auto-listener to prevent duplicate notifications
-// - Clients now send notifications directly to /send-notification endpoint
-// - Server remains stateless and only processes incoming notification requests
-// - Added /ping endpoint for UptimeRobot to keep server awake for FREE
-// ============================================================================
+
 
 const admin = require('firebase-admin');
 const express = require('express');
@@ -315,99 +307,6 @@ app.post('/send-to-user', async (req, res) => {
   }
 });
 
-// ============================================================================
-// FIRESTORE LISTENER (DISABLED - To prevent duplicate notifications)
-// ============================================================================
-
-// 🔴 COMMENTED OUT: This auto-listener was causing duplicate notifications
-// 
-// Previously, when a message was sent:
-// 1. Client sent notification via /send-notification endpoint ✅
-// 2. Client also saved to notifications collection
-// 3. This listener triggered and sent a SECOND notification ❌
-//
-// Now the client ONLY calls /send-notification endpoint
-// Server does NOT auto-trigger on Firestore changes
-// This is a cleaner, stateless architecture
-
-/*
-function startFirestoreListener() {
-  console.log('👂 Starting Firestore listener...');
-  
-  db.collection('chats').onSnapshot(
-    (snapshot) => {
-      snapshot.docChanges().forEach(async (change) => {
-        if (change.type === 'added' || change.type === 'modified') {
-          const chatId = change.doc.id;
-          const chatData = change.doc.data();
-          
-          if (chatData.lastMessage && chatData.lastMessageSender) {
-            await handleNewMessage(chatId, chatData);
-          }
-        }
-      });
-    },
-    (error) => {
-      console.error('❌ Firestore listener error:', error);
-      setTimeout(startFirestoreListener, 5000);
-    }
-  );
-  
-  console.log('✅ Firestore listener started');
-}
-
-async function handleNewMessage(chatId, chatData) {
-  try {
-    const senderId = chatData.lastMessageSender;
-    const messageText = chatData.lastMessage;
-    const participants = chatData.participants || [];
-    
-    const receiverId = participants.find((id) => id !== senderId);
-    
-    if (!receiverId) {
-      console.log('⚠️ No receiver found for chat:', chatId);
-      return;
-    }
-    
-    const receiverDoc = await db.collection('users').doc(receiverId).get();
-    
-    if (!receiverDoc.exists) {
-      console.log('⚠️ Receiver not found:', receiverId);
-      return;
-    }
-    
-    const receiverData = receiverDoc.data();
-    const token = receiverData.fcmToken;
-    
-    if (!token) {
-      console.log('⚠️ No FCM token for receiver:', receiverId);
-      return;
-    }
-    
-    const senderName = chatData.participantNames?.[senderId] || 'Someone';
-    
-    console.log(`📤 Auto-sending notification to ${receiverId}`);
-    
-    await sendFCMNotification(
-      token,
-      `New message from ${senderName}`,
-      messageText.length > 100 ? 
-        `${messageText.substring(0, 100)}...` : messageText,
-      {
-        type: 'message',
-        chatId: chatId,
-        senderId: senderId,
-        senderName: senderName,
-      }
-    );
-    
-    console.log('✅ Auto-notification sent');
-    
-  } catch (error) {
-    console.error('❌ Error in auto-notification:', error);
-  }
-}
-*/
 
 // ============================================================================
 // SERVER STARTUP

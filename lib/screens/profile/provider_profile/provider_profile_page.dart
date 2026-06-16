@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/models/BookingModel.dart';
@@ -10,7 +9,13 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/services/chat_service.dart';
 import 'package:service_app/services/booking_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/utils/image_utils.dart';
+import 'package:service_app/Services/booking_notification_service.dart';
+import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
+import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 
 const kPrimaryColor = Color(0xFF667EEA);
 const kSecondaryColor = Color(0xFF764BA2);
@@ -78,68 +83,111 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     }
   }
 
-  Future<void> _openWhatsAppSupport() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('subscription')
-          .get();
+  Future<void> _reportProvider() async {
+    final TextEditingController _reportController = TextEditingController();
+    final authViewModel = context.read<AuthViewModel>();
 
-      String? adminPhone;
-      if (doc.exists) {
-        final d = doc.data();
-        if (d != null && d is Map<String, dynamic>) {
-          adminPhone = d['adminPhone'] as String?;
-        }
-      }
-      if (adminPhone == null || adminPhone == '') {
-        _showSnackbar(
-            'Admin phone not configured. Contact support.', kAccentColor);
-        return;
-      }
-
-      final message = Uri.encodeComponent(
-          'Hello, I want to buy a subscription for my provider account (uid: ${_provider.uid}).');
-      final url = Uri.parse('https://wa.me/$adminPhone?text=$message');
-
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        _showSnackbar('Could not open WhatsApp.', kAccentColor);
-      }
-    } catch (e) {
-      _showSnackbar('Error opening WhatsApp: $e', kAccentColor);
+    if (authViewModel.currentUser == null) {
+      AppSnackBar.showError(context, _tr(context, 'sign_in_to_report'));
+      return;
     }
-  }
 
-  Future<void> _showEnterCodeDialog() async {
-    final TextEditingController _codeController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(_tr(context, 'enter_subscription_code')),
-          content: TextField(
-            controller: _codeController,
-            decoration: InputDecoration(hintText: _tr(context, 'code')),
+          title: Text(_tr(context, 'report_user')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_tr(context, 'report_description')),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _reportController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  hintText: _tr(context, 'describe_issue'),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.pop(context),
               child: Text(_tr(context, 'cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
-                final code = _codeController.text.trim();
-                Navigator.of(context).pop();
-                if (code.isNotEmpty) await _applySubscriptionCode(code);
+                final reason = _reportController.text.trim();
+                if (reason.isEmpty) return;
+
+                Navigator.pop(context);
+                try {
+                  await FirebaseFirestore.instance.collection('reports').add({
+                    'reporterId': authViewModel.currentUser!.uid,
+                    'reportedId': _provider.uid,
+                    'reason': reason,
+                    'timestamp': FieldValue.serverTimestamp(),
+                    'type': 'provider_profile',
+                  });
+                  AppSnackBar.showSuccess(context, _tr(context, 'report_submitted'));
+                } catch (e) {
+                  AppSnackBar.showError(context, 'Error submitting report: $e');
+                }
               },
-              child: Text(_tr(context, 'apply')),
+              style: ElevatedButton.styleFrom(backgroundColor: kAccentColor),
+              child: Text(_tr(context, 'submit'), style: const TextStyle(color: Colors.white)),
             ),
           ],
         );
       },
     );
+  }
+
+  Future<void> _blockProvider() async {
+    final authViewModel = context.read<AuthViewModel>();
+
+    if (authViewModel.currentUser == null) {
+      AppSnackBar.showError(context, _tr(context, 'sign_in_to_block'));
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_tr(context, 'block_user')),
+        content: Text(_trParams(context, 'block_confirm', {'name': _provider.name})),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(_tr(context, 'cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(_tr(context, 'block'), style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(authViewModel.currentUser!.uid)
+            .update({
+          'blockedUsers': FieldValue.arrayUnion([_provider.uid]),
+        });
+        AppSnackBar.showSuccess(context, _trParams(context, 'user_blocked', {'name': _provider.name}));
+        Navigator.pop(context);
+      } catch (e) {
+        AppSnackBar.showError(context, 'Error blocking user: $e');
+      }
+    }
   }
 
   Future<void> _applySubscriptionCode(String code) async {
@@ -155,7 +203,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           .get();
 
       if (query.docs.isEmpty) {
-        _showSnackbar(_tr(context, 'invalid_or_expired_code'), kAccentColor);
+        AppSnackBar.showError(context, _tr(context, 'invalid_or_expired_code'));
         return;
       }
 
@@ -172,14 +220,14 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       }
 
       if (matched == null) {
-        _showSnackbar(_tr(context, 'code_not_available_for_you'), kAccentColor);
+        AppSnackBar.showError(context, _tr(context, 'code_not_available_for_you'));
         return;
       }
 
       final data = matched.data() as Map<String, dynamic>;
       final validUntil = data['validUntil'] as Timestamp?;
       if (validUntil == null || validUntil.toDate().isBefore(DateTime.now())) {
-        _showSnackbar(_tr(context, 'invalid_or_expired_code'), kAccentColor);
+        AppSnackBar.showError(context, _tr(context, 'invalid_or_expired_code'));
         return;
       }
 
@@ -202,10 +250,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         _provider = _provider.copyWith(subscriptionActive: true);
       });
 
-      _showSnackbar(_tr(context, 'subscription_activated'), kSuccessColor);
+      AppSnackBar.showSuccess(context, _tr(context, 'subscription_activated'));
     } catch (e) {
-      _showSnackbar(
-          _trParams(context, 'error', {'error': e.toString()}), kAccentColor);
+      AppSnackBar.showError(context, _trParams(context, 'error', {'error': e.toString()}));
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -257,7 +304,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         });
       }
     } catch (e) {
-      // Error checking rating, continue anyway
+      // Error
     }
   }
 
@@ -265,12 +312,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final authViewModel = context.read<AuthViewModel>();
 
     if (authViewModel.currentUser == null) {
-      _showSnackbar(_tr(context, 'sign_in_to_rate'), kAccentColor);
+      AppSnackBar.showError(context, _tr(context, 'sign_in_to_rate'));
       return;
     }
 
     if (_provider.uid == null || _provider.uid!.isEmpty) {
-      _showSnackbar(_tr(context, 'provider_info_incomplete'), kAccentColor);
+      AppSnackBar.showError(context, _tr(context, 'provider_info_incomplete'));
       return;
     }
 
@@ -323,14 +370,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         _currentRating = newAverageRating;
       });
 
-      _showSnackbar(
-          _trParams(context, 'thank_you_rating',
-              {'name': _provider.name, 'rating': _currentRating.toString()}),
-          kSuccessColor);
+      AppSnackBar.showSuccess(context, _trParams(context, 'thank_you_rating',
+              {'name': _provider.name, 'rating': _currentRating.toString()}));
     } catch (e) {
-      _showSnackbar(
-          _trParams(context, 'failed_submit_rating', {'error': e.toString()}),
-          kAccentColor);
+      AppSnackBar.showError(context, _trParams(context, 'failed_submit_rating', {'error': e.toString()}));
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -343,22 +386,22 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      _showSnackbar(_tr(context, 'sign_in_to_book'), kAccentColor);
+      AppSnackBar.showError(context, _tr(context, 'sign_in_to_book'));
       return;
     }
 
     if (_selectedService == null) {
-      _showSnackbar(_tr(context, 'please_select_service'), kAccentColor);
+      AppSnackBar.showError(context, _tr(context, 'please_select_service'));
       return;
     }
 
     if (_selectedDate == null) {
-      _showSnackbar(_tr(context, 'please_select_date'), kAccentColor);
+      AppSnackBar.showError(context, _tr(context, 'please_select_date'));
       return;
     }
 
     if (_selectedTime == null) {
-      _showSnackbar(_tr(context, 'please_select_time'), kAccentColor);
+      AppSnackBar.showError(context, _tr(context, 'please_select_time'));
       return;
     }
 
@@ -372,7 +415,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       );
 
       if (appointmentDateTime.isBefore(DateTime.now())) {
-        _showSnackbar(_tr(context, 'select_future_datetime'), kAccentColor);
+        AppSnackBar.showError(context, _tr(context, 'select_future_datetime'));
         return;
       }
 
@@ -396,23 +439,23 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       final success = await _bookingService.createBooking(booking);
 
       if (success) {
-        await BookingNotificationService.createNewBookingNotification(
+        await BookingNotificationService.sendNewBookingNotification(
           providerId: _provider.uid!,
+          providerName: _provider.name,
           clientName: currentUser.name,
-          serviceTitle: _selectedService!['title'],
+          serviceName: _selectedService!['title'],
           clientId: currentUser.uid,
           bookingId: booking.id,
+          appointmentDate: appointmentDateTime,
         );
 
-        // Refresh booked count after successful booking
         await _loadBookedCount();
         _showSuccessDialog(appointmentDateTime);
       } else {
-        _showSnackbar(_tr(context, 'failed_create_booking'), kAccentColor);
+        AppSnackBar.showError(context, _tr(context, 'failed_create_booking'));
       }
     } catch (e) {
-      _showSnackbar(
-          _trParams(context, 'error', {'error': e.toString()}), kAccentColor);
+      AppSnackBar.showError(context, _trParams(context, 'error', {'error': e.toString()}));
     }
   }
 
@@ -422,20 +465,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: kPrimaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: kTextPrimary,
-            ),
-            dialogBackgroundColor: Colors.white,
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -448,20 +477,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: kPrimaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: kTextPrimary,
-            ),
-            dialogBackgroundColor: Colors.white,
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null && picked != _selectedTime) {
       setState(() {
@@ -472,60 +487,93 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardBg = theme.cardColor;
+    final scaffoldBg = theme.scaffoldBackgroundColor;
+    final primaryColor = theme.primaryColor;
+
     return Scaffold(
-      backgroundColor: kLightBg,
+      backgroundColor: scaffoldBg,
       body: Stack(
         children: [
           CustomScrollView(
             controller: _scrollController,
             slivers: [
               SliverAppBar(
-                backgroundColor: Colors.white,
+                backgroundColor: cardBg,
                 expandedHeight: 280.0,
                 pinned: true,
                 elevation: 0,
                 leading: Container(
-                  margin: EdgeInsets.only(left: 8, top: 8),
+                  margin: const EdgeInsets.only(left: 8, top: 8, right: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
+                    color: cardBg.withOpacity(0.9),
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(
-                        color: kShadowColor,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.1), blurRadius: 8, offset: const Offset(0, 2)),
                     ],
                   ),
                   child: IconButton(
-                    icon: Icon(Icons.arrow_back, color: kPrimaryColor),
+                    icon: Icon(Icons.arrow_back, color: primaryColor),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: _buildHeaderBackground(),
-                  centerTitle: false,
-                  titlePadding: EdgeInsets.only(left: 16, bottom: 16),
-                  title: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                actions: [
+                  Container(
+                    margin: const EdgeInsets.only(right: 8, top: 8, left: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(20),
+                      color: cardBg.withOpacity(0.9),
+                      shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
+                        BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: primaryColor),
+                      color: cardBg,
+                      onSelected: (value) {
+                        if (value == 'report') _reportProvider();
+                        if (value == 'block') _blockProvider();
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'report',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.report_outlined, color: Colors.red, size: 20),
+                              const SizedBox(width: 10),
+                              Text(_tr(context, 'report')),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'block',
+                          child: Row(
+                            children: [
+                              Icon(Icons.block, color: isDark ? Colors.white70 : Colors.black54, size: 20),
+                              const SizedBox(width: 10),
+                              Text(_tr(context, 'block')),
+                            ],
+                          ),
                         ),
                       ],
                     ),
+                  ),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: _buildHeaderBackground(theme),
+                  centerTitle: false,
+                  titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 16),
+                  title: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Text(
                       _provider.name,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
                 ),
@@ -533,86 +581,64 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    // Contact information moved to top
-                    _buildContactSection(),
-                    SizedBox(height: 16),
-                    _buildServicesSection(),
-                    SizedBox(height: 16),
-                    if (_showBookingForm) _buildBookingForm(),
-                    _buildStatsSection(),
-                    SizedBox(height: 16),
-                    _buildRatingSection(),
-                    SizedBox(height: 120),
+                    _buildContactSection(theme),
+                    const SizedBox(height: 16),
+                    _buildPortfolioSection(theme),
+                    const SizedBox(height: 16),
+                    _buildServicesSection(theme),
+                    const SizedBox(height: 16),
+                    if (_showBookingForm) _buildBookingForm(theme),
+                    _buildStatsSection(theme),
+                    const SizedBox(height: 16),
+                    _buildRatingSection(theme),
+                    const SizedBox(height: 120),
                   ],
                 ),
               ),
             ],
           ),
           if (!_showBookingForm && _providerServices.isNotEmpty)
-            Positioned(
+            PositionedDirectional(
               bottom: 20,
-              right: 20,
+              end: 20,
               child: FloatingActionButton.extended(
                 onPressed: () {
-                  if (_providerServices.isNotEmpty) {
-                    setState(() {
-                      _selectedService = _providerServices.first;
-                      _showBookingForm = true;
-                    });
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _scrollController.animateTo(
-                        _scrollController.position.maxScrollExtent,
-                        duration: Duration(milliseconds: 500),
-                        curve: Curves.easeInOut,
-                      );
-                    });
-                  }
+                  setState(() {
+                    _selectedService = _providerServices.first;
+                    _showBookingForm = true;
+                  });
                 },
-                backgroundColor: kPrimaryColor,
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                icon: Icon(Icons.calendar_today),
-                label: Text(
-                  _tr(context, 'book_now'),
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+                icon: const Icon(Icons.calendar_today),
+                label: Text(_tr(context, 'book_now')),
               ),
             ),
           if (!_showBookingForm)
-            Positioned(
-              left: 0,
-              right: 0,
+            PositionedDirectional(
+              start: 0,
+              end: 0,
               bottom: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardBg,
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
                   boxShadow: [
-                    BoxShadow(
-                      color: kShadowColor,
-                      blurRadius: 20,
-                      offset: Offset(0, -5),
-                    ),
+                    BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.1), blurRadius: 10, offset: const Offset(0, -2)),
                   ],
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
                 ),
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     Expanded(
                       child: _buildActionButton(
                         icon: Icons.message,
                         label: _tr(context, 'message'),
-                        color: kPrimaryColor,
+                        color: primaryColor,
                         onTap: () => _startChat(context),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     _buildActionButton(
                       icon: Icons.call,
                       label: _tr(context, 'call'),
@@ -642,9 +668,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          padding: isSmall
-              ? EdgeInsets.all(12)
-              : EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: isSmall ? const EdgeInsets.all(12) : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
@@ -655,16 +679,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: isSmall ? 18 : 20, color: color),
-              if (!isSmall) SizedBox(width: 8),
-              if (!isSmall)
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                    fontSize: 14,
-                  ),
-                ),
+              if (!isSmall) const SizedBox(width: 8),
+              if (!isSmall) Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 14)),
             ],
           ),
         ),
@@ -672,401 +688,122 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  Widget _buildServicesSection() {
+  Widget _buildPortfolioSection(ThemeData theme) {
+    if (_provider.portfolio.isEmpty) return const SizedBox.shrink();
+
     return _buildSectionCard(
-      title: _tr(context, 'services_offered'),
-      icon: Icons.work_outline,
-      child: _loadingServices
-          ? Center(child: CircularProgressIndicator(color: kPrimaryColor))
-          : _providerServices.isEmpty
-              ? Column(
-                  children: [
-                    Icon(Icons.work_off, size: 60, color: kBorderColor),
-                    SizedBox(height: 12),
-                    Text(
-                      _tr(context, 'no_services_listed'),
-                      style: TextStyle(color: kTextSecondary),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: _providerServices.map((service) {
-                    final isSelected = _selectedService?['id'] == service['id'];
-                    return AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      margin: EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? kPrimaryColor.withOpacity(0.05)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? kPrimaryColor : kBorderColor,
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: kShadowColor,
-                            blurRadius: isSelected ? 12 : 4,
-                            offset: Offset(0, isSelected ? 4 : 2),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {
-                            setState(() {
-                              _selectedService = service;
-                              _showBookingForm = true;
-                            });
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                AnimatedContainer(
-                                  duration: Duration(milliseconds: 300),
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isSelected
-                                        ? kPrimaryColor
-                                        : Colors.transparent,
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? kPrimaryColor
-                                          : kBorderColor,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: isSelected
-                                      ? Icon(Icons.check,
-                                          size: 14, color: Colors.white)
-                                      : null,
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              service['title'] ??
-                                                  _tr(context, 'service'),
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: isSelected
-                                                    ? kPrimaryColor
-                                                    : kTextPrimary,
-                                              ),
-                                            ),
-                                          ),
-                                          Text(
-                                            '${service['price'] ?? '0'} ${_tr(context, 'dzd')}',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: kPrimaryColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (service['description'] != null &&
-                                          service['description']
-                                              .isNotEmpty) ...[
-                                        SizedBox(height: 8),
-                                        Text(
-                                          service['description'],
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: isSelected
-                                                ? kPrimaryColor.withOpacity(0.8)
-                                                : kTextSecondary,
-                                            height: 1.4,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                      SizedBox(height: 8),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? kPrimaryColor.withOpacity(0.1)
-                                              : kCardBg,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          service['category'] ??
-                                              _tr(context, 'general'),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isSelected
-                                                ? kPrimaryColor
-                                                : kTextSecondary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+      theme: theme,
+      title: _tr(context, 'my_work_portfolio'),
+      icon: Icons.photo_library_outlined,
+      child: SizedBox(
+        height: 150,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: _provider.portfolio.length,
+          itemBuilder: (context, index) {
+            final image = _provider.portfolio[index];
+            return Container(
+              width: 150,
+              margin: const EdgeInsetsDirectional.only(end: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: ImageUtils.isBase64Image(image)
+                    ? Image.memory(ImageUtils.decodeBase64Image(image)!, fit: BoxFit.cover)
+                    : Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Widget _buildBookingForm() {
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 500),
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(20),
+  Widget _buildServicesSection(ThemeData theme) {
+    return _buildSectionCard(
+      theme: theme,
+      title: _tr(context, 'services_offered'),
+      icon: Icons.work_outline,
+      child: _loadingServices
+          ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
+          : Column(
+              children: _providerServices.map((service) {
+                final isSelected = _selectedService?['id'] == service['id'];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? theme.primaryColor.withOpacity(0.05) : theme.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isSelected ? theme.primaryColor : theme.dividerColor),
+                  ),
+                  child: ListTile(
+                    onTap: () => setState(() {
+                      _selectedService = service;
+                      _showBookingForm = true;
+                    }),
+                    title: Text(service['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${service['price'] ?? '0'} ${_tr(context, 'dzd')}'),
+                    trailing: isSelected ? Icon(Icons.check_circle, color: theme.primaryColor) : null,
+                  ),
+                );
+              }).toList(),
+            ),
+    );
+  }
+
+  Widget _buildBookingForm(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: kShadowColor,
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.1), blurRadius: 20, offset: const Offset(0, 8))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [kPrimaryColor, kSecondaryColor],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.calendar_today,
-                        size: 20, color: Colors.white),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    _tr(context, 'book_service'),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: kTextPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: Icon(Icons.close, size: 20, color: kTextSecondary),
-                onPressed: () {
-                  setState(() {
-                    _showBookingForm = false;
-                    _selectedService = null;
-                  });
-                },
-              ),
-            ],
-          ),
-          SizedBox(height: 20),
-          if (_selectedService != null)
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: kPrimaryColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kPrimaryColor.withOpacity(0.2)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: kSuccessColor, size: 24),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _selectedService!['title'] ?? _tr(context, 'service'),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          '${_selectedService!['price'] ?? '0'} ${_tr(context, 'dzd')}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: kPrimaryColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          SizedBox(height: 24),
-          _buildBookingSteps(),
-          SizedBox(height: 24),
+          Text(_tr(context, 'book_service'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
           _buildSelectionCard(
             icon: Icons.calendar_month,
             title: _tr(context, 'date'),
-            value: _selectedDate != null
-                ? DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate!)
-                : _tr(context, 'select_appointment_date'),
+            value: _selectedDate != null ? DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate!) : _tr(context, 'select_appointment_date'),
             onTap: () => _selectDate(context),
             color: kAccentColor,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           _buildSelectionCard(
             icon: Icons.access_time,
             title: _tr(context, 'time'),
-            value: _selectedTime != null
-                ? _selectedTime!.format(context)
-                : _tr(context, 'select_appointment_time'),
+            value: _selectedTime != null ? _selectedTime!.format(context) : _tr(context, 'select_appointment_time'),
             onTap: () => _selectTime(context),
-            color: Color(0xFF4ECDC4),
+            color: const Color(0xFF4ECDC4),
           ),
-          SizedBox(height: 24),
-          Text(
-            _tr(context, 'additional_notes'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: kTextPrimary,
+          const SizedBox(height: 20),
+          TextField(
+            onChanged: (value) => _notes = value,
+            decoration: InputDecoration(
+              hintText: _tr(context, 'add_instructions'),
+              hintStyle: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : Colors.grey),
             ),
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color),
           ),
-          SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: kShadowColor,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              onChanged: (value) => _notes = value,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: _tr(context, 'add_instructions'),
-                hintStyle: TextStyle(color: kTextSecondary.withOpacity(0.7)),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: kBorderColor, width: 1),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: kBorderColor, width: 1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: kPrimaryColor, width: 2),
-                ),
-                contentPadding: EdgeInsets.all(16),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: (_selectedService != null && _selectedDate != null && _selectedTime != null) ? _bookService : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-            ),
-          ),
-          SizedBox(height: 24),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: (_selectedService != null &&
-                          _selectedDate != null &&
-                          _selectedTime != null)
-                      ? kPrimaryColor.withOpacity(0.3)
-                      : kTextSecondary.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: (_selectedService != null &&
-                        _selectedDate != null &&
-                        _selectedTime != null)
-                    ? _bookService
-                    : null,
-                child: AnimatedContainer(
-                  duration: Duration(milliseconds: 300),
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: (_selectedService != null &&
-                            _selectedDate != null &&
-                            _selectedTime != null)
-                        ? LinearGradient(
-                            colors: [kPrimaryColor, kSecondaryColor],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : LinearGradient(
-                            colors: [
-                              kBorderColor,
-                              kBorderColor.withOpacity(0.7)
-                            ],
-                          ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          _tr(context, 'confirm_booking'),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              child: Text(_tr(context, 'confirm_booking')),
             ),
           ),
         ],
@@ -1074,154 +811,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  Widget _buildBookingSteps() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildStep(1, _tr(context, 'step_service'), _selectedService != null),
-        _buildDivider(),
-        _buildStep(2, _tr(context, 'step_time'),
-            _selectedDate != null && _selectedTime != null),
-        _buildDivider(),
-        _buildStep(3, _tr(context, 'step_confirm'), false),
-      ],
-    );
-  }
-
-  Widget _buildStep(int number, String label, bool isCompleted) {
-    return Column(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: isCompleted
-                ? LinearGradient(
-                    colors: [kSuccessColor, Color(0xFF6BCF7F)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : LinearGradient(
-                    colors: [kBorderColor, kBorderColor.withOpacity(0.7)],
-                  ),
-            boxShadow: isCompleted
-                ? [
-                    BoxShadow(
-                      color: kSuccessColor.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Center(
-            child: Text(
-              number.toString(),
-              style: TextStyle(
-                color: isCompleted ? Colors.white : kTextSecondary,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isCompleted ? kTextPrimary : kTextSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDivider() {
-    return Expanded(
-      child: Container(
-        height: 2,
-        margin: EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [kBorderColor, kBorderColor.withOpacity(0.3)],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectionCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required VoidCallback onTap,
-    required Color color,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: kCardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorderColor, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: kShadowColor,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: kTextSecondary,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: kTextPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: kBorderColor, size: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderBackground() {
+  Widget _buildHeaderBackground(ThemeData theme) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1230,59 +820,29 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kPrimaryColor, kSecondaryColor],
+              colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.7)],
             ),
           ),
         ),
         Positioned(
-          bottom: 0,
+          bottom: 20,
           left: 0,
           right: 0,
-          child: Container(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: _buildProfileImage(),
-                  ),
+          child: Column(
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 4),
                 ),
-                SizedBox(height: 16),
-                Text(
-                  _provider.name,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  _provider.profession.isNotEmpty
-                      ? _provider.profession
-                      : _tr(context, 'service_provider'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+                child: ClipOval(child: _buildProfileImage()),
+              ),
+              const SizedBox(height: 12),
+              Text(_provider.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(_provider.profession, style: const TextStyle(fontSize: 16, color: Colors.white70)),
+            ],
           ),
         ),
       ],
@@ -1290,46 +850,103 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Widget _buildProfileImage() {
-    final String? imageUrl = _provider.photoUrl;
-
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildFallbackImage();
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          );
-        },
-      );
+    if (_provider.photoUrl.isNotEmpty) {
+      return ImageUtils.getImageProvider(_provider.photoUrl) != null 
+        ? Image(image: ImageUtils.getImageProvider(_provider.photoUrl)!, fit: BoxFit.cover)
+        : const Icon(Icons.person, size: 50, color: Colors.white);
     }
-    return _buildFallbackImage();
+    return const Icon(Icons.person, size: 50, color: Colors.white);
   }
 
-  Widget _buildFallbackImage() {
+  Widget _buildSelectionCard({required IconData icon, required String title, required String value, required VoidCallback onTap, required Color color}) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title, style: const TextStyle(fontSize: 14, color: kTextSecondary)),
+      subtitle: Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      onTap: onTap,
+      trailing: const Icon(Icons.chevron_right),
+    );
+  }
+
+  Widget _buildStatsSection(ThemeData theme) {
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withOpacity(0.2),
-            Colors.white.withOpacity(0.1)
-          ],
-        ),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Icon(
-        Icons.person,
-        color: Colors.white,
-        size: 50,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(theme, _tr(context, 'rating'), '${_currentRating.toStringAsFixed(1)}', Icons.star),
+          _buildStatItem(theme, _tr(context, 'services'), '${_providerServices.length}', Icons.work_outline),
+          _buildStatItem(theme, _tr(context, 'booked'), '$_bookedCount', Icons.verified_user),
+        ],
       ),
     );
   }
 
-  Widget _buildRatingSection() {
+  Widget _buildStatItem(ThemeData theme, String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: theme.primaryColor, size: 24),
+        const SizedBox(height: 8),
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
+        Text(label, style: TextStyle(fontSize: 12, color: theme.brightness == Brightness.dark ? Colors.white54 : kTextSecondary)),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard({required ThemeData theme, required String title, required IconData icon, required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(20)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: theme.primaryColor),
+              const SizedBox(width: 12),
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.textTheme.titleLarge?.color)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactSection(ThemeData theme) {
     return _buildSectionCard(
+      theme: theme,
+      title: _tr(context, 'contact_information'),
+      icon: Icons.contact_phone,
+      child: Column(
+        children: [
+          _buildContactItem(theme, Icons.phone, _tr(context, 'phone'), _provider.phone, kSuccessColor, () => _makePhoneCall(_provider.phone)),
+          const SizedBox(height: 12),
+          _buildContactItem(theme, Icons.location_on, _tr(context, 'address'), _provider.address, kAccentColor, () => _openLocationInMaps(_provider.address)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactItem(ThemeData theme, IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildRatingSection(ThemeData theme) {
+    return _buildSectionCard(
+      theme: theme,
       title: _tr(context, 'rate_provider'),
       icon: Icons.star,
       child: Column(
@@ -1337,795 +954,100 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(5, (index) {
-              return GestureDetector(
-                onTap: () {
-                  if (!_hasRated && !_isSubmitting) {
-                    setState(() {
-                      _currentRating = (index + 1).toDouble();
-                    });
-                  }
-                },
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Icon(
-                    index < _currentRating.floor()
-                        ? Icons.star
-                        : Icons.star_border,
-                    color: _hasRated
-                        ? Colors.amber.withOpacity(0.5)
-                        : Colors.amber,
-                    size: 40,
-                  ),
-                ),
+              return IconButton(
+                icon: Icon(index < _currentRating.floor() ? Icons.star : Icons.star_border, color: Colors.amber, size: 32),
+                onPressed: () => setState(() => _currentRating = (index + 1).toDouble()),
               );
             }),
           ),
-          SizedBox(height: 16),
-          Text(
-            _currentRating == 0
-                ? _tr(context, 'tap_to_rate')
-                : _trParams(context, 'stars',
-                    {'rating': _currentRating.toStringAsFixed(1)}),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: kTextPrimary,
+          ElevatedButton(
+            onPressed: () => _submitRating(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
             ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            _getRatingDescription(_currentRating),
-            style: TextStyle(
-              fontSize: 14,
-              color: kTextSecondary,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          SizedBox(height: 20),
-          if (!_hasRated)
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _isSubmitting || _currentRating == 0
-                      ? null
-                      : () => _submitRating(context),
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [kPrimaryColor, kSecondaryColor],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: _isSubmitting
-                          ? SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.star, size: 22, color: Colors.white),
-                                SizedBox(width: 12),
-                                Text(
-                                  _tr(context, 'submit_rating'),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => _viewAllRatings(context),
-                child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kPrimaryColor, width: 2),
-                  ),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.reviews, size: 22, color: kPrimaryColor),
-                        SizedBox(width: 12),
-                        Text(
-                          _tr(context, 'view_all_reviews'),
-                          style: TextStyle(
-                            color: kPrimaryColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            child: Text(_tr(context, 'submit_rating')),
           ),
         ],
-      ),
-    );
-  }
-
-  String _getRatingDescription(double rating) {
-    if (rating == 0) return _tr(context, 'be_first_to_rate');
-    if (rating < 2) return _tr(context, 'rating_poor');
-    if (rating < 3) return _tr(context, 'rating_fair');
-    if (rating < 4) return _tr(context, 'rating_good');
-    if (rating < 4.5) return _tr(context, 'rating_very_good');
-    return _tr(context, 'rating_excellent');
-  }
-
-  Widget _buildStatsSection() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: kShadowColor,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(_tr(context, 'rating'),
-              '${_currentRating.toStringAsFixed(1)}', Icons.star),
-          _buildStatItem(_tr(context, 'services'),
-              '${_providerServices.length}', Icons.work_outline),
-          _buildStatItem(
-              _tr(context, 'booked'), '$_bookedCount', Icons.verified_user),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [
-                kPrimaryColor.withOpacity(0.1),
-                kSecondaryColor.withOpacity(0.1)
-              ],
-            ),
-          ),
-          child: Icon(icon, color: kPrimaryColor, size: 24),
-        ),
-        SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: kTextPrimary,
-          ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: kTextSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionCard({
-    required String title,
-    required IconData icon,
-    required Widget child,
-  }) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: kShadowColor,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kPrimaryColor, kSecondaryColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 20, color: Colors.white),
-              ),
-              SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: kTextPrimary,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactSection() {
-    return _buildSectionCard(
-      title: _tr(context, 'contact_information'),
-      icon: Icons.contact_phone,
-      child: Column(
-        children: [
-          _buildContactItem(
-            Icons.phone,
-            _tr(context, 'phone'),
-            _provider.phone,
-            kSuccessColor,
-            () => _makePhoneCall(_provider.phone),
-          ),
-          SizedBox(height: 12),
-          if (_provider.whatsapp.isNotEmpty)
-            _buildContactItem(
-              Icons.chat,
-              _tr(context, 'whatsapp'),
-              _provider.whatsapp,
-              Color(0xFF25D366),
-              () => _openWhatsApp(_provider.whatsapp),
-            ),
-          if (_provider.whatsapp.isNotEmpty) SizedBox(height: 12),
-          _buildContactItem(
-            Icons.location_on,
-            _tr(context, 'address'),
-            _provider.address,
-            kAccentColor,
-            () => _openLocationInMaps(_provider.address),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.2)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: kTextPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: kTextSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: kBorderColor),
-            ],
-          ),
-        ),
       ),
     );
   }
 
   void _startChat(BuildContext context) async {
-    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-    final chatService = ChatService();
-
-    if (authViewModel.currentUser == null) {
-      _showSnackbar(_tr(context, 'sign_in_to_book'), kAccentColor);
+    final authViewModel = context.read<AuthViewModel>();
+    final currentUser = authViewModel.currentUser;
+    if (currentUser == null) {
+      AppSnackBar.showError(context, _tr(context, 'sign_in_to_message'));
       return;
     }
 
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
-      final chatId = await chatService.createChat(
-        clientId: authViewModel.currentUser!.uid,
+      final chatViewModel = ChatViewModel(userId: currentUser.uid);
+      final chatId = await chatViewModel.createChat(
+        clientId: currentUser.uid,
         providerId: _provider.uid!,
       );
 
-      if (chatId != null) {
-        _showSnackbar(
-          _trParams(context, 'chat_started', {'name': _provider.name}),
-          kSuccessColor,
-        );
-      } else {
-        _showSnackbar(
-          _tr(context, 'failed_start_chat'),
-          kAccentColor,
-        );
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+
+        if (chatId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DiscussionPage(
+                contactName: _provider.name,
+                isOnline: true,
+                chatId: chatId,
+                currentUserId: currentUser.uid,
+                chatViewModel: chatViewModel,
+                profileImageUrl: _provider.photoUrl,
+                contactUserId: _provider.uid,
+              ),
+            ),
+          );
+        } else {
+          AppSnackBar.showError(context, _tr(context, 'failed_to_start_chat'));
+        }
       }
     } catch (e) {
-      _showSnackbar(
-        _trParams(context, 'failed_start_chat', {'error': e.toString()}),
-        kAccentColor,
-      );
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+        AppSnackBar.showError(context, 'Error: $e');
+      }
     }
   }
 
   void _makePhoneCall(String phoneNumber) async {
-    final url = Uri.parse('tel:${_cleanPhoneNumber(phoneNumber)}');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    }
-  }
-
-  void _openWhatsApp(String whatsappNumber) async {
-    final cleanNumber = _cleanPhoneNumber(whatsappNumber);
-    final url = Uri.parse('https://wa.me/$cleanNumber');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    }
+    final url = Uri.parse('tel:$phoneNumber');
+    if (await canLaunchUrl(url)) await launchUrl(url);
   }
 
   void _openLocationInMaps(String address) async {
-    final encodedAddress = Uri.encodeComponent(address);
-    final url = Uri.parse('https://maps.google.com/?q=$encodedAddress');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    }
-  }
-
-  String _cleanPhoneNumber(String phoneNumber) {
-    return phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-  }
-
-  void _showSnackbar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
+    final url = Uri.parse('https://maps.google.com/?q=${Uri.encodeComponent(address)}');
+    if (await canLaunchUrl(url)) await launchUrl(url);
   }
 
   void _showSuccessDialog(DateTime appointmentDateTime) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [kSuccessColor, Color(0xFF6BCF7F)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: kSuccessColor.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(Icons.check, size: 40, color: Colors.white),
-            ),
-            SizedBox(height: 24),
-            Text(
-              _tr(context, 'booking_confirmed'),
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: kTextPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 12),
-            Text(
-              _trParams(
-                  context, 'appointment_scheduled', {'name': _provider.name}),
-              style: TextStyle(
-                fontSize: 15,
-                color: kTextSecondary,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              DateFormat('EEEE, MMMM d, yyyy • h:mm a')
-                  .format(appointmentDateTime),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: kPrimaryColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _selectedService = null;
-                      _selectedDate = null;
-                      _selectedTime = null;
-                      _notes = '';
-                      _showBookingForm = false;
-                    });
-                  },
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [kPrimaryColor, kSecondaryColor],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _tr(context, 'done'),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => ProfessionalSuccessDialog(
+        title: _tr(context, 'booking_confirmed'),
+        message: _trParams(context, 'appointment_scheduled', {'name': _provider.name}),
+        onDone: () => Navigator.pop(context),
       ),
     );
   }
 
-  Future<List<Map<String, dynamic>>> _getProviderServices(
-      String providerId) async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('services')
-          .where('providerId', isEqualTo: providerId)
-          .where('isActive', isEqualTo: true)
-          .get();
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          ...data,
-        };
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
-  Future<void> _viewAllRatings(BuildContext context) async {
-    if (_provider.uid == null || _provider.uid!.isEmpty) {
-      _showSnackbar(_tr(context, 'provider_info_incomplete'), kAccentColor);
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.8,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kPrimaryColor, kSecondaryColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _tr(context, 'all_reviews'),
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('ratings')
-                      .where('providerId', isEqualTo: _provider.uid!)
-                      .orderBy('createdAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                          child:
-                              CircularProgressIndicator(color: kPrimaryColor));
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error, size: 60, color: kAccentColor),
-                            SizedBox(height: 16),
-                            Text(
-                              _tr(context, 'error_loading_reviews'),
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: kTextPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.reviews, size: 60, color: kBorderColor),
-                            SizedBox(height: 16),
-                            Text(
-                              _tr(context, 'no_reviews'),
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: kTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    final ratings = snapshot.data!.docs;
-
-                    return ListView.builder(
-                      padding: EdgeInsets.all(16),
-                      itemCount: ratings.length,
-                      itemBuilder: (context, index) {
-                        final rating = ratings[index];
-                        final data = rating.data() as Map<String, dynamic>;
-
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 12),
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: kBorderColor),
-                            boxShadow: [
-                              BoxShadow(
-                                color: kShadowColor,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundImage: data['userPhoto'] != null &&
-                                        data['userPhoto'].isNotEmpty
-                                    ? NetworkImage(data['userPhoto'])
-                                    : null,
-                                backgroundColor: kPrimaryColor.withOpacity(0.1),
-                                child: data['userPhoto'] == null ||
-                                        data['userPhoto'].isEmpty
-                                    ? Icon(Icons.person, color: kPrimaryColor)
-                                    : null,
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            data['userName'] ??
-                                                _tr(context, 'anonymous'),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: kTextPrimary,
-                                            ),
-                                          ),
-                                        ),
-                                        Row(
-                                          children:
-                                              List.generate(5, (starIndex) {
-                                            final ratingValue =
-                                                (data['rating'] as num?)
-                                                        ?.toDouble() ??
-                                                    0.0;
-                                            return Icon(
-                                              starIndex < ratingValue.floor()
-                                                  ? Icons.star
-                                                  : Icons.star_border,
-                                              color: Colors.amber,
-                                              size: 16,
-                                            );
-                                          }),
-                                        ),
-                                      ],
-                                    ),
-                                    if (data['createdAt'] != null)
-                                      Text(
-                                        _formatDate(
-                                            (data['createdAt'] as Timestamp)
-                                                .toDate()),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: kTextSecondary,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) return _tr(context, 'just_now');
-        return _trParams(context, 'minutes_ago',
-            {'minutes': difference.inMinutes.toString()});
-      }
-      return _trParams(
-          context, 'hours_ago', {'hours': difference.inHours.toString()});
-    } else if (difference.inDays == 1) {
-      return _tr(context, 'yesterday');
-    } else if (difference.inDays < 7) {
-      return _trParams(
-          context, 'days_ago', {'days': difference.inDays.toString()});
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
+  Future<List<Map<String, dynamic>>> _getProviderServices(String providerId) async {
+    final snapshot = await FirebaseFirestore.instance.collection('services').where('providerId', isEqualTo: providerId).get();
+    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
   }
 }

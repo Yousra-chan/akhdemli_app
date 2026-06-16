@@ -41,7 +41,7 @@ class SearchViewModel extends ChangeNotifier {
       }
       _serviceResults = [];
     } catch (e) {
-      _error = 'Failed to load providers: $e';
+      _error = 'error_loading_providers';
       _providerResults = [];
       _serviceResults = [];
     } finally {
@@ -84,7 +84,7 @@ class SearchViewModel extends ChangeNotifier {
       _providerResults = providerResults;
       _serviceResults = serviceResults;
     } catch (e) {
-      _error = 'Échec de la recherche: $e';
+      _error = 'error_search_failed';
       _providerResults = [];
       _serviceResults = [];
     } finally {
@@ -110,7 +110,7 @@ class SearchViewModel extends ChangeNotifier {
           await _searchService.searchProvidersByProfessionOrName(query);
       _serviceResults = [];
     } catch (e) {
-      _error = 'Échec de la recherche de prestataires: $e';
+      _error = 'error_search_failed';
       _providerResults = [];
     } finally {
       _isLoading = false;
@@ -171,7 +171,7 @@ class SearchViewModel extends ChangeNotifier {
         _serviceResults = [];
       }
     } catch (e) {
-      _error = 'Échec de la recherche avec filtres: $e';
+      _error = 'error_search_failed';
       _providerResults = [];
       _serviceResults = [];
     } finally {
@@ -218,7 +218,7 @@ class SearchViewModel extends ChangeNotifier {
       _serviceResults = await _searchService.searchServices(query);
       _providerResults = [];
     } catch (e) {
-      _error = 'Échec de la recherche de services: $e';
+      _error = 'error_search_failed';
       _serviceResults = [];
     } finally {
       _isLoading = false;
@@ -242,7 +242,7 @@ class SearchViewModel extends ChangeNotifier {
       _serviceResults = await _searchService.searchServices(category);
       _providerResults = [];
     } catch (e) {
-      _error = 'Échec de la recherche par catégorie: $e';
+      _error = 'error_search_failed';
       _serviceResults = [];
     } finally {
       _isLoading = false;
@@ -266,7 +266,7 @@ class SearchViewModel extends ChangeNotifier {
 
       _providerResults = [];
     } catch (e) {
-      _error = 'Échec du chargement des services en vedette: $e';
+      _error = 'error_loading_services';
       _serviceResults = [];
     } finally {
       _isLoading = false;

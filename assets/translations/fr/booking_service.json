@@ -1,0 +1,20 @@
+{
+  "log_booking_created": "✅ Réservation créée avec l'ID: {{bookingId}}",
+  "log_attempting_notification": "📤 Tentative d'envoi de la notification de réservation...",
+  "log_notification_sent": "✅ Notification de réservation envoyée avec succès au prestataire",
+  "log_notification_failed": "⚠️ Échec de l'envoi de la notification de réservation",
+  "log_notification_error": "⚠️ Erreur lors de l'envoi de la notification de réservation: {{error}}",
+  "log_error_creating_booking": "❌ Erreur lors de la création de la réservation: {{error}}",
+  "log_error_getting_bookings": "Erreur lors de la récupération des réservations: {{error}}",
+  "log_error_updating_status": "Erreur lors de la mise à jour du statut: {{error}}",
+  "log_error_deleting_booking": "Erreur lors de la suppression de la réservation: {{error}}",
+  "error_booking_creation_failed": "Échec de la création de la réservation",
+  "error_status_update_failed": "Échec de la mise à jour du statut de la réservation",
+  "error_booking_deletion_failed": "Échec de la suppression de la réservation",
+  "status_pending": "en attente",
+  "status_accepted": "acceptée",
+  "status_confirmed": "confirmée",
+  "status_completed": "terminée",
+  "status_cancelled": "annulée",
+  "status_rejected": "rejetée"
+}

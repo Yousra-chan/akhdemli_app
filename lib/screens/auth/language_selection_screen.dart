@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:service_app/providers/language_provider.dart';
-import 'package:service_app/screens/auth/login/login_screen.dart';
+import 'package:service_app/screens/onboarding/onboarding_screen.dart';
 import 'package:service_app/screens/auth/constants.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
@@ -47,18 +47,21 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
 
     print('✅ Language selected: $code');
 
-    // Navigate to login screen
+    // Navigate to Onboarding screen
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -75,13 +78,13 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: kPrimaryBlue.withOpacity(0.1),
+                      color: theme.primaryColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.language,
                       size: 60,
-                      color: kPrimaryBlue,
+                      color: theme.primaryColor,
                     ),
                   );
                 },
@@ -89,12 +92,12 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
               const SizedBox(height: 40),
 
               // Title
-              const Text(
+              Text(
                 'Welcome to Akhdem Li',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: kPrimaryBlue,
+                  color: theme.primaryColor,
                   fontFamily: kAppFont,
                 ),
                 textAlign: TextAlign.center,
@@ -102,11 +105,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
               const SizedBox(height: 16),
 
               // Subtitle
-              const Text(
+              Text(
                 'Choose your preferred language',
                 style: TextStyle(
                   fontSize: 16,
-                  color: kMutedTextColor,
+                  color: isDark ? Colors.white54 : kMutedTextColor,
                   fontFamily: kAppFont,
                 ),
                 textAlign: TextAlign.center,
@@ -121,6 +124,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   itemBuilder: (context, index) {
                     final language = _languages[index];
                     return _buildLanguageCard(
+                      theme: theme,
                       flag: language['flag'],
                       name: language['name'],
                       nativeName: language['nativeName'],
@@ -138,10 +142,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                 onPressed: () {
                   _selectLanguage(const Locale('en'), 'en');
                 },
-                child: const Text(
+                child: Text(
                   'Skip for now',
                   style: TextStyle(
-                    color: kMutedTextColor,
+                    color: isDark ? Colors.white38 : kMutedTextColor,
                     fontSize: 14,
                     fontFamily: kAppFont,
                   ),
@@ -155,12 +159,15 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   }
 
   Widget _buildLanguageCard({
+    required ThemeData theme,
     required String flag,
     required String name,
     required String nativeName,
     required VoidCallback onTap,
   }) {
+    final isDark = theme.brightness == Brightness.dark;
     return Card(
+      color: theme.cardColor,
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.1),
       shape: RoundedRectangleBorder(
@@ -178,7 +185,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: kPrimaryBlue.withOpacity(0.1),
+                  color: theme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -197,10 +204,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: kDarkTextColor,
+                        color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
                         fontFamily: kAppFont,
                       ),
                     ),
@@ -209,7 +216,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                       nativeName,
                       style: TextStyle(
                         fontSize: 14,
-                        color: kMutedTextColor,
+                        color: isDark ? Colors.white54 : kMutedTextColor,
                         fontFamily: kAppFont,
                       ),
                     ),
@@ -221,7 +228,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
               Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: kMutedTextColor,
+                color: isDark ? Colors.white38 : kMutedTextColor,
               ),
             ],
           ),

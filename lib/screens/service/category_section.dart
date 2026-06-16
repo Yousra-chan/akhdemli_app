@@ -48,6 +48,8 @@ class _CategorySectionState extends State<CategorySection> {
   }
 
   Widget _buildHeader(LanguageProvider lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,8 +58,8 @@ class _CategorySectionState extends State<CategorySection> {
           children: [
             Text(
               lang.tr('category_section_title', category: 'service'),
-              style: const TextStyle(
-                color: kDarkTextColor,
+              style: TextStyle(
+                color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'Exo2',
@@ -67,16 +69,16 @@ class _CategorySectionState extends State<CategorySection> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: kPrimaryBlue.withOpacity(0.1),
+                color: theme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+                border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
               ),
               child: Text(
                 lang.trParams('total_categories',
                     category: 'service',
                     params: {'count': _categories.length.toString()}),
-                style: const TextStyle(
-                  color: kPrimaryBlue,
+                style: TextStyle(
+                  color: theme.primaryColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'Exo2',
@@ -88,8 +90,8 @@ class _CategorySectionState extends State<CategorySection> {
         const SizedBox(height: 8),
         Text(
           lang.tr('category_section_desc', category: 'service'),
-          style: const TextStyle(
-            color: kMutedTextColor,
+          style: TextStyle(
+            color: isDark ? Colors.white54 : kMutedTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w500,
             fontFamily: 'Exo2',
@@ -111,10 +113,7 @@ class _CategorySectionState extends State<CategorySection> {
           final color = getColorForCategory(category.name, index);
 
           return Container(
-            margin: EdgeInsets.only(
-              right: 16,
-              left: index == 0 ? 0 : 0,
-            ),
+            margin: const EdgeInsetsDirectional.only(end: 16),
             child: _buildCategoryItem(category, color, isSelected, index, lang),
           );
         },
@@ -129,6 +128,8 @@ class _CategorySectionState extends State<CategorySection> {
     int index,
     LanguageProvider lang,
   ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -142,10 +143,10 @@ class _CategorySectionState extends State<CategorySection> {
               width: isSelected ? 70 : 64,
               height: isSelected ? 70 : 64,
               decoration: BoxDecoration(
-                color: isSelected ? color : Colors.white,
+                color: isSelected ? color : theme.cardColor,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? color : Colors.grey.shade300,
+                  color: isSelected ? color : (isDark ? Colors.white12 : Colors.grey.shade300),
                   width: isSelected ? 3 : 2,
                 ),
                 boxShadow: [
@@ -157,7 +158,7 @@ class _CategorySectionState extends State<CategorySection> {
                     )
                   else
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -175,7 +176,7 @@ class _CategorySectionState extends State<CategorySection> {
             category.getTranslatedName(lang),
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isSelected ? color : kDarkTextColor,
+              color: isSelected ? color : theme.textTheme.bodyLarge?.color,
               fontSize: isSelected ? 13 : 12,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
               fontFamily: 'Exo2',

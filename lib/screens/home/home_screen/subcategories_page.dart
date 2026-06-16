@@ -5,7 +5,34 @@ import 'dart:ui' as ui;
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 import 'home_constants.dart';
+
+// ─────────────────────────────────────────────────────────────
+//  Soft Clarity – Subcategory row palette
+//  Each entry: [iconColor, chipBackground]
+// ─────────────────────────────────────────────────────────────
+const List<List<Color>> _kSubPalette = [
+  [Color(0xFF2C5F8A), Color(0xFFE4EEF6)],
+  [Color(0xFF3A7C6E), Color(0xFFE2F2EE)],
+  [Color(0xFF6B4FA0), Color(0xFFEEEAF7)],
+  [Color(0xFF9A5D1E), Color(0xFFF7EDE0)],
+  [Color(0xFF963550), Color(0xFFF7E8ED)],
+  [Color(0xFF3D7030), Color(0xFFE6F2E2)],
+  [Color(0xFF2C6B8A), Color(0xFFE2EEF6)],
+  [Color(0xFF7A4A1E), Color(0xFFF5EBDF)],
+  [Color(0xFF1E6B6B), Color(0xFFDFF2F2)],
+  [Color(0xFF4A6B1E), Color(0xFFEAF2DF)],
+  [Color(0xFF8A2C2C), Color(0xFFF6E4E4)],
+  [Color(0xFF7A5A1E), Color(0xFFF5EDE0)],
+  [Color(0xFF2C4A8A), Color(0xFFE2E8F6)],
+  [Color(0xFF1E6B4A), Color(0xFFDFF2EA)],
+  [Color(0xFF8A5A1E), Color(0xFFF6EDE0)],
+  [Color(0xFF5A5A5A), Color(0xFFEDEDED)],
+];
+
+List<Color> _subPaletteFor(int index) =>
+    _kSubPalette[index % _kSubPalette.length];
 
 class SubcategoriesPage extends StatefulWidget {
   final CategoryModel selectedCategory;
@@ -43,7 +70,6 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
 
   void _loadSubCategories() async {
     await Future.delayed(const Duration(milliseconds: 300));
-
     setState(() {
       _subCategories = widget.selectedCategory.subcategories.isNotEmpty
           ? widget.selectedCategory.subcategories
@@ -54,19 +80,15 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   }
 
   List<SubcategoryModel> _getDefaultSubCategories() {
-    // This should rarely be called now since we have proper subcategories
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
-
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
     return List.generate(6, (index) {
       final names = [
-        languageProvider.tr('basic_service', category: 'subcategories_page'),
-        languageProvider.tr('premium_service', category: 'subcategories_page'),
-        languageProvider.tr('emergency_service',
-            category: 'subcategories_page'),
-        languageProvider.tr('advanced_service', category: 'subcategories_page'),
-        languageProvider.tr('standard_package', category: 'subcategories_page'),
-        languageProvider.tr('custom_service', category: 'subcategories_page'),
+        lang.tr('basic_service', category: 'subcategories_page'),
+        lang.tr('premium_service', category: 'subcategories_page'),
+        lang.tr('emergency_service', category: 'subcategories_page'),
+        lang.tr('advanced_service', category: 'subcategories_page'),
+        lang.tr('standard_package', category: 'subcategories_page'),
+        lang.tr('custom_service', category: 'subcategories_page'),
       ];
       final icons = [
         CupertinoIcons.circle_fill,
@@ -74,20 +96,18 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
         CupertinoIcons.exclamationmark_triangle_fill,
         CupertinoIcons.rocket_fill,
         CupertinoIcons.checkmark_seal_fill,
-        CupertinoIcons.gear_alt_fill
+        CupertinoIcons.gear_alt_fill,
       ];
-
       return SubcategoryModel(
         id: 'sub-$index',
         name: names[index],
-        nameKey: '', // No translation key for defaults
-        description: languageProvider.trParams(
+        nameKey: '',
+        description: lang.trParams(
           'service_description',
           category: 'subcategories_page',
           params: {
-            'category':
-                widget.selectedCategory.getTranslatedName(languageProvider),
-            'service': names[index].toLowerCase()
+            'category': widget.selectedCategory.getTranslatedName(lang),
+            'service': names[index].toLowerCase(),
           },
         ),
         descriptionKey: '',
@@ -103,8 +123,8 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
       _filteredSubCategories = query.isEmpty
           ? List.from(_subCategories)
           : _subCategories
-              .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
-              .toList();
+          .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
     });
   }
 
@@ -123,315 +143,286 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
-      builder: (context, languageProvider, child) {
+      builder: (context, lang, child) {
         return Directionality(
-          textDirection: languageProvider.isRtl
-              ? ui.TextDirection.rtl
-              : ui.TextDirection.ltr,
+          textDirection:
+          lang.isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
           child: Scaffold(
-            backgroundColor: Colors.white,
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              leading: IconButton(
-                icon: Icon(
-                    languageProvider.isRtl
-                        ? Icons.arrow_forward_ios_rounded
-                        : Icons.arrow_back_ios_rounded,
-                    color: kDarkTextColor,
-                    size: 20),
-                onPressed: widget.onBackPressed,
-              ),
-              title: Text(
-                widget.selectedCategory.getTranslatedName(languageProvider),
-                style: TextStyle(
-                    color: kDarkTextColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Exo2'),
-              ),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(60),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _filterSubCategories,
-                    decoration: InputDecoration(
-                      hintText: languageProvider.tr('search_services',
-                          category: 'subcategories_page'),
-                      hintStyle: TextStyle(
-                        color: Colors.grey.shade500,
+            backgroundColor: const Color(0xFFF5F4F0),
+            appBar: _buildAppBar(lang),
+            body: _isLoading
+                ? const LoadingWidget()
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Search ──────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _buildSearchField(lang),
+                ),
+                // ── Count label ─────────────────────
+                if (_filteredSubCategories.isNotEmpty)
+                  Padding(
+                    padding:
+                    const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: Text(
+                      lang.trParams(
+                        'services_count',
+                        category: 'subcategories_page',
+                        params: {
+                          'count': _filteredSubCategories.length
+                              .toString()
+                        },
+                      ),
+                      style: const TextStyle(
+                        color: Color(0xFF9B9B9B),
+                        fontSize: 12,
                         fontFamily: 'Exo2',
+                        fontWeight: FontWeight.w500,
                       ),
-                      prefixIcon: Icon(Icons.search_rounded,
-                          color: Colors.grey.shade500),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  size: 20, color: Colors.grey.shade500),
-                              onPressed: () {
-                                _searchController.clear();
-                                _filterSubCategories('');
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
                     ),
+                  ),
+                // ── List or empty ───────────────────
+                Expanded(
+                  child: _filteredSubCategories.isEmpty
+                      ? _buildEmptyState(lang)
+                      : _buildTwoColumnList(lang),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── AppBar ────────────────────────────────────────────────
+  AppBar _buildAppBar(LanguageProvider lang) {
+    return AppBar(
+      backgroundColor: const Color(0xFFFAFAF8),
+      elevation: 0,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(0.5),
+        child: Container(height: 0.5, color: const Color(0xFFE2E0DA)),
+      ),
+      leading: IconButton(
+        icon: Icon(
+          lang.isRtl
+              ? Icons.arrow_forward_ios_rounded
+              : Icons.arrow_back_ios_rounded,
+          color: const Color(0xFF2D2D2D),
+          size: 18,
+        ),
+        onPressed: widget.onBackPressed,
+      ),
+      title: Text(
+        widget.selectedCategory.getTranslatedName(lang),
+        style: const TextStyle(
+          color: Color(0xFF2D2D2D),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Exo2',
+        ),
+      ),
+    );
+  }
+
+  // ── Search field ──────────────────────────────────────────
+  Widget _buildSearchField(LanguageProvider lang) {
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAF8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E0DA), width: 0.5),
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _filterSubCategories,
+        style: const TextStyle(
+          color: Color(0xFF2D2D2D),
+          fontSize: 14,
+          fontFamily: 'Exo2',
+        ),
+        decoration: InputDecoration(
+          hintText: lang.tr('search_services', category: 'subcategories_page'),
+          hintStyle: const TextStyle(
+            color: Color(0xFF9B9B9B),
+            fontSize: 14,
+            fontFamily: 'Exo2',
+          ),
+          prefixIcon: const Icon(Icons.search_rounded,
+              color: Color(0xFF9B9B9B), size: 20),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+            icon: const Icon(Icons.clear,
+                color: Color(0xFF9B9B9B), size: 18),
+            onPressed: () {
+              _searchController.clear();
+              _filterSubCategories('');
+            },
+          )
+              : null,
+          border: InputBorder.none,
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  // ── Two-column row list ───────────────────────────────────
+  Widget _buildTwoColumnList(LanguageProvider lang) {
+    final int half = (_filteredSubCategories.length / 2).ceil();
+    final left = _filteredSubCategories.sublist(0, half);
+    final right = _filteredSubCategories.sublist(half);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column
+          Expanded(
+            child: Column(
+              children: List.generate(
+                left.length,
+                    (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildSubRow(i * 2, left[i], lang),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Right column
+          Expanded(
+            child: Column(
+              children: List.generate(
+                right.length,
+                    (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildSubRow(i * 2 + 1, right[i], lang),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Single subcategory row pill ───────────────────────────
+  Widget _buildSubRow(
+      int index, SubcategoryModel subCategory, LanguageProvider lang) {
+    final palette = _subPaletteFor(index);
+    final iconColor = palette[0];
+    final chipBg = palette[1];
+
+    return GestureDetector(
+      onTap: () => _onSubCategorySelected(subCategory),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAFAF8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E0DA), width: 0.5),
+        ),
+        child: Row(
+          children: [
+            // Icon chip
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(subCategory.icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            // Name
+            Expanded(
+              child: Text(
+                subCategory.nameKey.isNotEmpty
+                    ? subCategory.getTranslatedName(lang)
+                    : subCategory.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF2D2D2D),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Exo2',
+                  height: 1.3,
+                ),
+              ),
+            ),
+            // Chevron
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 11,
+              color: Color(0xFFB0B0B0),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Empty state ───────────────────────────────────────────
+  Widget _buildEmptyState(LanguageProvider lang) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE4EEF6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.search_off_rounded,
+                size: 36, color: Color(0xFF2C5F8A)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            lang.tr('no_services_found', category: 'subcategories_page'),
+            style: const TextStyle(
+              color: Color(0xFF9B9B9B),
+              fontSize: 15,
+              fontFamily: 'Exo2',
+            ),
+          ),
+          if (_searchQuery.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () {
+                _searchController.clear();
+                _filterSubCategories('');
+              },
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4EEF6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  lang.tr('clear_search', category: 'subcategories_page'),
+                  style: const TextStyle(
+                    color: Color(0xFF2C5F8A),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Exo2',
                   ),
                 ),
               ),
             ),
-            body: _isLoading
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          color: kPrimaryBlue,
-                          strokeWidth: 2.5,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          languageProvider.tr('loading_services',
-                              category: 'subcategories_page'),
-                          style: TextStyle(
-                            color: kMutedTextColor,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _filteredSubCategories.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search_off_rounded,
-                                size: 60, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            Text(
-                              languageProvider.tr('no_services_found',
-                                  category: 'subcategories_page'),
-                              style: TextStyle(
-                                color: kMutedTextColor,
-                                fontSize: 16,
-                                fontFamily: 'Exo2',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (_searchQuery.isNotEmpty)
-                              TextButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _filterSubCategories('');
-                                },
-                                child: Text(
-                                  languageProvider.tr('clear_search',
-                                      category: 'subcategories_page'),
-                                  style: TextStyle(
-                                    color: kPrimaryBlue,
-                                    fontFamily: 'Exo2',
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                            child: Text(
-                              languageProvider.trParams(
-                                'services_count',
-                                category: 'subcategories_page',
-                                params: {
-                                  'count':
-                                      _filteredSubCategories.length.toString(),
-                                },
-                              ),
-                              style: TextStyle(
-                                color: kMutedTextColor,
-                                fontSize: 13,
-                                fontFamily: 'Exo2',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GridView.builder(
-                              padding: const EdgeInsets.all(20),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.85,
-                              ),
-                              itemCount: _filteredSubCategories.length,
-                              itemBuilder: (context, index) {
-                                final subCategory =
-                                    _filteredSubCategories[index];
-
-                                // Expanded color schemes to match all categories
-                                final colorSchemes = [
-                                  [
-                                    const Color(0xFF667EEA),
-                                    const Color(0xFF764BA2)
-                                  ], // Cleaning/Purple
-                                  [
-                                    const Color(0xFF4FACFE),
-                                    const Color(0xFF00F2FE)
-                                  ], // Plumbing/Blue
-                                  [
-                                    const Color(0xFF43E97B),
-                                    const Color(0xFF38F9D7)
-                                  ], // Electrical/Green
-                                  [
-                                    const Color(0xFFFA709A),
-                                    const Color(0xFFFEE140)
-                                  ], // Carpentry/Pink
-                                  [
-                                    const Color(0xFFF093FB),
-                                    const Color(0xFFF5576C)
-                                  ], // Painting/Light Purple
-                                  [
-                                    const Color(0xFF38F9D7),
-                                    const Color(0xFF43E97B)
-                                  ], // Gardening/Teal
-                                  [
-                                    const Color(0xFFFF9068),
-                                    const Color(0xFFFD746C)
-                                  ], // Moving/Orange
-                                  [
-                                    const Color(0xFF764BA2),
-                                    const Color(0xFF667EEA)
-                                  ], // Repair/Deep Purple
-                                  [
-                                    const Color(0xFF00F2FE),
-                                    const Color(0xFF4FACFE)
-                                  ], // Installation/Cyan
-                                  [
-                                    const Color(0xFF38C97B),
-                                    const Color(0xFF43E97B)
-                                  ], // Tutoring/Mint
-                                  [
-                                    const Color(0xFFF5576C),
-                                    const Color(0xFFFA709A)
-                                  ], // Health/Red
-                                  [
-                                    const Color(0xFFFFC107),
-                                    const Color(0xFFFEE140)
-                                  ], // Beauty/Yellow
-                                  [
-                                    const Color(0xFFA8C0FF),
-                                    const Color(0xFF3F2B96)
-                                  ], // Home/Purple Blue
-                                  [
-                                    const Color(0xFF4CAF50),
-                                    const Color(0xFF8BC34A)
-                                  ], // Tech/Green
-                                  [
-                                    const Color(0xFFFF9800),
-                                    const Color(0xFFFFA726)
-                                  ], // Food/Orange
-                                  [
-                                    const Color(0xFF969696),
-                                    const Color(0xFFBDBDBD)
-                                  ], // Other/Grey
-                                ];
-
-                                final colors =
-                                    colorSchemes[index % colorSchemes.length];
-
-                                return Card(
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    side: BorderSide(
-                                        color: Colors.grey.shade100, width: 1),
-                                  ),
-                                  child: InkWell(
-                                    onTap: () =>
-                                        _onSubCategorySelected(subCategory),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            width: 52,
-                                            height: 52,
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                  colors: colors),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: colors[0]
-                                                      .withOpacity(0.3),
-                                                  blurRadius: 8,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Icon(subCategory.icon,
-                                                color: Colors.white, size: 24),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            subCategory.nameKey.isNotEmpty
-                                                ? subCategory.getTranslatedName(
-                                                    languageProvider)
-                                                : subCategory.name,
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              fontFamily: 'Exo2',
-                                              color: kDarkTextColor,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            languageProvider.tr(
-                                                'view_providers',
-                                                category: 'subcategories_page'),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: kPrimaryBlue,
-                                              fontWeight: FontWeight.w500,
-                                              fontFamily: 'Exo2',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-          ),
-        );
-      },
+          ],
+        ],
+      ),
     );
   }
 }

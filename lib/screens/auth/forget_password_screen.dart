@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/auth/constants.dart';
 import 'package:service_app/services/auth_service.dart';
+import 'package:service_app/utils/ui_widgets.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -80,23 +81,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           _successMessage = successMessage;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(successMessage)),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        AppSnackBar.showSuccess(context, successMessage);
 
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
@@ -111,22 +96,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           _errorMessage = errorMessage;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(errorMessage)),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        AppSnackBar.showError(context, errorMessage);
       }
     }
   }
@@ -224,11 +194,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return lang.tr('email_required',
+                              return lang.tr('validation_email_required',
                                   category: 'auth');
                             }
                             if (!value.contains('@') || !value.contains('.')) {
-                              return lang.tr('email_invalid', category: 'auth');
+                              return lang.tr('validation_email_invalid',
+                                  category: 'auth');
                             }
                             return null;
                           },
