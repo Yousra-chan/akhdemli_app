@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../Services/search_service.dart';
 import '../models/ProviderModel.dart';
 import '../models/ServicesModel.dart';
+import '../models/CategoryModel.dart';
 
 class SearchViewModel extends ChangeNotifier {
   final SearchService _searchService = SearchService();
@@ -118,59 +119,68 @@ class SearchViewModel extends ChangeNotifier {
     }
   }
 
-  /// SEARCH WITH FILTERS - UPDATED
+  /// SEARCH WITH FILTERS - REFACTORED
   Future<void> searchWithFilters(Map<String, dynamic> filters) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // Check if we have category/subcategory filters
-      if (filters.containsKey('category') ||
-          filters.containsKey('subcategory')) {
-        final category = filters['category']?.toString() ?? 'All';
-        final subcategory =
-            filters['subcategory']?.toString() ?? 'All Services';
+      final Map<String, dynamic> convertedFilters = Map.from(filters);
 
-        await getProvidersByCategoryAndSubcategory(category, subcategory);
-      } else {
-        // Use existing logic for other filters
-        final Map<String, dynamic> convertedFilters = Map.from(filters);
-
-        // Handle distance filter
-        final hasDistanceFilter =
-            convertedFilters.containsKey('useDistanceFilter') &&
-                convertedFilters['useDistanceFilter'] == true &&
-                convertedFilters.containsKey('userLat') &&
-                convertedFilters.containsKey('userLng');
-
-        if (hasDistanceFilter) {
-          final userLat = convertedFilters['userLat'] as double;
-          final userLng = convertedFilters['userLng'] as double;
-          final maxDistance = convertedFilters['maxDistance'] ?? 20.0;
-
-          // Remove distance filters for the search
-          convertedFilters.remove('userLat');
-          convertedFilters.remove('userLng');
-          convertedFilters.remove('maxDistance');
-          convertedFilters.remove('useDistanceFilter');
-
-          // Get providers with other filters
-          _providerResults =
-              await _searchService.searchProvidersWithFilters(convertedFilters);
-
-          // Apply distance filter
-          _providerResults = _filterByDistance(
-              _providerResults, userLat, userLng, maxDistance);
-        } else {
-          // No distance filter
-          _providerResults =
-              await _searchService.searchProvidersWithFilters(convertedFilters);
-        }
-
-        _serviceResults = [];
+      // 1. Handle 'All' defaults
+      if (convertedFilters['category'] == 'All') {
+        convertedFilters.remove('category');
       }
+      if (convertedFilters['subcategory'] == 'All Services') {
+        convertedFilters.remove('subcategory');
+      }
+
+      // 2. Identify distance filter status
+      final hasDistanceFilter =
+          convertedFilters['useDistanceFilter'] == true &&
+          convertedFilters.containsKey('userLat') &&
+          convertedFilters.containsKey('userLng');
+
+      final double? centerLat = convertedFilters['userLat'];
+      final double? centerLng = convertedFilters['userLng'];
+      final double maxDistance = convertedFilters['maxDistance'] ?? 20.0;
+
+      // 3. Prepare filters for the SearchService
+      // Create a clean map for the service to avoid validation errors or unexpected filtering
+      final searchServiceFilters = Map<String, dynamic>.from(convertedFilters);
+
+      // If distance filter is active, we search around the point regardless of boundaries
+      if (hasDistanceFilter) {
+        searchServiceFilters.remove('wilaya');
+        searchServiceFilters.remove('commune');
+      }
+
+      // Remove UI-only and distance-logic keys that SearchService doesn't handle in its Firestore query
+      searchServiceFilters.remove('useDistanceFilter');
+      searchServiceFilters.remove('userLat');
+      searchServiceFilters.remove('userLng');
+      searchServiceFilters.remove('maxDistance');
+      searchServiceFilters.remove('maxDistanceKm');
+      searchServiceFilters.remove('wilayaCoordinates');
+
+      // 4. Fetch providers from Firestore
+      if (searchServiceFilters.isEmpty) {
+        _providerResults = await _searchService.getAllActiveProviders();
+      } else {
+        _providerResults = await _searchService.searchProvidersWithFilters(
+            searchServiceFilters);
+      }
+
+      // 5. Apply distance filter in Dart if needed
+      if (hasDistanceFilter && centerLat != null && centerLng != null) {
+        _providerResults = _filterByDistance(
+            _providerResults, centerLat, centerLng, maxDistance);
+      }
+
+      _serviceResults = [];
     } catch (e) {
+      debugPrint('SearchViewModel Error: $e');
       _error = 'error_search_failed';
       _providerResults = [];
       _serviceResults = [];
@@ -373,7 +383,7 @@ class SearchViewModel extends ChangeNotifier {
   }
 
   /// Get available categories for filters
-  Future<Map<String, List<String>>> getAvailableCategories() async {
+  Future<Map<String, List<SubcategoryModel>>> getAvailableCategories() async {
     try {
       return await _searchService.getAvailableCategories();
     } catch (e) {

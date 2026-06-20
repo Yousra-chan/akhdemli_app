@@ -4,6 +4,8 @@ import 'package:service_app/models/ServicesModel.dart';
 import 'package:service_app/Services/categories_service.dart';
 import 'dart:math';
 
+import 'package:service_app/models/CategoryModel.dart';
+
 /// Custom exception for search-related errors
 class SearchException implements Exception {
   final String message;
@@ -320,7 +322,7 @@ class SearchService {
   /// Retrieves available categories and subcategories
   ///
   /// Returns: Map of categories to their subcategories
-  Future<Map<String, List<String>>> getAvailableCategories() async {
+  Future<Map<String, List<SubcategoryModel>>> getAvailableCategories() async {
     try {
       return await _categoriesService.getCategoriesForFilter();
     } catch (e) {

@@ -495,13 +495,12 @@ class CategoriesService {
   }
 
   // Get categories as map for dropdowns
-  Future<Map<String, List<String>>> getCategoriesForFilter() async {
+  Future<Map<String, List<SubcategoryModel>>> getCategoriesForFilter() async {
     final categories = await getAllCategories();
-    final result = <String, List<String>>{};
+    final result = <String, List<SubcategoryModel>>{};
 
     for (var category in categories) {
-      result[category.name] =
-          category.subcategories.map((sub) => sub.name).toList();
+      result[category.name] = category.subcategories;
     }
 
     return result;

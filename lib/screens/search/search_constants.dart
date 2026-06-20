@@ -247,93 +247,61 @@ final List<FilterOption> allSearchOptions = [
   ...otherFilters,
 ];
 
+// --- Single source of truth for category keyword matching ---
+// Both color and icon lookups used to duplicate this exact keyword list
+// in two separate if/else chains (and could drift out of sync). Now both
+// derive from one ordered table, evaluated once per call.
+class _CategoryStyle {
+  final List<String> keywords;
+  final Color color;
+  final IconData icon;
+  const _CategoryStyle(this.keywords, this.color, this.icon);
+}
+
+const List<_CategoryStyle> _categoryStyles = [
+  _CategoryStyle(['clean'], kMarkerCleaning, Icons.cleaning_services),
+  _CategoryStyle(['plumb'], kMarkerPlumber, Icons.plumbing),
+  _CategoryStyle(['electric'], kMarkerElectric, Icons.electrical_services),
+  _CategoryStyle(['carpent'], kMarkerCarpenter, Icons.handyman),
+  _CategoryStyle(['paint'], kMarkerPainter, Icons.format_paint),
+  _CategoryStyle(['garden'], kMarkerGardener, Icons.grass),
+  _CategoryStyle(['mov', 'transport'], kMarkerMover, Icons.local_shipping),
+  _CategoryStyle(['repair'], kMarkerRepair, Icons.build),
+  _CategoryStyle(['install'], kMarkerInstaller, Icons.settings),
+  _CategoryStyle(['teach', 'tutor'], kMarkerTutor, Icons.school),
+  _CategoryStyle(['health', 'medical'], kMarkerHealth, Icons.medical_services),
+  _CategoryStyle(['beauty'], kMarkerBeauty, Icons.spa),
+  _CategoryStyle(['home'], kMarkerHome, Icons.home),
+  _CategoryStyle(['tech', 'computer'], kMarkerTech, Icons.computer),
+  _CategoryStyle(['food'], kMarkerFood, Icons.restaurant),
+];
+
+_CategoryStyle? _matchCategoryStyle(String categoryName) {
+  final name = categoryName.toLowerCase();
+  for (final style in _categoryStyles) {
+    if (style.keywords.any(name.contains)) return style;
+  }
+  return null;
+}
+
 // --- Helper function to get marker color by category ---
 Color getMarkerColorForCategory(String categoryName) {
-  final name = categoryName.toLowerCase();
-
-  if (name.contains('clean')) {
-    return kMarkerCleaning;
-  } else if (name.contains('plumb')) {
-    return kMarkerPlumber;
-  } else if (name.contains('electric')) {
-    return kMarkerElectric;
-  } else if (name.contains('carpent')) {
-    return kMarkerCarpenter;
-  } else if (name.contains('paint')) {
-    return kMarkerPainter;
-  } else if (name.contains('garden')) {
-    return kMarkerGardener;
-  } else if (name.contains('mov') || name.contains('transport')) {
-    return kMarkerMover;
-  } else if (name.contains('repair')) {
-    return kMarkerRepair;
-  } else if (name.contains('install')) {
-    return kMarkerInstaller;
-  } else if (name.contains('teach') || name.contains('tutor')) {
-    return kMarkerTutor;
-  } else if (name.contains('health') || name.contains('medical')) {
-    return kMarkerHealth;
-  } else if (name.contains('beauty')) {
-    return kMarkerBeauty;
-  } else if (name.contains('home')) {
-    return kMarkerHome;
-  } else if (name.contains('tech') || name.contains('computer')) {
-    return kMarkerTech;
-  } else if (name.contains('food')) {
-    return kMarkerFood;
-  } else {
-    return kMarkerOther;
-  }
+  return _matchCategoryStyle(categoryName)?.color ?? kMarkerOther;
 }
 
 // --- Helper function to get icon for category ---
 IconData getCategoryIcon(String categoryName) {
-  final name = categoryName.toLowerCase();
-
-  if (name.contains('clean')) {
-    return Icons.cleaning_services;
-  } else if (name.contains('plumb')) {
-    return Icons.plumbing;
-  } else if (name.contains('electric')) {
-    return Icons.electrical_services;
-  } else if (name.contains('carpent')) {
-    return Icons.handyman;
-  } else if (name.contains('paint')) {
-    return Icons.format_paint;
-  } else if (name.contains('garden')) {
-    return Icons.grass;
-  } else if (name.contains('mov') || name.contains('transport')) {
-    return Icons.local_shipping;
-  } else if (name.contains('repair')) {
-    return Icons.build;
-  } else if (name.contains('install')) {
-    return Icons.settings;
-  } else if (name.contains('teach') || name.contains('tutor')) {
-    return Icons.school;
-  } else if (name.contains('health') || name.contains('medical')) {
-    return Icons.medical_services;
-  } else if (name.contains('beauty')) {
-    return Icons.spa;
-  } else if (name.contains('home')) {
-    return Icons.home;
-  } else if (name.contains('tech') || name.contains('computer')) {
-    return Icons.computer;
-  } else if (name.contains('food')) {
-    return Icons.restaurant;
-  } else {
-    return Icons.more_horiz;
-  }
+  return _matchCategoryStyle(categoryName)?.icon ?? Icons.more_horiz;
 }
 
-// --- Helper function to get filter option by value ---
+// --- Helper function to get filter option by value (O(1), no exceptions-as-control-flow) ---
+Map<String, FilterOption>? _filterOptionsByValue;
+
 FilterOption? getFilterOptionByValue(String value) {
-  try {
-    return allSearchOptions.firstWhere(
-      (option) => option.value.toLowerCase() == value.toLowerCase(),
-    );
-  } catch (e) {
-    return null;
-  }
+  _filterOptionsByValue ??= {
+    for (final option in allSearchOptions) option.value.toLowerCase(): option,
+  };
+  return _filterOptionsByValue![value.toLowerCase()];
 }
 
 // --- Helper function to get filter label by value ---

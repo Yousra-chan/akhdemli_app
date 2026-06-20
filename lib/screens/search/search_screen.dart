@@ -11,6 +11,7 @@ import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/screens/profile/provider_profile/provider_profile_page.dart';
 import 'package:service_app/screens/search/search_filter_dialog.dart';
 import 'package:service_app/models/ProviderModel.dart';
+import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/services/wilaya_service.dart';
 import 'package:service_app/services/categories_service.dart';
@@ -59,8 +60,6 @@ class _MapSearchPageState extends State<MapSearchPage> {
   Map<String, dynamic> _currentFilters = {};
   LatLng? _userLocation;
   bool _isLoadingLocation = false;
-  List<String> _wilayas = [];
-  Map<String, List<String>> _categoriesWithSubcategories = {};
 
   // ─────────────────────────────────────────────────────────────
   // LIFECYCLE
@@ -119,9 +118,6 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   Future<void> _loadInitialData() async {
     try {
-      _wilayas = WilayaService.getAllWilayaNames();
-      _categoriesWithSubcategories =
-      await _categoriesService.getCategoriesForFilter();
       await _searchProvidersWithCurrentFilters();
     } catch (e) {
       debugPrint('Error loading initial data: $e');
@@ -141,9 +137,11 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
       await _searchViewModel.searchWithFilters(_currentFilters);
 
-      if (_searchViewModel.providerResults.isEmpty) {
-        _centerMapOnSelectedLocation();
-      } else {
+      // Always center map according to selected location/wilaya or user location
+      // This ensures map moves when filters are applied even if results are found
+      _centerMapOnSelectedLocation();
+
+      if (_searchViewModel.providerResults.isNotEmpty) {
         await _createMarkersFromProviders(_searchViewModel.providerResults);
       }
     } catch (e) {
@@ -298,16 +296,35 @@ class _MapSearchPageState extends State<MapSearchPage> {
   // ─────────────────────────────────────────────────────────────
 
   void _applyFilters(Map<String, dynamic> filters) async {
+    // Create a copy to avoid side effects
+    final Map<String, dynamic> updatedFilters = Map<String, dynamic>.from(filters);
+    
+    LatLng? searchCenter;
+    
+    // Determine the search center: Prioritize explicitly selected Wilaya coordinates
+    if (filters['wilayaCoordinates'] != null) {
+      searchCenter = filters['wilayaCoordinates'] as LatLng;
+    } 
+    // Fallback to user location if available
+    else if (_userLocation != null) {
+      searchCenter = _userLocation;
+    }
+
+    // If we have a center, set it in the filters for the ViewModel
+    if (searchCenter != null) {
+      updatedFilters['userLat'] = searchCenter.latitude;
+      updatedFilters['userLng'] = searchCenter.longitude;
+      
+      // Ensure maxDistanceKm is set if useDistanceFilter is true
+      if (filters['useDistanceFilter'] == true) {
+        updatedFilters['maxDistanceKm'] = filters['maxDistance'] ?? 20.0;
+      }
+    }
+
     setState(() {
-      _currentFilters = filters;
+      _currentFilters = updatedFilters;
       _markers.clear();
     });
-
-    if (filters['useDistanceFilter'] == true && _userLocation != null) {
-      _currentFilters['userLat'] = _userLocation!.latitude;
-      _currentFilters['userLng'] = _userLocation!.longitude;
-      _currentFilters['maxDistanceKm'] = filters['maxDistance'] ?? 20.0;
-    }
 
     await _searchProvidersWithCurrentFilters();
   }
@@ -324,26 +341,47 @@ class _MapSearchPageState extends State<MapSearchPage> {
   // MAP NAVIGATION
   // ─────────────────────────────────────────────────────────────
 
+  double _getZoomLevelForRadius(double radiusKm) {
+    if (radiusKm <= 5) return 14.0;
+    if (radiusKm <= 10) return 13.0;
+    if (radiusKm <= 25) return 11.5;
+    if (radiusKm <= 50) return 10.0;
+    if (radiusKm <= 100) return 8.5;
+    if (radiusKm <= 200) return 7.5;
+    return 6.0;
+  }
+
   void _centerMapOnSelectedLocation() {
     final wilayaCoordinates = _currentFilters['wilayaCoordinates'] as LatLng?;
     final wilayaName = _currentFilters['wilaya'] as String?;
+    final maxDistance = _currentFilters['maxDistanceKm'] as double?;
+    final useDistance = _currentFilters['useDistanceFilter'] as bool? ?? false;
+    
+    double zoom = 13.0;
+    if (useDistance && maxDistance != null) {
+      zoom = _getZoomLevelForRadius(maxDistance);
+    }
 
     if (wilayaCoordinates != null) {
-      _mapController.move(wilayaCoordinates, 13);
-      _showNoProvidersMessage(wilayaName ?? '');
+      _mapController.move(wilayaCoordinates, zoom);
+      if (_searchViewModel.providerResults.isEmpty) {
+        _showNoProvidersMessage(wilayaName ?? '');
+      }
     } else if (wilayaName != null) {
-      _getAndCenterWilaya(wilayaName);
+      _getAndCenterWilaya(wilayaName, zoom: zoom);
     } else if (_userLocation != null) {
-      _mapController.move(_userLocation!, 13);
+      _mapController.move(_userLocation!, zoom);
     }
   }
 
-  Future<void> _getAndCenterWilaya(String wilayaName) async {
+  Future<void> _getAndCenterWilaya(String wilayaName, {double zoom = 13.0}) async {
     try {
       final coordinates = await GeocodingService.getWilayaCoordinates(wilayaName);
       if (coordinates != null) {
-        _mapController.move(coordinates, 13);
-        _showNoProvidersMessage(wilayaName);
+        _mapController.move(coordinates, zoom);
+        if (_searchViewModel.providerResults.isEmpty) {
+          _showNoProvidersMessage(wilayaName);
+        }
       } else {
         _showNoCoordinatesMessage(wilayaName);
       }
@@ -940,8 +978,13 @@ class _MapSearchPageState extends State<MapSearchPage> {
     if (_currentFilters.isEmpty) return lp.tr('filter_hint', category: 'search');
 
     final wilaya = _currentFilters['wilaya'] ?? '';
-    final category = _currentFilters['category'] ?? '';
+    final categoryName = _currentFilters['category'] ?? '';
     final distance = _currentFilters['maxDistance'] ?? 20;
+
+    String category = categoryName;
+    if (categoryName.isNotEmpty) {
+      category = _categoriesService.getCategoryByName(categoryName)?.getTranslatedName(lp) ?? categoryName;
+    }
 
     if (category.isNotEmpty && wilaya.isNotEmpty) {
       return '$category • $wilaya • ${distance.toInt()}km';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/models/CategoryModel.dart';
 import 'search_constants.dart';
 import 'package:service_app/services/wilaya_service.dart';
 import 'package:service_app/services/categories_service.dart';
@@ -40,9 +41,9 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   // Data
   List<String> _wilayas = [];
   List<String> _communes = [];
-  Map<String, List<String>> _categoriesWithSubcategories = {};
+  Map<String, List<SubcategoryModel>> _categoriesWithSubcategories = {};
   List<String> _categories = [];
-  List<String> _availableSubcategories = [];
+  List<SubcategoryModel> _availableSubcategories = [];
   bool _isLoading = true;
 
   @override
@@ -103,7 +104,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
 
       // Reset subcategory if not in new list
       if (_selectedSubcategory != null &&
-          !_availableSubcategories.contains(_selectedSubcategory)) {
+          !_availableSubcategories.any((s) => s.name == _selectedSubcategory)) {
         _selectedSubcategory = null;
       }
     });
@@ -425,11 +426,11 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                 hintStyle: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor),
               ),
               icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
-              items: _availableSubcategories.map((subcategory) {
+              items: _availableSubcategories.map<DropdownMenuItem<String>>((subcategory) {
                 return DropdownMenuItem<String>(
-                  value: subcategory,
+                  value: subcategory.name,
                   child: Text(
-                    subcategory,
+                    subcategory.getTranslatedName(lang),
                     style: const TextStyle(
                       fontSize: 15,
                       fontFamily: 'Exo2',
