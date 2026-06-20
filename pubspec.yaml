@@ -75,6 +75,8 @@ dependencies:
   shimmer: ^3.0.0
   lottie: ^3.3.3
 
+  flutter_localizations:
+    sdk: flutter
 dev_dependencies:
   flutter_test:
     sdk: flutter

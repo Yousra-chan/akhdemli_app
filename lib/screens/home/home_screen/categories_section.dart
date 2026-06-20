@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
-import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'dart:ui' as ui;
 

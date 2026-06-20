@@ -22,13 +22,6 @@ class PriceSection extends StatelessWidget {
     this.marketAveragePrice = 2500.0,
   });
 
-  // Colors
-  static const Color _primaryColor = Color(0xFF2563EB);
-  static const Color _accentColor = Color(0xFF059669);
-  static const Color _textPrimary = Color(0xFF1E293B);
-  static const Color _textSecondary = Color(0xFF64748B);
-  static const Color _borderColor = Color(0xFFE2E8F0);
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

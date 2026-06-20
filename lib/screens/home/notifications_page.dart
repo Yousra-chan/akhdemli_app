@@ -582,12 +582,14 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
     final message = notification.message.toLowerCase();
 
     if (message.contains('accepted')) return 'accepted';
-    if (message.contains('declined') || message.contains('rejected'))
+    if (message.contains('declined') || message.contains('rejected')) {
       return 'rejected';
+    }
     if (message.contains('completed')) return 'completed';
     if (message.contains('cancelled')) return 'cancelled';
-    if (message.contains('requested') || message.contains('pending'))
+    if (message.contains('requested') || message.contains('pending')) {
       return 'pending';
+    }
 
     return null;
   }
@@ -1097,12 +1099,14 @@ class _NotificationDetailsPage extends StatelessWidget {
     final message = notification.message.toLowerCase();
 
     if (message.contains('accepted')) return 'accepted';
-    if (message.contains('declined') || message.contains('rejected'))
+    if (message.contains('declined') || message.contains('rejected')) {
       return 'rejected';
+    }
     if (message.contains('completed')) return 'completed';
     if (message.contains('cancelled')) return 'cancelled';
-    if (message.contains('requested') || message.contains('pending'))
+    if (message.contains('requested') || message.contains('pending')) {
       return 'pending';
+    }
 
     return null;
   }

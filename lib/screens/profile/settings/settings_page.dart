@@ -7,7 +7,6 @@ import 'package:service_app/screens/profile/settings/change_password_page.dart';
 import 'package:service_app/screens/profile/settings/edit_profile_page.dart';
 import 'package:service_app/screens/profile/settings/update_email_page.dart';
 import 'package:service_app/screens/profile/settings/delete_account.dart';
-import 'package:service_app/ViewModel/auth_view_model.dart';
 
 import 'package:service_app/providers/theme_provider.dart';
 
@@ -20,8 +19,8 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
 
-  bool _sendReadReceipts = true;
-  bool _offlineMode = false;
+  final bool _sendReadReceipts = true;
+  final bool _offlineMode = false;
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +317,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Switch(
                     value: switchValue,
                     onChanged: onSwitchChanged,
-                    activeColor: theme.primaryColor,
+                    activeThumbColor: theme.primaryColor,
                   ),
                 )
               else if (showChevron)

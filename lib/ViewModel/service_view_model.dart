@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/models/ServicesModel.dart';
-import 'package:service_app/ViewModel/auth_view_model.dart';
 
 class ServiceViewModel with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

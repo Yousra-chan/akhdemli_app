@@ -45,5 +45,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show you nearby services and providers.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We need your location to show you nearby services and providers even when the app is in the background.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera so you can take photos for your profile and portfolio.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library so you can pick images for your profile and portfolio.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

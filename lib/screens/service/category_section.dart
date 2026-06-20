@@ -19,7 +19,6 @@ class CategorySection extends StatefulWidget {
 class _CategorySectionState extends State<CategorySection> {
   String? _selectedCategoryId;
   List<CategoryModel> _categories = [];
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -31,7 +30,6 @@ class _CategorySectionState extends State<CategorySection> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _categories = defaultCategories;
-        _isLoading = false;
         if (_categories.isNotEmpty && _selectedCategoryId == null) {
           _selectedCategoryId = _categories.first.id;
           widget.onCategorySelected(_categories.first);

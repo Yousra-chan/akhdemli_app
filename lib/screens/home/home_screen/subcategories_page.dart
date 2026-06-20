@@ -6,7 +6,6 @@ import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
-import 'home_constants.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Soft Clarity – Subcategory row palette

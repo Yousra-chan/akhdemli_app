@@ -57,5 +57,6 @@
   "error_loading_profile": "Failed to load user profile.",
   "add": "Add",
   "no_images": "No images added yet",
-  "dzd": "DZD"
+  "dzd": "DZD",
+  "done": "Done"
 }

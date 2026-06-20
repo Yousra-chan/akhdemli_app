@@ -57,5 +57,6 @@
   "error_loading_profile": "Échec du chargement du profil utilisateur.",
   "add": "Ajouter",
   "no_images": "Aucune image ajoutée",
-  "dzd": "DA"
+  "dzd": "DA",
+  "done": "Terminé"
 }

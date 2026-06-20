@@ -326,9 +326,9 @@ class _SubcategorySectionState extends State<SubcategorySection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Subcategory Selected',
-                    style: TextStyle(
+                  Text(
+                    lang.tr('subcategory_selected', category: 'service'),
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: kSuccessGreen,

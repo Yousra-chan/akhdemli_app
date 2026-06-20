@@ -42,7 +42,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
   String _locationAddress = '';
   double? _latitude;
   double? _longitude;
-  bool _hasLocation = false;
 
   // Validation
   bool _titleValid = false;
@@ -98,7 +97,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     }
     if (_locationAddress.isNotEmpty) {
       _locationValid = true;
-      _hasLocation = true;
     }
 
     // Set initial validation
@@ -718,12 +716,14 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
             icon: Icons.work_rounded,
             maxLength: 60,
             validator: (value) {
-              if (value!.isEmpty)
+              if (value!.isEmpty) {
                 return lang.tr('error_title_required',
                     category: 'edit_service');
-              if (value.length < 5)
+              }
+              if (value.length < 5) {
                 return lang.tr('error_title_min_length',
                     category: 'edit_service');
+              }
               return null;
             },
           ),
@@ -736,12 +736,14 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
             maxLines: 5,
             maxLength: 500,
             validator: (value) {
-              if (value!.isEmpty)
+              if (value!.isEmpty) {
                 return lang.tr('error_description_required',
                     category: 'edit_service');
-              if (value.length < 20)
+              }
+              if (value.length < 20) {
                 return lang.tr('error_description_min_length',
                     category: 'edit_service');
+              }
               return null;
             },
           ),
@@ -840,7 +842,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                 _locationAddress = address;
                 _latitude = lat;
                 _longitude = lng;
-                _hasLocation = true;
                 _locationValid = true;
               });
             },

@@ -666,7 +666,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
   late List<CategoryModel> _categories;
   CategoryModel? _selectedCategory;
   SubcategoryModel? _selectedSubcategory;
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
   bool _isUploading = false;
 
   @override

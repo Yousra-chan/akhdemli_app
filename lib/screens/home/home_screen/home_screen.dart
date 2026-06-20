@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui' as ui;
@@ -39,6 +38,8 @@ class _HomePageState extends State<HomePage>
   bool _isLoadingCategories = true;
 
   StreamSubscription? _notificationCountSubscription;
+  StreamSubscription? _userDataSubscription;
+  StreamSubscription? _categoriesSubscription;
 
   @override
   void initState() {
@@ -74,7 +75,8 @@ class _HomePageState extends State<HomePage>
   void _loadUserData() {
     final user = FirebaseService.currentUser;
     if (user != null) {
-      FirebaseService.getUserData(user.uid).listen((userData) {
+      _userDataSubscription?.cancel();
+      _userDataSubscription = FirebaseService.getUserData(user.uid).listen((userData) {
         if (mounted && userData.exists && userData.data() != null) {
           setState(() {
             _currentUser = UserModel.fromMap(
@@ -88,7 +90,8 @@ class _HomePageState extends State<HomePage>
   void _loadCategories() {
     setState(() => _isLoadingCategories = true);
 
-    FirebaseService.getCategories()
+    _categoriesSubscription?.cancel();
+    _categoriesSubscription = FirebaseService.getCategories()
         .listen(_handleCategoriesLoaded, onError: _handleCategoriesError);
   }
 
@@ -259,7 +262,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildHeader(LanguageProvider lang) {
-    final userName = _currentUser?.name?.split(' ').first;
+    final userName = _currentUser?.name.split(' ').first;
     final greeting = userName != null && userName.isNotEmpty
         ? lang.trParams('hello_user',
             category: 'home_page', params: {'name': userName})
@@ -489,6 +492,8 @@ class _HomePageState extends State<HomePage>
     _animationController.dispose();
     _searchController.dispose();
     _notificationCountSubscription?.cancel();
+    _userDataSubscription?.cancel();
+    _categoriesSubscription?.cancel();
     super.dispose();
   }
 }

@@ -82,6 +82,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       if (mounted) {
+        if (!context.mounted) return;
         AppSnackBar.showSuccess(
           context,
           languageProvider.tr('updatePersonalInfo', category: 'profile'),
@@ -343,7 +344,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.2 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

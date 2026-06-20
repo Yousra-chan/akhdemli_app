@@ -93,9 +93,11 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
   @override
   Widget build(BuildContext context) {
     final languageProvider = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -109,11 +111,11 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                   margin:
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   decoration: BoxDecoration(
-                    color: kCardBackgroundColor,
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(15),
                     boxShadow: [
                       BoxShadow(
-                        color: kSoftShadowColor.withOpacity(0.1),
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -176,8 +178,8 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
           if (_isLoading)
             Container(
               color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(color: kPrimaryBlue),
+              child: Center(
+                child: CircularProgressIndicator(color: theme.primaryColor),
               ),
             ),
         ],
@@ -186,6 +188,9 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
   }
 
   Widget _buildAppBar(BuildContext context, LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -193,7 +198,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
         right: 20,
         bottom: 15,
       ),
-      color: Colors.white,
+      color: theme.cardColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -202,26 +207,26 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kLightBackgroundColor,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleLarge?.color ?? Colors.black87,
                 size: 24,
               ),
             ),
           ),
           Text(
             languageProvider.tr('updateEmail', category: 'profile'),
-            style: const TextStyle(
-              color: kDarkTextColor,
+            style: TextStyle(
+              color: theme.textTheme.titleLarge?.color ?? Colors.black87,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
             ),
           ),
-          Container(width: 40),
+          const SizedBox(width: 40),
         ],
       ),
     );
@@ -232,6 +237,9 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
     required String label,
     String? Function(String?)? validator,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       child: Column(
@@ -239,8 +247,8 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: kMutedTextColor,
+            style: TextStyle(
+              color: isDark ? Colors.white54 : kMutedTextColor,
               fontSize: 14,
             ),
           ),
@@ -249,19 +257,19 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
             children: [
               Icon(
                 Icons.email_outlined,
-                color: kPrimaryBlue,
+                color: theme.primaryColor,
                 size: 24,
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: controller,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  style: const TextStyle(
-                    color: kDarkTextColor,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color ?? Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -282,6 +290,9 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
     required VoidCallback onToggle,
     required LanguageProvider languageProvider,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       child: Column(
@@ -289,8 +300,8 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: kMutedTextColor,
+            style: TextStyle(
+              color: isDark ? Colors.white54 : kMutedTextColor,
               fontSize: 14,
             ),
           ),
@@ -299,7 +310,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
             children: [
               Icon(
                 Icons.lock_outline,
-                color: kPrimaryBlue,
+                color: theme.primaryColor,
                 size: 24,
               ),
               const SizedBox(width: 16),
@@ -313,15 +324,15 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         obscureText ? Icons.visibility : Icons.visibility_off,
-                        color: kMutedTextColor,
+                        color: isDark ? Colors.white54 : kMutedTextColor,
                         size: 20,
                       ),
                       onPressed: onToggle,
                       padding: EdgeInsets.zero,
                     ),
                   ),
-                  style: const TextStyle(
-                    color: kDarkTextColor,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color ?? Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -341,12 +352,13 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
   }
 
   Widget _buildUpdateButton(LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
         onPressed: _isLoading ? null : () => _updateEmail(languageProvider),
         style: ElevatedButton.styleFrom(
-          backgroundColor: kPrimaryBlue,
+          backgroundColor: theme.primaryColor,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 56),
           shape: RoundedRectangleBorder(

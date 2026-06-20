@@ -88,8 +88,9 @@ class SubscriptionService {
       final assignedTo = codeData['providerId'] as String?;
 
       if (used) throw Exception('Code already used');
-      if (validUntil == null || validUntil.toDate().isBefore(DateTime.now()))
+      if (validUntil == null || validUntil.toDate().isBefore(DateTime.now())) {
         throw Exception('Code expired');
+      }
 
       // Only check if code was assigned to a specific user
       // No role validation - any user can activate if code matches

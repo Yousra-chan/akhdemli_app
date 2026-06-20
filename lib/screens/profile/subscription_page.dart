@@ -8,7 +8,6 @@ import 'package:service_app/Services/subscription_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
-import 'package:service_app/screens/auth/constants.dart';
 
 const kPrimaryColor = Color(0xFF143EAE);
 const kMutedTextColor = Color(0xFF5A6670);

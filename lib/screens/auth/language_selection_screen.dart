@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/onboarding/onboarding_screen.dart';
 import 'package:service_app/screens/auth/constants.dart';

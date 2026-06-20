@@ -36,7 +36,6 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   String _locationAddress = '';
   double? _latitude;
   double? _longitude;
-  bool _hasLocation = false;
 
   // Validation
   bool _titleValid = false;
@@ -580,10 +579,12 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             icon: Icons.work_rounded,
             maxLength: 60,
             validator: (value) {
-              if (value!.isEmpty)
+              if (value!.isEmpty) {
                 return lang.tr('error_title_required', category: 'service');
-              if (value.length < 5)
+              }
+              if (value.length < 5) {
                 return lang.tr('error_title_min_length', category: 'service');
+              }
               return null;
             },
           ),
@@ -596,12 +597,14 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             maxLines: 5,
             maxLength: 500,
             validator: (value) {
-              if (value!.isEmpty)
+              if (value!.isEmpty) {
                 return lang.tr('error_description_required',
                     category: 'service');
-              if (value.length < 20)
+              }
+              if (value.length < 20) {
                 return lang.tr('error_description_min_length',
                     category: 'service');
+              }
               return null;
             },
           ),
@@ -799,7 +802,6 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 _locationAddress = address;
                 _latitude = lat;
                 _longitude = lng;
-                _hasLocation = true;
                 _locationValid = true;
               });
             },

@@ -133,7 +133,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                       style: TextStyle(fontSize: 13, color: kMutedTextColor)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<int>(
-                    value: months,
+                    initialValue: months,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.grey.shade100,
@@ -1371,7 +1371,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                       fontWeight: FontWeight.w600,
                       fontSize: 15)),
               content: DropdownButtonFormField<int>(
-                value: months,
+                initialValue: months,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.grey.shade100,

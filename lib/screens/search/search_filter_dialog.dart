@@ -404,7 +404,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _selectedSubcategory,
+              initialValue: _selectedSubcategory,
               dropdownColor: theme.cardColor,
               decoration: InputDecoration(
                 filled: true,
@@ -654,7 +654,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                     });
                   },
                   activeThumbColor: theme.primaryColor,
-                  activeColor: theme.primaryColor.withOpacity(0.3),
+                  activeTrackColor: theme.primaryColor.withOpacity(0.3),
                 ),
                 const SizedBox(width: 8),
                 Expanded(

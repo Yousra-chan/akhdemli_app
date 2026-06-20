@@ -97,6 +97,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       );
 
       if (shouldDelete == true) {
+        if (!context.mounted) return;
         await _performAccountDeletion(user.uid, languageProvider);
       }
     } on FirebaseAuthException catch (e) {
@@ -107,8 +108,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             languageProvider.tr('incorrectPassword', category: 'profile');
       }
 
+      if (!context.mounted) return;
       AppSnackBar.showError(context, errorMessage);
     } catch (e) {
+      if (!context.mounted) return;
       AppSnackBar.showError(
         context,
         '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
@@ -133,10 +136,12 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       await user?.delete();
 
       // Sign out
+      if (!context.mounted) return;
       final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
       await authViewModel.logout();
 
       if (mounted) {
+        if (!context.mounted) return;
         AppSnackBar.showSuccess(
           context,
           languageProvider.tr('accountDeletedSuccess', category: 'profile'),
@@ -146,6 +151,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     } catch (e) {
+      if (!context.mounted) return;
       AppSnackBar.showError(
         context,
         '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
@@ -185,21 +191,23 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   @override
   Widget build(BuildContext context) {
     final languageProvider = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: kDangerColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kLightTextColor),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           languageProvider.tr('deleteAccount', category: 'profile'),
           style: const TextStyle(
-            color: kLightTextColor,
+            color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w800,
             fontFamily: 'Exo2',
@@ -222,7 +230,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               ),
               child: Column(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.warning_amber_rounded,
                     size: 50,
                     color: kDangerColor,
@@ -255,30 +263,36 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             // Consequences
             Text(
               languageProvider.tr('whatWillBeDeleted', category: 'profile'),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
               ),
             ),
             const SizedBox(height: 10),
             _buildConsequenceItem(
               languageProvider.tr('profileInfo', category: 'profile'),
+              theme,
             ),
             _buildConsequenceItem(
               languageProvider.tr('serviceListings', category: 'profile'),
+              theme,
             ),
             _buildConsequenceItem(
               languageProvider.tr('bookingHistory', category: 'profile'),
+              theme,
             ),
             _buildConsequenceItem(
               languageProvider.tr('messagesChats', category: 'profile'),
+              theme,
             ),
             _buildConsequenceItem(
               languageProvider.tr('reviewsRatings', category: 'profile'),
+              theme,
             ),
             _buildConsequenceItem(
               languageProvider.tr('appPreferences', category: 'profile'),
+              theme,
             ),
             const SizedBox(height: 20),
 
@@ -286,17 +300,17 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             if (currentUser?.email != null) ...[
               Text(
                 languageProvider.tr('accountToBeDeleted', category: 'profile'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: kDarkTextColor,
+                  color: theme.textTheme.titleSmall?.color ?? kDarkTextColor,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 currentUser!.email!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: kMutedTextColor,
+                  color: isDark ? Colors.white54 : kMutedTextColor,
                 ),
               ),
               const SizedBox(height: 30),
@@ -306,20 +320,26 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color),
               decoration: InputDecoration(
                 labelText:
                     languageProvider.tr('currentPassword', category: 'profile'),
+                labelStyle: TextStyle(color: isDark ? Colors.white54 : kMutedTextColor),
                 prefixIcon: const Icon(Icons.lock, color: kDangerColor),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                    color: kMutedTextColor,
+                    color: isDark ? Colors.white54 : kMutedTextColor,
                   ),
                   onPressed: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
               ),
             ),
@@ -328,12 +348,18 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             // Confirmation Text
             TextFormField(
               controller: _confirmationController,
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color),
               decoration: InputDecoration(
                 labelText: languageProvider.tr('typeDeleteConfirm',
                     category: 'profile'),
+                labelStyle: TextStyle(color: isDark ? Colors.white54 : kMutedTextColor),
                 prefixIcon: const Icon(Icons.warning, color: kDangerColor),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
               ),
             ),
@@ -347,12 +373,16 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   onChanged: (value) =>
                       setState(() => _understandConsequences = value!),
                   activeColor: kDangerColor,
+                  side: BorderSide(color: isDark ? Colors.white24 : Colors.grey),
                 ),
                 Expanded(
                   child: Text(
                     languageProvider.tr('understandConsequences',
                         category: 'profile'),
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: theme.textTheme.bodyMedium?.color,
+                    ),
                   ),
                 ),
               ],
@@ -368,6 +398,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     _isLoading ? null : () => _deleteAccount(languageProvider),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kDangerColor,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -388,7 +419,6 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
                         ),
                       ),
               ),
@@ -405,14 +435,14 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  side: BorderSide(color: kMutedTextColor.withOpacity(0.5)),
+                  side: BorderSide(color: isDark ? Colors.white24 : kMutedTextColor.withOpacity(0.5)),
+                  foregroundColor: isDark ? Colors.white70 : kMutedTextColor,
                 ),
                 child: Text(
                   languageProvider.tr('cancel', category: 'profile'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: kMutedTextColor,
                   ),
                 ),
               ),
@@ -423,7 +453,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     );
   }
 
-  Widget _buildConsequenceItem(String text) {
+  Widget _buildConsequenceItem(String text, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -434,7 +465,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             child: Text(
               text,
               style: TextStyle(
-                color: kMutedTextColor,
+                color: isDark ? Colors.white70 : kMutedTextColor,
                 fontSize: 14,
               ),
             ),

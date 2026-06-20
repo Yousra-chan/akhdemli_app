@@ -160,7 +160,7 @@ class FirestoreService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((doc) => doc.data())
           .toList();
     } catch (e) {
       print('Error getting user ratings: $e');
@@ -178,7 +178,7 @@ class FirestoreService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((doc) => doc.data())
           .toList();
     } catch (e) {
       print('Error getting bookings by provider: $e');
@@ -196,7 +196,7 @@ class FirestoreService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((doc) => doc.data())
           .toList();
     } catch (e) {
       print('Error getting bookings by client: $e');

@@ -563,7 +563,7 @@ class SearchService {
       final providers = <ProviderModel>[];
 
       for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         try {
           providers.add(ProviderModel.fromFirestore(data, doc.id));
         } catch (e) {

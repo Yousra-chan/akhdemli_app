@@ -29,13 +29,6 @@ class _LocationSectionState extends State<LocationSection> {
 
   bool _isGettingLocation = false;
   Position? _currentPosition;
-  Placemark? _currentPlacemark;
-
-  // Colors
-  static const Color _primaryColor = Color(0xFF2563EB);
-  static const Color _successColor = Color(0xFF059669);
-  static const Color _textPrimary = Color(0xFF1E293B);
-  static const Color _borderColor = Color(0xFFE2E8F0);
 
   @override
   void initState() {
@@ -108,7 +101,7 @@ class _LocationSectionState extends State<LocationSection> {
               Geolocator.openAppSettings();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
+              backgroundColor: Theme.of(context).primaryColor,
             ),
             child: Text(
               lang.tr('location_permission_enable', category: 'service'),

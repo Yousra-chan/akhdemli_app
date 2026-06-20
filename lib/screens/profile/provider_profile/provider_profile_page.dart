@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/models/BookingModel.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
-import 'package:service_app/services/chat_service.dart';
 import 'package:service_app/services/booking_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
@@ -14,8 +13,6 @@ import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/Services/booking_notification_service.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
-import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
 
 const kPrimaryColor = Color(0xFF667EEA);
 const kSecondaryColor = Color(0xFF764BA2);
@@ -84,7 +81,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Future<void> _reportProvider() async {
-    final TextEditingController _reportController = TextEditingController();
+    final TextEditingController reportController = TextEditingController();
     final authViewModel = context.read<AuthViewModel>();
 
     if (authViewModel.currentUser == null) {
@@ -103,7 +100,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               Text(_tr(context, 'report_description')),
               const SizedBox(height: 10),
               TextField(
-                controller: _reportController,
+                controller: reportController,
                 maxLines: 3,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
@@ -121,7 +118,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final reason = _reportController.text.trim();
+                final reason = reportController.text.trim();
                 if (reason.isEmpty) return;
 
                 Navigator.pop(context);
@@ -133,8 +130,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     'timestamp': FieldValue.serverTimestamp(),
                     'type': 'provider_profile',
                   });
+                  if (!context.mounted) return;
                   AppSnackBar.showSuccess(context, _tr(context, 'report_submitted'));
                 } catch (e) {
+                  if (!context.mounted) return;
                   AppSnackBar.showError(context, 'Error submitting report: $e');
                 }
               },
@@ -182,9 +181,11 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             .update({
           'blockedUsers': FieldValue.arrayUnion([_provider.uid]),
         });
+        if (!context.mounted) return;
         AppSnackBar.showSuccess(context, _trParams(context, 'user_blocked', {'name': _provider.name}));
         Navigator.pop(context);
       } catch (e) {
+        if (!context.mounted) return;
         AppSnackBar.showError(context, 'Error blocking user: $e');
       }
     }
@@ -209,7 +210,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
       QueryDocumentSnapshot? matched;
       for (final doc in query.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final used = data['used'] ?? false;
         final assignedTo = data['providerId'] as String?;
         if (used == true) continue;
@@ -452,9 +453,11 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         await _loadBookedCount();
         _showSuccessDialog(appointmentDateTime);
       } else {
+        if (!context.mounted) return;
         AppSnackBar.showError(context, _tr(context, 'failed_create_booking'));
       }
     } catch (e) {
+      if (!context.mounted) return;
       AppSnackBar.showError(context, _trParams(context, 'error', {'error': e.toString()}));
     }
   }
@@ -879,7 +882,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem(theme, _tr(context, 'rating'), '${_currentRating.toStringAsFixed(1)}', Icons.star),
+          _buildStatItem(theme, _tr(context, 'rating'), _currentRating.toStringAsFixed(1), Icons.star),
           _buildStatItem(theme, _tr(context, 'services'), '${_providerServices.length}', Icons.work_outline),
           _buildStatItem(theme, _tr(context, 'booked'), '$_bookedCount', Icons.verified_user),
         ],
@@ -996,6 +999,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       );
 
       if (mounted) {
+        if (!context.mounted) return;
         Navigator.pop(context); // Dismiss loading
 
         if (chatId != null) {
@@ -1019,6 +1023,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
+        if (!context.mounted) return;
         Navigator.pop(context); // Dismiss loading
         AppSnackBar.showError(context, 'Error: $e');
       }

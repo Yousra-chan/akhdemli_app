@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguageProvider with ChangeNotifier {
-  Map<String, Map<String, String>> _translations = {};
+  final Map<String, Map<String, String>> _translations = {};
   Locale _locale = Locale('en');
 
   Locale get locale => _locale;

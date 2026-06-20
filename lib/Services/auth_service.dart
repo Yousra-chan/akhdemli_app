@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:service_app/Services/notification_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'dart:async';
@@ -42,7 +41,6 @@ class AuthService {
   static const String _fcmTokenField = 'fcmToken';
   static const String _roleField = 'role';
   static const String _locationField = 'location';
-  static const String _createdAtField = 'createdAt';
   static const String _updatedAtField = 'updatedAt';
 
   // Public streams
@@ -407,15 +405,13 @@ class AuthService {
 
       // Fetch user profile (auto-create if missing instead of signing out)
       var userModel = await fetchUserModel(user);
-      if (userModel == null) {
-        userModel = await _saveUserToFirestore(
+      userModel ??= await _saveUserToFirestore(
           user,
           name: user.displayName ?? '',
           role: 'client',
           phone: '',
           address: '',
         );
-      }
 
       // Update FCM token
       await _saveFCMToken(user.uid);
@@ -460,15 +456,13 @@ class AuthService {
 
       var userModel = await fetchUserModel(user);
 
-      if (userModel == null) {
-        userModel = await _saveUserToFirestore(
+      userModel ??= await _saveUserToFirestore(
           user,
           name: 'Guest User',
           role: 'guest',
           phone: '',
           address: '',
         );
-      }
 
       await _saveFCMToken(user.uid);
       return userModel;

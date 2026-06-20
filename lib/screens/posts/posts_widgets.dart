@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart' hide Widget;
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'posts_constants.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
-import 'package:service_app/screens/chat/disscussion/disscussion_page.dart' hide Widget;
+import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:shimmer/shimmer.dart';

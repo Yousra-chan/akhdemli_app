@@ -1,5 +1,4 @@
 import 'dart:ui' as ui;
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -266,10 +265,10 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   Widget _buildMarkerAvatar(ProviderModel provider) {
-    bool hasImage = provider.photoUrl != null && provider.photoUrl!.startsWith('data:image');
+    bool hasImage = provider.photoUrl.startsWith('data:image');
     if (hasImage) {
       try {
-        final bytes = base64.decode(provider.photoUrl!.split(',').last);
+        final bytes = base64.decode(provider.photoUrl.split(',').last);
         return ClipOval(
           child: Image.memory(
             bytes,
@@ -698,8 +697,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   Widget _buildAvatar(ProviderModel provider, Color profColor, ThemeData theme) {
-    final bool hasBase64 = provider.photoUrl != null &&
-        provider.photoUrl!.startsWith('data:image');
+    final bool hasBase64 = provider.photoUrl.startsWith('data:image');
 
     return Container(
       width: 72,
@@ -718,7 +716,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
         image: hasBase64
             ? DecorationImage(
           image: MemoryImage(
-            base64.decode(provider.photoUrl!.split(',').last),
+            base64.decode(provider.photoUrl.split(',').last),
           ),
           fit: BoxFit.cover,
         )
@@ -900,26 +898,36 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   Color _getProfessionColor(String profession) {
     final p = profession.toLowerCase();
-    if (p.contains('électr') || p.contains('electric'))
+    if (p.contains('électr') || p.contains('electric')) {
       return const Color(0xFFFFB74D);
-    if (p.contains('médec') || p.contains('doctor'))
+    }
+    if (p.contains('médec') || p.contains('doctor')) {
       return const Color(0xFFEF5350);
-    if (p.contains('plomb') || p.contains('plumb'))
+    }
+    if (p.contains('plomb') || p.contains('plumb')) {
       return const Color(0xFF42A5F5);
-    if (p.contains('profess') || p.contains('teacher') || p.contains('tutor'))
+    }
+    if (p.contains('profess') || p.contains('teacher') || p.contains('tutor')) {
       return const Color(0xFF66BB6A);
-    if (p.contains('menuis') || p.contains('carpent'))
+    }
+    if (p.contains('menuis') || p.contains('carpent')) {
       return const Color(0xFF8D6E63);
-    if (p.contains('peint') || p.contains('paint'))
+    }
+    if (p.contains('peint') || p.contains('paint')) {
       return const Color(0xFFAB47BC);
-    if (p.contains('jardin') || p.contains('garden'))
+    }
+    if (p.contains('jardin') || p.contains('garden')) {
       return const Color(0xFF9CCC65);
-    if (p.contains('déménag') || p.contains('move'))
+    }
+    if (p.contains('déménag') || p.contains('move')) {
       return const Color(0xFFFF7043);
-    if (p.contains('nettoy') || p.contains('clean'))
+    }
+    if (p.contains('nettoy') || p.contains('clean')) {
       return const Color(0xFF29B6F6);
-    if (p.contains('répar') || p.contains('repair') || p.contains('handyman'))
+    }
+    if (p.contains('répar') || p.contains('repair') || p.contains('handyman')) {
       return const Color(0xFFFFA726);
+    }
     if (p.contains('install')) return const Color(0xFF26C6DA);
     return kPrimaryColor;
   }
@@ -935,8 +943,9 @@ class _MapSearchPageState extends State<MapSearchPage> {
     final category = _currentFilters['category'] ?? '';
     final distance = _currentFilters['maxDistance'] ?? 20;
 
-    if (category.isNotEmpty && wilaya.isNotEmpty)
+    if (category.isNotEmpty && wilaya.isNotEmpty) {
       return '$category • $wilaya • ${distance.toInt()}km';
+    }
     if (wilaya.isNotEmpty) return '$wilaya • ${distance.toInt()}km';
     if (category.isNotEmpty) return '$category • ${distance.toInt()}km';
     return lp.trParams('active_filters',

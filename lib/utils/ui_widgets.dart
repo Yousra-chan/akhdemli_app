@@ -128,9 +128,9 @@ class ProfessionalSuccessDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                child: Text(
+                  context.watch<LanguageProvider>().tr('done', category: 'common'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),

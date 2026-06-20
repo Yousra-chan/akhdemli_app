@@ -214,7 +214,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -272,6 +272,8 @@ class _ProfilePageState extends State<ProfilePage> {
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           if (user.profession != null && user.profession!.isNotEmpty)
@@ -294,7 +296,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: theme.primaryColor.withOpacity(0.1),
+              color: theme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -322,7 +324,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.3 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -465,7 +467,7 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -490,7 +492,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.1),
+                      color: theme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -662,7 +664,7 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -685,7 +687,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.1),
+                      color: theme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -895,7 +897,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.1),
+                    color: theme.primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -1059,6 +1061,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _isSwitchingRole = false;
         });
 
+        if (!context.mounted) return;
         // Show success message - Gets translated text in real-time
         final successMsg =
             languageProvider.tr('roleSwitchSuccess', category: 'common');
@@ -1072,6 +1075,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _isSwitchingRole = false;
         });
 
+        if (!context.mounted) return;
         // Show error message - Gets translated text in real-time
         final errorMsg =
             languageProvider.tr('failedSwitch', category: 'common');
@@ -1105,7 +1109,7 @@ class _ProfilePageState extends State<ProfilePage> {
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1198,7 +1202,7 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

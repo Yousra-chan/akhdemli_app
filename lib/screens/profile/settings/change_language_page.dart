@@ -37,23 +37,26 @@ class _LanguagePageState extends State<LanguagePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         final currentLocale = languageProvider.locale.languageCode;
 
         return Scaffold(
-          backgroundColor: kLightBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: Column(
             children: [
               // Custom App Bar matching SettingsPage
-              _buildCustomAppBar(context, languageProvider),
+              _buildCustomAppBar(context, languageProvider, theme),
 
               Expanded(
                 child: _isLoading
-                    ? const Center(
+                    ? Center(
                         child: CircularProgressIndicator(
                           valueColor:
-                              AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+                              AlwaysStoppedAnimation<Color>(theme.primaryColor),
                         ),
                       )
                     : ListView(
@@ -65,18 +68,18 @@ class _LanguagePageState extends State<LanguagePage> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 8),
                             decoration: BoxDecoration(
-                              color: kCardBackgroundColor,
+                              color: theme.cardColor,
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: kSoftShadowColor.withOpacity(0.1),
+                                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
                               border: isSelected
                                   ? Border.all(
-                                      color: kPrimaryBlue,
+                                      color: theme.primaryColor,
                                       width: 2,
                                     )
                                   : null,
@@ -157,7 +160,8 @@ class _LanguagePageState extends State<LanguagePage> {
   }
 
   Widget _buildCustomAppBar(
-      BuildContext context, LanguageProvider languageProvider) {
+      BuildContext context, LanguageProvider languageProvider, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 10,
@@ -165,7 +169,7 @@ class _LanguagePageState extends State<LanguagePage> {
         right: 20,
         bottom: 15,
       ),
-      color: Colors.white,
+      color: theme.cardColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -174,28 +178,26 @@ class _LanguagePageState extends State<LanguagePage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kLightBackgroundColor,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleLarge?.color,
                 size: 24,
               ),
             ),
           ),
           Text(
             languageProvider.tr('language', category: 'language'),
-            style: const TextStyle(
-              color: kDarkTextColor,
+            style: TextStyle(
+              color: theme.textTheme.titleLarge?.color,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               fontFamily: 'Exo2',
             ),
           ),
-          Container(
-            width: 40, // Placeholder for spacing
-          ),
+          const SizedBox(width: 40),
         ],
       ),
     );
@@ -218,6 +220,7 @@ class _LanguagePageState extends State<LanguagePage> {
 
       // Show success message
       if (mounted) {
+        if (!context.mounted) return;
         AppSnackBar.showSuccess(
           context,
           languageProvider.tr(

@@ -163,7 +163,7 @@ class HomeHeader extends StatelessWidget {
   }
 
   String _getGreeting(LanguageProvider lang) {
-    final userName = currentUser?.name?.split(' ').first;
+    final userName = currentUser?.name.split(' ').first;
     if (userName != null && userName.isNotEmpty) {
       return lang.trParams(
         'hello_user',

@@ -31,7 +31,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final BookingService _bookingService = BookingService();
-  String _selectedFilter = 'all';
+  final String _selectedFilter = 'all';
   bool _loading = false;
 
   @override

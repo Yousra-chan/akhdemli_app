@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/screens/chat/chat_screen.dart';
-import 'package:service_app/screens/home/home_screen/home_screen.dart'
-    hide AuthViewModel;
+import 'package:service_app/screens/home/home_screen/home_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:service_app/screens/profile/profile_page_loader.dart';
 import 'package:service_app/screens/search/search_screen.dart';
@@ -24,14 +23,6 @@ class NavigatorBottom extends StatefulWidget {
 class _NavigatorBottomState extends State<NavigatorBottom> {
   int selectorIndex = 0;
 
-  // Updated colors to match header gradient
-  final Color selectedColor =
-      const Color.fromARGB(255, 12, 94, 153); // kPrimaryBlue
-  final Color unselectedColor = const Color.fromARGB(255, 150, 180, 220);
-  final Color backgroundColor =
-      const Color.fromARGB(255, 248, 249, 255); // kLightBackgroundColor
-  final Color navBackgroundColor = const Color.fromARGB(255, 255, 255, 255);
-
   // Helper method to build navigation children
   List<Widget> _buildNavigationChildren({
     required String userId,
@@ -46,11 +37,12 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
   }
 
   // Helper method to build navigation items
-  List<BottomNavigationBarItem> _buildNavigationItems(
-    LanguageProvider languageProvider,
-    Color selectedColor,
-    Color unselectedColor,
-  ) {
+  List<BottomNavigationBarItem> _buildNavigationItems({
+    required LanguageProvider languageProvider,
+    required Color selectedColor,
+    required Color unselectedColor,
+    required int unreadCount,
+  }) {
     return [
       BottomNavigationBarItem(
         icon: _buildIcon(
@@ -89,6 +81,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.chat_bubble_2_fill,
           selectedColor,
           unselectedColor,
+          badgeCount: unreadCount,
         ),
         label: languageProvider.tr('chat', category: 'nav_bottom'),
       ),
@@ -170,7 +163,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: highlight.withOpacity(0.3),
+                  color: highlight.withValues(alpha: 0.3),
                   blurRadius: 8,
                   spreadRadius: 1,
                   offset: const Offset(0, 2),
@@ -204,38 +197,6 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
     }
 
     return iconWidget;
-  }
-
-  // New animated label
-  Widget _buildLabel(int index, String label) {
-    final bool selected = selectorIndex == index;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        gradient: selected
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.fromARGB(255, 12, 94, 153),
-                  Color(0xFF4A6FDC),
-                ],
-              )
-            : null,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: AnimatedDefaultTextStyle(
-        duration: const Duration(milliseconds: 300),
-        style: TextStyle(
-          fontSize: selected ? 12 : 11,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          color: selected ? Colors.white : unselectedColor,
-        ),
-        child: Text(label),
-      ),
-    );
   }
 
   @override
@@ -327,7 +288,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: selectedColor.withOpacity(theme.brightness == Brightness.dark ? 0.05 : 0.1),
+                        color: selectedColor.withValues(alpha: theme.brightness == Brightness.dark ? 0.05 : 0.1),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -355,9 +316,10 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                       type: BottomNavigationBarType.fixed,
                       elevation: 0,
                       items: _buildNavigationItems(
-                        languageProvider,
-                        selectedColor,
-                        unselectedColor,
+                        languageProvider: languageProvider,
+                        selectedColor: selectedColor,
+                        unselectedColor: unselectedColor,
+                        unreadCount: messageUnreadCount,
                       ),
                       onTap: (val) {
                         setState(() {

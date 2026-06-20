@@ -18,12 +18,12 @@ class ProvidersListPage extends StatefulWidget {
   final String? selectedCommune;
 
   const ProvidersListPage({
-    Key? key,
+    super.key,
     required this.categoryName,
     required this.subCategoryName,
     this.selectedWilaya,
     this.selectedCommune,
-  }) : super(key: key);
+  });
 
   @override
   State<ProvidersListPage> createState() => _ProvidersListPageState();
@@ -224,7 +224,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
               .get();
 
           if (providerDoc.exists) {
-            final data = providerDoc.data() as Map<String, dynamic>?;
+            final data = providerDoc.data();
             if (data == null) continue;
 
             // Check if user is a provider and is active
@@ -374,7 +374,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                       Navigator.pop(context);
                     },
                   );
-                }).toList(),
+                }),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -455,7 +455,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                   _selectedRatingFilter == 'all'
                       ? languageProvider.tr('all_ratings',
                           category: 'providers_list_page')
-                      : '${_selectedRatingFilter}',
+                      : _selectedRatingFilter,
                   style: TextStyle(
                     fontSize: 14,
                     color: _selectedRatingFilter == 'all'

@@ -142,7 +142,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Image only
-          Container(
+          SizedBox(
             width: 250,
             height: 250,
             child: Image.asset(

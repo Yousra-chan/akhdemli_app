@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart' hide Widget;
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:service_app/utils/image_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/models/ChatModel.dart';
-import 'package:service_app/screens/chat/constants.dart';
-import 'package:service_app/screens/chat/disscussion/disscussion_page.dart'
-    hide Widget;
+import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:intl/intl.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:service_app/providers/language_provider.dart';
@@ -680,7 +678,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         children: [
                           buildAvatar('', isSearch: true, size: 60),
                           const SizedBox(height: 6),
-                          Container(
+                          SizedBox(
                             width: 70,
                             child: Text(
                               languageProvider.tr('search', category: 'chat'),
@@ -716,7 +714,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     children: [
                       buildAvatar(imageUrl, size: 60),
                       const SizedBox(height: 6),
-                      Container(
+                      SizedBox(
                         width: 70,
                         child: Text(
                           contactName,
@@ -1197,7 +1195,7 @@ class _SearchModalState extends State<_SearchModal> {
   final TextEditingController _searchController = TextEditingController();
   List<ChatModel> _allChats = [];
   List<ChatModel> _filteredChats = [];
-  List<Map<String, dynamic>> _allProviders = [];
+  final List<Map<String, dynamic>> _allProviders = [];
   List<Map<String, dynamic>> _filteredProviders = [];
   bool _isLoading = true;
   String _searchQuery = '';
