@@ -51,9 +51,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       final user = auth.currentUser;
 
       final message = Uri.encodeComponent(
-        'Hello admin, I want to buy a subscription.\n'
-        'UID: ${user?.uid}\n'
-        'Name: ${user?.name}',
+        lang.trParams('whatsapp_sub_message', category: 'profile', params: {
+          'uid': user?.uid ?? '',
+          'name': user?.name ?? '',
+        }),
       );
 
       final url = Uri.parse('https://wa.me/$adminPhone?text=$message');
@@ -87,7 +88,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
     try {
       await _service.activateSubscription(
-        providerId: user.uid,
+        userId: user.uid,
         code: code,
       );
 
@@ -120,8 +121,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     final lang = context.watch<LanguageProvider>();
     final user = auth.currentUser;
 
-    // Subscription only for providers
-    if (user != null && !user.isProvider && !user.isAdmin) {
+    // Subscription for providers and clients (not for guests unless specified)
+    if (user != null && user.isGuest) {
       return Scaffold(
         appBar: AppBar(title: Text(lang.tr('mySubscription', category: 'common'))),
         body: Center(child: Text(lang.tr('permission_error', category: 'common'))),
@@ -153,7 +154,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
           ),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [

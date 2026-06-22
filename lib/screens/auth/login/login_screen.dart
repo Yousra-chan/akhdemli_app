@@ -7,6 +7,7 @@ import 'package:service_app/screens/auth/constants.dart';
 import 'package:service_app/screens/auth/forget_password_screen.dart';
 import 'package:service_app/screens/auth/register/register_screen.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/auth_wrapper.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
@@ -100,9 +101,10 @@ class _LoginScreenState extends State<LoginScreen> {
           AppSnackBar.showSuccess(
               context, lang.tr('sign_in_success', category: 'auth'));
 
+          // Reset to AuthWrapper to let it handle verification check
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const NavigatorBottom()),
+            MaterialPageRoute(builder: (context) => AuthWrapper()),
             (route) => false,
           );
         } else {
@@ -132,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const NavigatorBottom()),
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
           (route) => false,
         );
       } else {
@@ -162,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const NavigatorBottom()),
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
           (route) => false,
         );
       } else {

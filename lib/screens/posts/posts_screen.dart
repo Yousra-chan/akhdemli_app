@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/Services/firestore_service.dart';
+import 'package:service_app/Services/firebase_service.dart';
 import 'package:service_app/utils/image_optimizer.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
@@ -15,7 +16,6 @@ import 'package:service_app/screens/posts/posts_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/models/CategoryModel.dart';
-import 'package:service_app/screens/home/home_screen/home_constants.dart' as home_const;
 
 enum PostFilterType { all, seeking, offering }
 
@@ -663,28 +663,61 @@ class _CreatePostModalState extends State<CreatePostModal> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   PostType _type = PostType.seeking;
-  late List<CategoryModel> _categories;
+  List<CategoryModel> _categories = [];
   CategoryModel? _selectedCategory;
   SubcategoryModel? _selectedSubcategory;
   final List<File> _selectedImages = [];
   bool _isUploading = false;
+  bool _isLoadingCategories = true;
 
   @override
   void initState() {
     super.initState();
     _type = widget.user.isProvider ? PostType.offering : PostType.seeking;
-    _categories = home_const.defaultCategories;
+    _loadCategories();
+  }
 
-    // Set default category
-    if (_categories.isNotEmpty) {
-      _selectedCategory = _categories.firstWhere(
-            (c) => c.name == 'Other',
-        orElse: () => _categories.first,
-      );
-      if (_selectedCategory != null &&
-          _selectedCategory!.subcategories.isNotEmpty) {
-        _selectedSubcategory = _selectedCategory!.subcategories.first;
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await FirebaseService.getCategoriesList();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _isLoadingCategories = false;
+
+          if (_categories.isNotEmpty) {
+            _selectedCategory = _categories.firstWhere(
+              (c) => c.name == 'Other',
+              orElse: () => _categories.first,
+            );
+            if (_selectedCategory != null &&
+                _selectedCategory!.subcategories.isNotEmpty) {
+              _selectedSubcategory = _selectedCategory!.subcategories.first;
+            }
+          }
+        });
       }
+    } catch (e) {
+      debugPrint('Error loading categories for posts: $e');
+      if (mounted) {
+        setState(() => _isLoadingCategories = false);
+      }
+    }
+  }
+
+  Future<void> _loadSubcategoriesForCategory(String categoryId) async {
+    try {
+      final subcategories = await FirebaseService.getSubcategoriesForCategory(categoryId);
+      if (mounted) {
+        setState(() {
+          if (_selectedCategory?.id == categoryId) {
+            _selectedCategory = _selectedCategory!.copyWith(subcategories: subcategories);
+            _selectedSubcategory = subcategories.isNotEmpty ? subcategories.first : null;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading subcategories for category $categoryId: $e');
     }
   }
 
@@ -854,7 +887,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
           final base64Image = 'data:image/jpeg;base64,$base64String';
 
           if (base64Image.length > 70000) {
-            print('Image $i too large, skipping');
+            debugPrint('Image $i too large, skipping');
             continue;
           }
 
@@ -870,7 +903,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
         userId: widget.user.uid,
         type: _type,
         serviceCategory: _selectedCategory?.name ?? 'Other',
+        serviceCategoryKey: '', // nameKey is deprecated, lookup by name
         serviceSubcategory: _selectedSubcategory?.name ?? '',
+        serviceSubcategoryKey: '',
         timestamp: DateTime.now(),
         imageUrls: base64Images,
       );
@@ -892,7 +927,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
         );
       }
     } catch (e) {
-      print('Error creating post: $e');
+      debugPrint('Error creating post: $e');
       if (mounted) {
         _showSnackBar(
           languageProvider.trParams(
@@ -1125,44 +1160,16 @@ class _CreatePostModalState extends State<CreatePostModal> {
               ),
               const SizedBox(height: 12),
               // Category Selection
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.dividerColor),
-                ),
-                child: DropdownButton<CategoryModel>(
-                  value: _selectedCategory,
-                  isExpanded: true,
-                  dropdownColor: theme.cardColor,
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: theme.primaryColor),
-                  style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color, fontSize: 15, fontFamily: 'Exo2'),
-                  underline: const SizedBox(),
-                  onChanged: (CategoryModel? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _selectedCategory = newValue;
-                        _selectedSubcategory = newValue.subcategories.isNotEmpty
-                            ? newValue.subcategories.first
-                            : null;
-                      });
-                    }
-                  },
-                  items: _categories.map((CategoryModel cat) {
-                    return DropdownMenuItem<CategoryModel>(
-                      value: cat,
-                      child: Text(cat.getTranslatedName(languageProvider)),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Subcategory Selection
-              if (_selectedCategory != null &&
-                  _selectedCategory!.subcategories.isNotEmpty)
+              if (_isLoadingCategories)
+                const Center(child: CircularProgressIndicator())
+              else if (_categories.isEmpty)
+                Center(
+                  child: Text(
+                    languageProvider.tr('no_categories_available', category: 'posts'),
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                )
+              else ...[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
@@ -1170,31 +1177,69 @@ class _CreatePostModalState extends State<CreatePostModal> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: theme.dividerColor),
                   ),
-                  child: DropdownButton<SubcategoryModel>(
-                    value: _selectedSubcategory,
+                  child: DropdownButton<CategoryModel>(
+                    value: _selectedCategory,
                     isExpanded: true,
                     dropdownColor: theme.cardColor,
                     icon: Icon(Icons.arrow_drop_down,
                         color: theme.primaryColor),
                     style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color,
-                        fontSize: 15,
-                        fontFamily: 'Exo2'),
+                        color: theme.textTheme.bodyLarge?.color, fontSize: 15, fontFamily: 'Exo2'),
                     underline: const SizedBox(),
-                    onChanged: (SubcategoryModel? newValue) {
+                    onChanged: (CategoryModel? newValue) {
                       if (newValue != null) {
-                        setState(() => _selectedSubcategory = newValue);
+                        setState(() {
+                          _selectedCategory = newValue;
+                          _selectedSubcategory = null;
+                        });
+                        _loadSubcategoriesForCategory(newValue.id);
                       }
                     },
-                    items: _selectedCategory!.subcategories
-                        .map((SubcategoryModel sub) {
-                      return DropdownMenuItem<SubcategoryModel>(
-                        value: sub,
-                        child: Text(sub.getTranslatedName(languageProvider)),
+                    items: _categories.map((CategoryModel cat) {
+                      return DropdownMenuItem<CategoryModel>(
+                        value: cat,
+                        child: Text(cat.getTranslatedName(languageProvider)),
                       );
                     }).toList(),
                   ),
                 ),
+                const SizedBox(height: 12),
+                // Subcategory Selection
+                if (_selectedCategory != null &&
+                    _selectedCategory!.subcategories.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: DropdownButton<SubcategoryModel>(
+                      value: _selectedSubcategory,
+                      isExpanded: true,
+                      dropdownColor: theme.cardColor,
+                      icon: Icon(Icons.arrow_drop_down,
+                          color: theme.primaryColor),
+                      style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontSize: 15,
+                          fontFamily: 'Exo2'),
+                      underline: const SizedBox(),
+                      onChanged: (SubcategoryModel? newValue) {
+                        if (newValue != null) {
+                          setState(() => _selectedSubcategory = newValue);
+                        }
+                      },
+                      items: _selectedCategory!.subcategories
+                          .map((SubcategoryModel sub) {
+                        return DropdownMenuItem<SubcategoryModel>(
+                          value: sub,
+                          child: Text(sub.getTranslatedName(languageProvider)),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
               const SizedBox(height: 20),
               Text(
                 languageProvider.tr('add_images', category: 'posts'),

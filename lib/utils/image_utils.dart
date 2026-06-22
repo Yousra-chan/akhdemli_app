@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class ImageUtils {
@@ -25,8 +25,10 @@ class ImageUtils {
       // Decode base64 to bytes
       return base64Decode(data);
     } catch (e) {
-      print('❌ Error decoding base64 image: $e');
-      print('📸 Problematic string: ${base64String.substring(0, 100)}...');
+      debugPrint('❌ Error decoding base64 image: $e');
+      if (base64String.length > 100) {
+        debugPrint('📸 Problematic string start: ${base64String.substring(0, 100)}...');
+      }
       return null;
     }
   }

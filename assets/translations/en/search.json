@@ -71,5 +71,12 @@
   "price_tooltip_service": "Fixed price",
   "price_tooltip_square_meter": "Based on area",
   "price_tooltip_item": "Price per unit",
-  "price_tooltip_session": "Per appointment"
+  "price_tooltip_session": "Per appointment",
+  "searching_summary": "Searching...",
+  "no_results_found": "No results found",
+  "results_summary_both": "{{providers}} providers and {{services}} services found",
+  "results_summary_providers": "{{count}} provider(s) found",
+  "results_summary_services": "{{count}} service(s) found",
+  "distance_unavailable": "Distance not available",
+  "unit_km": "km"
 }

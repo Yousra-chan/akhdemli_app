@@ -16,5 +16,7 @@
   "start_conversation": "Commencez la conversation",
   "test_notifications": "Tester les notifications",
   "type_message": "Tapez un message...",
-  "notification_server_offline": "Le serveur de notifications est hors ligne. Les alertes peuvent être retardées."
+  "notification_server_offline": "Le serveur de notifications est hors ligne. Les alertes peuvent être retardées.",
+  "ui_guard_error": "Erreur d'interface: {{error}}",
+  "someone": "Quelqu'un"
 }

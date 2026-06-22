@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/auth_wrapper.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/screens/auth/constants.dart';
@@ -73,7 +74,7 @@ class _RegisterPageState extends State<RegisterPage> {
             context, lang.tr('google_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const NavigatorBottom()),
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
           (route) => false,
         );
       } else {
@@ -102,7 +103,7 @@ class _RegisterPageState extends State<RegisterPage> {
             context, lang.tr('apple_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const NavigatorBottom()),
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
           (route) => false,
         );
       } else {
@@ -218,9 +219,10 @@ class _RegisterPageState extends State<RegisterPage> {
             lang.trParams('register_success',
                 category: 'auth', params: {'name': user.name ?? ''}));
 
+        // Reset to AuthWrapper to let it handle verification check
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const NavigatorBottom()),
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
           (route) => false,
         );
       } else {
@@ -535,10 +537,20 @@ class _RegisterPageState extends State<RegisterPage> {
                                     fontFamily: kAppFont,
                                     color: kDarkTextColor,
                                   ),
-                                  validator: (value) => value!.isEmpty
-                                      ? lang.tr('validation_phone_required',
-                                          category: 'auth')
-                                      : null,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return lang.tr('validation_phone_required',
+                                          category: 'auth');
+                                    }
+                                    // Algeria Phone Pattern: 05/06/07 followed by 8 digits
+                                    // Support for +213 or 00213 prefix too
+                                    final phoneRegex = RegExp(r'^(\+213|00213|0)[567][0-9]{8}$');
+                                    if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
+                                      return lang.tr('validation_phone_invalid',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
                                   onSaved: (value) => _phone = value!,
                                 ),
                                 const SizedBox(height: 16),
@@ -589,14 +601,20 @@ class _RegisterPageState extends State<RegisterPage> {
                                     color: kDarkTextColor,
                                   ),
                                   validator: (value) {
-                                    if (value!.isEmpty) {
+                                    if (value == null || value.isEmpty) {
                                       return lang.tr(
                                           'validation_password_required',
                                           category: 'auth');
                                     }
-                                    if (value.length < 6) {
+                                    if (value.length < 8) {
                                       return lang.tr(
                                           'validation_password_min_length',
+                                          category: 'auth');
+                                    }
+                                    // Strong password: at least one letter and one number
+                                    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$').hasMatch(value)) {
+                                      return lang.tr(
+                                          'validation_password_weak',
                                           category: 'auth');
                                     }
                                     return null;

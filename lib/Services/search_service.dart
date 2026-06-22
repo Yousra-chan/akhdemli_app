@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/models/ServicesModel.dart';
@@ -95,7 +96,7 @@ class SearchService {
           try {
             results.add(ProviderModel.fromFirestore(data, doc.id));
           } catch (e) {
-            print('Warning: Could not parse provider ${doc.id}: $e');
+            debugPrint('Warning: Could not parse provider ${doc.id}: $e');
           }
         }
       }
@@ -104,7 +105,7 @@ class SearchService {
     } on SearchException {
       rethrow;
     } catch (e) {
-      print('Error searching providers by profession/name: $e');
+      debugPrint('Error searching providers by profession/name: $e');
       return [];
     }
   }
@@ -148,7 +149,7 @@ class SearchService {
           try {
             results.add(Service.fromMap({...data, 'id': doc.id}));
           } catch (e) {
-            print('Warning: Could not parse service ${doc.id}: $e');
+            debugPrint('Warning: Could not parse service ${doc.id}: $e');
           }
         }
       }
@@ -157,7 +158,7 @@ class SearchService {
     } on SearchException {
       rethrow;
     } catch (e) {
-      print('Error searching services: $e');
+      debugPrint('Error searching services: $e');
       return [];
     }
   }
@@ -227,13 +228,13 @@ class SearchService {
         try {
           providers.add(ProviderModel.fromFirestore(data, doc.id));
         } catch (e) {
-          print('Warning: Could not parse provider ${doc.id}: $e');
+          debugPrint('Warning: Could not parse provider ${doc.id}: $e');
         }
       }
 
       return providers;
     } catch (e) {
-      print('Error searching providers with filters: $e');
+      debugPrint('Error searching providers with filters: $e');
       return [];
     }
   }
@@ -308,13 +309,13 @@ class SearchService {
             providers.add(ProviderModel.fromFirestore(data, providerId));
           }
         } catch (e) {
-          print('Warning: Error fetching provider $providerId: $e');
+          debugPrint('Warning: Error fetching provider $providerId: $e');
         }
       }
 
       return providers;
     } catch (e) {
-      print('Error in searchProvidersByCategoryWithFilters: $e');
+      debugPrint('Error in searchProvidersByCategoryWithFilters: $e');
       return [];
     }
   }
@@ -326,7 +327,7 @@ class SearchService {
     try {
       return await _categoriesService.getCategoriesForFilter();
     } catch (e) {
-      print('Error getting available categories: $e');
+      debugPrint('Error getting available categories: $e');
       return {};
     }
   }
@@ -356,7 +357,7 @@ class SearchService {
 
       return wilayas.toList()..sort();
     } catch (e) {
-      print('Error getting available wilayas: $e');
+      debugPrint('Error getting available wilayas: $e');
       return [];
     }
   }
@@ -385,7 +386,7 @@ class SearchService {
         try {
           services.add(Service.fromMap({...data, 'id': doc.id}));
         } catch (e) {
-          print('Warning: Could not parse service ${doc.id}: $e');
+          debugPrint('Warning: Could not parse service ${doc.id}: $e');
         }
       }
 
@@ -393,7 +394,7 @@ class SearchService {
     } on SearchException {
       rethrow;
     } catch (e) {
-      print('Error getting services by provider: $e');
+      debugPrint('Error getting services by provider: $e');
       return [];
     }
   }
@@ -455,7 +456,7 @@ class SearchService {
             providers.add(ProviderModel.fromFirestore(data, providerId));
           }
         } catch (e) {
-          print('Warning: Error fetching provider $providerId: $e');
+          debugPrint('Warning: Error fetching provider $providerId: $e');
         }
       }
 
@@ -463,7 +464,7 @@ class SearchService {
     } on SearchException {
       rethrow;
     } catch (e) {
-      print('Error in searchProvidersByCategory: $e');
+      debugPrint('Error in searchProvidersByCategory: $e');
       return [];
     }
   }
@@ -538,7 +539,7 @@ class SearchService {
             providers.add(ProviderModel.fromFirestore(data, providerId));
           }
         } catch (e) {
-          print('Warning: Error fetching provider $providerId: $e');
+          debugPrint('Warning: Error fetching provider $providerId: $e');
         }
       }
 
@@ -546,7 +547,7 @@ class SearchService {
     } on SearchException {
       rethrow;
     } catch (e) {
-      print('Error in searchProvidersByCategoryAndSubcategory: $e');
+      debugPrint('Error in searchProvidersByCategoryAndSubcategory: $e');
       return [];
     }
   }
@@ -569,13 +570,13 @@ class SearchService {
         try {
           providers.add(ProviderModel.fromFirestore(data, doc.id));
         } catch (e) {
-          print('Warning: Could not parse provider ${doc.id}: $e');
+          debugPrint('Warning: Could not parse provider ${doc.id}: $e');
         }
       }
 
       return providers;
     } catch (e) {
-      print('Error getting all active providers: $e');
+      debugPrint('Error getting all active providers: $e');
       return [];
     }
   }
@@ -662,7 +663,7 @@ class SearchService {
             providers.add(ProviderModel.fromFirestore(data, providerId));
           }
         } catch (e) {
-          print('Warning: Error fetching provider $providerId: $e');
+          debugPrint('Warning: Error fetching provider $providerId: $e');
         }
       }
 
@@ -670,7 +671,7 @@ class SearchService {
     } on SearchException {
       rethrow;
     } catch (e) {
-      print('Error in comprehensive search: $e');
+      debugPrint('Error in comprehensive search: $e');
       return [];
     }
   }
@@ -699,13 +700,13 @@ class SearchService {
   /// Logs sample data from services and providers collections
   Future<void> debugDataStructure() async {
     try {
-      print('🔍 Checking Firestore data structure...');
+      debugPrint('🔍 Checking Firestore data structure...');
 
       // Check services
       final services =
           await _firestore.collection(_servicesCollection).limit(5).get();
 
-      print('📊 Found ${services.docs.length} services');
+      debugPrint('   📊 Found ${services.docs.length} services');
       for (var doc in services.docs) {
         final data = doc.data() as Map<String, dynamic>?;
         if (data == null) continue;
@@ -715,7 +716,7 @@ class SearchService {
         final category = data[_categoryField] ?? 'Unknown';
         final subcategory = data[_subcategoryField] ?? 'Unknown';
 
-        print('   📝 ID: ${doc.id} | Title: $title | '
+        debugPrint('   📝 ID: ${doc.id} | Title: $title | '
             'Provider: $providerId | Category: $category / $subcategory');
       }
 
@@ -726,7 +727,7 @@ class SearchService {
           .limit(5)
           .get();
 
-      print('👤 Found ${providers.docs.length} providers');
+      debugPrint('👤 Found ${providers.docs.length} providers');
       for (var doc in providers.docs) {
         final data = doc.data() as Map<String, dynamic>?;
         if (data == null) continue;
@@ -735,11 +736,11 @@ class SearchService {
         final profession = data[_professionField] ?? 'Unknown';
         final isActive = data[_isActiveField] ?? false;
 
-        print('   👤 ID: ${doc.id} | Name: $name | '
+        debugPrint('   👤 ID: ${doc.id} | Name: $name | '
             'Profession: $profession | Active: $isActive');
       }
     } catch (e) {
-      print('Error debugging data structure: $e');
+      debugPrint('Error debugging data structure: $e');
     }
   }
 
@@ -755,8 +756,7 @@ class SearchService {
     final providerIds = <String>{};
 
     for (var doc in docs) {
-      final data = doc.data() as Map<String, dynamic>?;
-      if (data == null) continue;
+      final data = doc.data() as Map<String, dynamic>?;      if (data == null) continue;
 
       final providerId = data[_providerIdField] as String?;
       if (providerId != null && providerId.isNotEmpty) {

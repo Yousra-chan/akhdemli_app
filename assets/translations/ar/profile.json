@@ -88,5 +88,9 @@
   "code_not_available_for_you": "هذا الرمز غير مخصص لك",
   "subscription_activated": "تم تفعيل الاشتراك!",
   "delete_my_account_cmd": "حذف حسابي",
-  "type_exact_to_confirm": "يرجى كتابة \"{{cmd}}\" للتأكيد"
+  "type_exact_to_confirm": "يرجى كتابة \"{{cmd}}\" للتأكيد",
+  "user_not_authenticated": "المستخدم غير مصرح",
+  "whatsapp_sub_message": "مرحباً، أود شراء اشتراك.\nالمعرف: {{uid}}\nالاسم: {{name}}",
+  "error_changing_photo": "خطأ في تغيير الصورة: {{error}}",
+  "error_adding_image": "خطأ في إضافة الصورة: {{error}}"
 }

@@ -10,6 +10,7 @@ import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/providers/theme_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
 class CreateServiceScreen extends StatefulWidget {
@@ -183,12 +184,15 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     AppSnackBar.showError(context, message);
   }
 
-  Widget _buildStepIndicator() {
+  Widget _buildStepIndicator(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+        color: theme.cardColor,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Column(
         children: [
@@ -196,8 +200,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             height: 4,
             child: LinearProgressIndicator(
               value: (_currentStep + 1) / _stepTitles.length,
-              backgroundColor: Theme.of(context).dividerColor,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              backgroundColor: theme.dividerColor,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -232,8 +236,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                             color: isCompleted
                                 ? kSuccessGreen
                                 : isActive
-                                    ? Theme.of(context).primaryColor
-                                    : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300),
+                                    ? theme.primaryColor
+                                    : (isDark ? Colors.white10 : Colors.grey.shade300),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -245,7 +249,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                                     style: TextStyle(
                                       color: isActive
                                           ? Colors.white
-                                          : (Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.grey.shade700),
+                                          : (isDark ? Colors.white38 : Colors.grey.shade700),
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
@@ -260,7 +264,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                             fontWeight:
                                 isActive ? FontWeight.w700 : FontWeight.normal,
                             color:
-                                isActive ? Theme.of(context).primaryColor : (Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.grey.shade600),
+                                isActive ? theme.primaryColor : (isDark ? Colors.white38 : Colors.grey.shade600),
                           ),
                         ),
                       ],
@@ -275,16 +279,18 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     );
   }
 
-  Widget _buildNavigationButtons() {
+  Widget _buildNavigationButtons(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context);
     final serviceViewModel = Provider.of<ServiceViewModel>(context);
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (!authViewModel.isInitialized) {
       return Container(
         padding: const EdgeInsets.all(16),
         child: Center(
-          child: CircularProgressIndicator(color: kPrimaryBlue),
+          child: CircularProgressIndicator(color: theme.primaryColor),
         ),
       );
     }
@@ -292,11 +298,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        color: theme.cardColor,
+        border: Border(top: BorderSide(color: theme.dividerColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -312,7 +318,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                side: BorderSide(color: Theme.of(context).dividerColor),
+                side: BorderSide(color: theme.dividerColor),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -320,7 +326,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                   Icon(
                     Icons.arrow_back,
                     size: 18,
-                    color: _currentStep == 0 ? Colors.grey : Theme.of(context).primaryColor,
+                    color: _currentStep == 0 ? Colors.grey : theme.primaryColor,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -329,7 +335,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                         : lang.tr('back', category: 'service'),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: _currentStep == 0 ? Colors.grey : Theme.of(context).primaryColor,
+                      color: _currentStep == 0 ? Colors.grey : theme.primaryColor,
                     ),
                   ),
                 ],
@@ -342,7 +348,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 ? ElevatedButton(
                     onPressed: _showLoginRequiredDialog,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300,
+                      backgroundColor: isDark ? Colors.white10 : Colors.grey.shade300,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -350,7 +356,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                     ),
                     child: Text(
                       lang.tr('login_required', category: 'service'),
-                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.white),
+                      style: TextStyle(color: isDark ? Colors.white38 : Colors.white),
                     ),
                   )
                 : ElevatedButton(
@@ -359,8 +365,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                         : _nextStep,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _currentStepValid
-                          ? Theme.of(context).primaryColor
-                          : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300),
+                          ? theme.primaryColor
+                          : (isDark ? Colors.white10 : Colors.grey.shade300),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -403,24 +409,27 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
   void _showLoginRequiredDialog() {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: theme.cardColor,
         title: Row(
           children: [
-            const Icon(Icons.login, color: kPrimaryBlue),
+            Icon(Icons.login, color: theme.primaryColor),
             const SizedBox(width: 12),
-            Text(lang.tr('login_required_title', category: 'service')),
+            Text(lang.tr('login_required_title', category: 'service'), style: TextStyle(color: theme.textTheme.titleLarge?.color)),
           ],
         ),
         content: Text(
           lang.tr('login_required_message', category: 'service'),
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(lang.tr('cancel', category: 'service')),
+            child: Text(lang.tr('cancel', category: 'service'), style: TextStyle(color: theme.primaryColor)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -429,11 +438,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               Navigator.pushNamed(context, '/login');
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryBlue,
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
             ),
             child: Text(
               lang.tr('go_to_login', category: 'service'),
-              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -553,8 +562,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeProvider>(); // Force rebuild on theme change
     final languageProvider = Provider.of<LanguageProvider>(context);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     _stepTitles = [
       languageProvider.tr('step_details', category: 'service'),
       languageProvider.tr('step_category', category: 'service'),
@@ -577,7 +589,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
               }),
               style: TextStyle(
                 fontSize: 12,
-                color: theme.brightness == Brightness.dark ? Colors.white54 : kMutedTextColor,
+                color: isDark ? Colors.white54 : kMutedTextColor,
               ),
             ),
           ],
@@ -602,7 +614,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
       ),
       body: Column(
         children: [
-          _buildStepIndicator(),
+          _buildStepIndicator(context),
           Expanded(
             child: PageView(
               controller: _pageController,
@@ -617,11 +629,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
                 _buildStep2(),
                 _buildStep3(),
                 _buildStep4(),
-                _buildReviewStep(),
+                _buildReviewStep(context),
               ],
             ),
           ),
-          _buildNavigationButtons(),
+          _buildNavigationButtons(context),
         ],
       ),
     );
@@ -799,7 +811,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     );
   }
 
-  Widget _buildReviewStep() {
+  Widget _buildReviewStep(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
 
     final theme = Theme.of(context);

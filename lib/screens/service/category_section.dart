@@ -1,15 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
+import 'package:service_app/Services/firebase_service.dart';
 
 class CategorySection extends StatefulWidget {
   final Function(CategoryModel) onCategorySelected;
+  final String? initialCategoryId;
 
   const CategorySection({
     super.key,
     required this.onCategorySelected,
+    this.initialCategoryId,
   });
 
   @override
@@ -19,26 +23,52 @@ class CategorySection extends StatefulWidget {
 class _CategorySectionState extends State<CategorySection> {
   String? _selectedCategoryId;
   List<CategoryModel> _categories = [];
+  StreamSubscription? _subscription;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _selectedCategoryId = widget.initialCategoryId;
     _loadCategories();
   }
 
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
   void _loadCategories() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _categories = defaultCategories;
-        if (_categories.isNotEmpty && _selectedCategoryId == null) {
-          _selectedCategoryId = _categories.first.id;
-          widget.onCategorySelected(_categories.first);
-        }
-      });
+    _subscription = FirebaseService.getCategories().listen((categories) {
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _isLoading = false;
+          
+          if (_categories.isNotEmpty && _selectedCategoryId == null) {
+            // Only auto-select if nothing is currently selected
+            _selectedCategoryId = _categories.first.id;
+            widget.onCategorySelected(_categories.first);
+          } else if (_categories.isNotEmpty && _selectedCategoryId != null) {
+            // If something was already selected, ensure we update the object from the new list
+            try {
+              final updatedCat = _categories.firstWhere((c) => c.id == _selectedCategoryId);
+              widget.onCategorySelected(updatedCat);
+            } catch (e) {
+              // Selected category gone? Fallback
+              _selectedCategoryId = _categories.first.id;
+              widget.onCategorySelected(_categories.first);
+            }
+          }
+        });
+      }
     });
   }
 
   void _selectCategory(CategoryModel category) {
+    if (_selectedCategoryId == category.id) return; // Already selected
+
     setState(() {
       _selectedCategoryId = category.id;
     });
@@ -100,6 +130,25 @@ class _CategorySectionState extends State<CategorySection> {
   }
 
   Widget _buildCategoriesList(LanguageProvider lang) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 120,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_categories.isEmpty) {
+      return SizedBox(
+        height: 120,
+        child: Center(
+          child: Text(
+            lang.tr('no_categories_found', category: 'service'),
+            style: const TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 120,
       child: ListView.builder(
@@ -132,11 +181,12 @@ class _CategorySectionState extends State<CategorySection> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       width: isSelected ? 100 : 90,
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () => _selectCategory(category),
-            child: AnimatedContainer(
+      child: GestureDetector(
+        onTap: () => _selectCategory(category),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               width: isSelected ? 70 : 64,
               height: isSelected ? 70 : 64,
@@ -168,21 +218,21 @@ class _CategorySectionState extends State<CategorySection> {
                 size: isSelected ? 28 : 24,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            category.getTranslatedName(lang),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected ? color : theme.textTheme.bodyLarge?.color,
-              fontSize: isSelected ? 13 : 12,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-              fontFamily: 'Exo2',
+            const SizedBox(height: 8),
+            Text(
+              category.getTranslatedName(lang),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isSelected ? color : theme.textTheme.bodyLarge?.color,
+                fontSize: isSelected ? 13 : 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                fontFamily: 'Exo2',
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

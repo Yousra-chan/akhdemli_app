@@ -1,52 +1,54 @@
-// utils/image_optimizer.dart
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 
 class ImageOptimizer {
+  /// Compresses and resizes an image to reduce size while maintaining quality
   static Future<Uint8List> compressImage(
-    File file, {
-    int maxSizeKB = 50,
-    int maxWidth = 800,
-    int maxHeight = 800,
-  }) async {
+      File file, {
+        int maxSizeKB = 100,
+        int maxWidth = 1024,
+        int maxHeight = 1024,
+      }) async {
     try {
-      final originalBytes = await file.readAsBytes();
-      final originalSizeKB = originalBytes.length / 1024;
+      final Uint8List originalBytes = await file.readAsBytes();
+      final double originalSizeKB = originalBytes.length / 1024;
+      debugPrint('📏 Original image: ${originalSizeKB.toStringAsFixed(1)}KB');
 
-      print('📏 Original image: ${originalSizeKB.toStringAsFixed(1)}KB');
-
-      // If already small enough, return as is
+      // If already small enough, return original
       if (originalSizeKB <= maxSizeKB) {
         return originalBytes;
       }
 
-      // Decode and resize image
-      final codec = await ui.instantiateImageCodec(
-        originalBytes,
-        targetWidth: maxWidth,
-        targetHeight: maxHeight,
-      );
-      final frame = await codec.getNextFrame();
+      // Decode image
+      img.Image? image = img.decodeImage(originalBytes);
+      if (image == null) return originalBytes;
 
-      // Convert to byte data
-      final byteData = await frame.image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-
-      if (byteData == null) {
-        return originalBytes;
+      // Resize if needed
+      if (image.width > maxWidth || image.height > maxHeight) {
+        image = img.copyResize(
+          image,
+          width: image.width > image.height ? maxWidth : null,
+          height: image.height > image.width ? maxHeight : null,
+        );
       }
 
-      final compressedBytes = byteData.buffer.asUint8List();
-      final compressedSizeKB = compressedBytes.length / 1024;
+      // Compress with decreasing quality until size target is met
+      int quality = 85;
+      Uint8List compressedBytes = Uint8List.fromList(img.encodeJpg(image, quality: quality));
 
-      print('✅ Compressed to: ${compressedSizeKB.toStringAsFixed(1)}KB');
+      while (compressedBytes.length / 1024 > maxSizeKB && quality > 20) {
+        quality -= 10;
+        compressedBytes = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+      }
+
+      final double compressedSizeKB = compressedBytes.length / 1024;
+      debugPrint('✅ Compressed to: ${compressedSizeKB.toStringAsFixed(1)}KB');
 
       return compressedBytes;
     } catch (e) {
-      print('❌ Error compressing image: $e');
-      // Return original if compression fails
+      debugPrint('❌ Error compressing image: $e');
       return await file.readAsBytes();
     }
   }

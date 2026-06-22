@@ -5,14 +5,15 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/models/BookingModel.dart';
-import 'package:service_app/ViewModel/auth_view_model.dart';
-import 'package:service_app/services/booking_service.dart';
+import 'package:service_app/Services/booking_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/Services/booking_notification_service.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
+import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/screens/home/home_screen/home_constants.dart';
 
 const kPrimaryColor = Color(0xFF667EEA);
 const kSecondaryColor = Color(0xFF764BA2);
@@ -134,7 +135,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   AppSnackBar.showSuccess(context, _tr(context, 'report_submitted'));
                 } catch (e) {
                   if (!context.mounted) return;
-                  AppSnackBar.showError(context, 'Error submitting report: $e');
+                  AppSnackBar.showError(context, _trParams(context, 'error', {'error': e.toString()}));
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: kAccentColor),
@@ -186,7 +187,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         Navigator.pop(context);
       } catch (e) {
         if (!context.mounted) return;
-        AppSnackBar.showError(context, 'Error blocking user: $e');
+        AppSnackBar.showError(context, _trParams(context, 'error', {'error': e.toString()}));
       }
     }
   }
@@ -815,6 +816,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Widget _buildHeaderBackground(ThemeData theme) {
+    final lang = Provider.of<LanguageProvider>(context);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -844,7 +846,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               ),
               const SizedBox(height: 12),
               Text(_provider.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-              Text(_provider.profession, style: const TextStyle(fontSize: 16, color: Colors.white70)),
+              Text(
+                getTranslatedCategoryName(_provider.profession, lang),
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
+              ),
             ],
           ),
         ),
@@ -1025,7 +1030,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       if (mounted) {
         if (!context.mounted) return;
         Navigator.pop(context); // Dismiss loading
-        AppSnackBar.showError(context, 'Error: $e');
+        AppSnackBar.showError(context, _trParams(context, 'error', {'error': e.toString()}));
       }
     }
   }

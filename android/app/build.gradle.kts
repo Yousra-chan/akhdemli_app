@@ -7,16 +7,16 @@ plugins {
 }
 
 android {
-    namespace = "com.example.service_app"
+    namespace = "com.akhdemli.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     defaultConfig {
-        applicationId = "com.example.service_app"
+        applicationId = "com.akhdemli.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = 1
+        versionName = "1.0.0"
     }
 
     compileOptions {
@@ -33,7 +33,15 @@ android {
 
     buildTypes {
         release {
-            // Signature debug temporaire (ok pour tests)
+            // Enable R8/Minification for production
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            
+            // Signature placeholder - User must configure production keystore
             signingConfig = signingConfigs.getByName("debug")
         }
     }

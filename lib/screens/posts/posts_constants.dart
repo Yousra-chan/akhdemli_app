@@ -34,123 +34,33 @@ extension PostTypeTranslation on PostType {
 
 // ---------------------------------------------------------------------------
 // Service Category Translator
-// Matches CategoryModel.defaultCategories exactly (16 categories, all subs).
+// Dynamically maps category/subcategory names to translation keys.
 // ---------------------------------------------------------------------------
 class ServiceCategoryTranslator {
-  // category name → nameKey (matches CategoryModel.nameKey)
-  static const Map<String, String> _categoryKeys = {
-    'Cleaning':     'category_cleaning',
-    'Plumbing':     'category_plumbing',
-    'Electrical':   'category_electrical',
-    'Carpentry':    'category_carpentry',
-    'Painting':     'category_painting',
-    'Gardening':    'category_gardening',
-    'Moving':       'category_moving',
-    'Repair':       'category_repair',
-    'Installation': 'category_installation',
-    'Tutoring':     'category_tutoring',
-    'Health':       'category_health',
-    'Beauty':       'category_beauty',
-    'Tech':         'category_tech',
-    'Food':         'category_food',
-    'Home':         'category_home',
-    'Other':        'category_other',
-  };
-
-  // subcategory name → nameKey (matches SubcategoryModel.nameKey)
-  static const Map<String, String> _subcategoryKeys = {
-    // Cleaning
-    'Home Cleaning':    'subcategory_home_cleaning',
-    'Office Cleaning':  'subcategory_office_cleaning',
-    'Deep Cleaning':    'subcategory_deep_cleaning',
-    'Carpet Cleaning':  'subcategory_carpet_cleaning',
-    // Plumbing
-    'Pipe Repair':          'subcategory_pipe_repair',
-    'Leak Fixing':          'subcategory_leak_fixing',
-    'Fixture Installation': 'subcategory_fixture_installation',
-    // Electrical
-    'Wiring':  'subcategory_wiring',
-    // 'Fixture Installation' already in plumbing — use category-qualified lookup below
-    'Repair':  'subcategory_electrical_repair',   // Electrical > Repair
-    // Carpentry
-    'Furniture Making': 'subcategory_furniture_making',
-    // 'Repair' (carpentry) handled below
-    'Installation':     'subcategory_carpentry_installation',
-    // Painting
-    'Interior Painting': 'subcategory_interior_painting',
-    'Exterior Painting': 'subcategory_exterior_painting',
-    'Decorative':        'subcategory_decorative_painting',
-    // Gardening
-    'Lawn Care':    'subcategory_lawn_care',
-    'Landscaping':  'subcategory_landscaping',
-    'Planting':     'subcategory_planting',
-    // Moving
-    'Local Moving':  'subcategory_local_moving',
-    'Long Distance': 'subcategory_long_distance',
-    'Packing':       'subcategory_packing',
-    // Repair
-    'Appliance Repair':   'subcategory_appliance_repair',
-    'General Maintenance':'subcategory_general_maintenance',
-    'Emergency Repair':   'subcategory_emergency_repair',
-    // Installation
-    'Appliance Installation': 'subcategory_appliance_installation',
-    'Furniture Assembly':     'subcategory_furniture_assembly',
-    'Equipment Setup':        'subcategory_equipment_setup',
-    // Tutoring
-    'Academic Tutoring': 'subcategory_academic_tutoring',
-    'Language Tutoring': 'subcategory_language_tutoring',
-    'Test Preparation':  'subcategory_test_prep',
-    // Health
-    'Medical Consultation': 'subcategory_medical_consultation',
-    'Therapy':              'subcategory_therapy',
-    'Nursing Care':         'subcategory_nursing',
-    // Beauty
-    'Hair Styling': 'subcategory_hair_styling',
-    'Makeup':       'subcategory_makeup',
-    'Spa & Massage':'subcategory_spa',
-    // Tech
-    'Computer Repair': 'subcategory_computer_repair',
-    'Mobile Repair':   'subcategory_mobile_repair',
-    'IT Support':      'subcategory_it_support',
-    // Food
-    'Catering':     'subcategory_catering',
-    'Private Chef': 'subcategory_private_chef',
-    'Meal Prep':    'subcategory_meal_prep',
-    // Home
-    'Home Maintenance': 'subcategory_home_maintenance',
-    'Smart Home':       'subcategory_smart_home',
-    'Renovation':       'subcategory_renovation',
-    // Other
-    'General Service': 'subcategory_general',
-  };
-
-  // Subcategory names that are ambiguous across categories — resolved per-category.
-  static const Map<String, Map<String, String>> _ambiguousSubcategoryKeys = {
-    'Electrical': {
-      'Fixture Installation': 'subcategory_electrical_fixture',
-      'Repair':               'subcategory_electrical_repair',
-    },
-    'Carpentry': {
-      'Repair': 'subcategory_carpentry_repair',
-    },
-  };
-
   static String getCategoryKey(String category) {
-    return _categoryKeys[category] ?? 'category_other';
+    if (category.isEmpty) return 'category_other';
+    return 'category_${category.toLowerCase().replaceAll(' ', '_')}';
   }
 
   /// Returns the translation nameKey for a subcategory.
-  /// Pass [category] to resolve ambiguous names (e.g. "Repair" in Electrical vs Carpentry).
   static String getSubcategoryKey(String subcategory, {String? category}) {
-    if (category != null) {
-      final resolved = _ambiguousSubcategoryKeys[category]?[subcategory];
-      if (resolved != null) return resolved;
+    if (subcategory.isEmpty) return 'subcategory_general';
+    
+    // Handle ambiguous names if necessary, but ideally these come from Firestore
+    if (category == 'Electrical' && subcategory == 'Fixture Installation') {
+      return 'subcategory_electrical_fixture';
     }
-    return _subcategoryKeys[subcategory] ?? 'subcategory_general';
+    
+    return 'subcategory_${subcategory.toLowerCase().replaceAll(' ', '_').replaceAll('&', 'and')}';
   }
 
   /// All valid category names.
-  static List<String> get categoryNames => _categoryKeys.keys.toList();
+  /// Note: This is now driven by Firestore, this list is only for legacy fallback.
+  static List<String> get categoryNames => [
+    'Cleaning', 'Plumbing', 'Electrical', 'Carpentry', 'Painting', 
+    'Gardening', 'Moving', 'Repair', 'Installation', 'Tutoring', 
+    'Health', 'Beauty', 'Tech', 'Food', 'Home', 'Other'
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -167,9 +77,14 @@ class Post {
   /// Top-level category name, e.g. "Electrical". Matches CategoryModel.name.
   final String serviceCategory;
 
+  /// Translation key for the category, e.g. "category_electrical".
+  final String serviceCategoryKey;
+
   /// Subcategory name, e.g. "Wiring". Matches SubcategoryModel.name.
-  /// May be empty if the user didn't pick one.
   final String serviceSubcategory;
+
+  /// Translation key for the subcategory, e.g. "subcategory_wiring".
+  final String serviceSubcategoryKey;
 
   final DateTime timestamp;
   final List<String> imageUrls;
@@ -182,21 +97,25 @@ class Post {
     required this.userId,
     required this.type,
     required this.serviceCategory,
+    this.serviceCategoryKey = '',
     this.serviceSubcategory = '',
+    this.serviceSubcategoryKey = '',
     required this.timestamp,
     this.imageUrls = const [],
   });
 
   // --- Translation key helpers ---
 
-  String get categoryTranslationKey =>
-      ServiceCategoryTranslator.getCategoryKey(serviceCategory);
+  String get categoryTranslationKey => serviceCategoryKey.isNotEmpty
+      ? serviceCategoryKey
+      : ServiceCategoryTranslator.getCategoryKey(serviceCategory);
 
-  String get subcategoryTranslationKey =>
-      ServiceCategoryTranslator.getSubcategoryKey(
-        serviceSubcategory,
-        category: serviceCategory,
-      );
+  String get subcategoryTranslationKey => serviceSubcategoryKey.isNotEmpty
+      ? serviceSubcategoryKey
+      : ServiceCategoryTranslator.getSubcategoryKey(
+          serviceSubcategory,
+          category: serviceCategory,
+        );
 
   bool get hasSubcategory => serviceSubcategory.isNotEmpty;
 
@@ -210,7 +129,9 @@ class Post {
       'userId': userId,
       'type': type == PostType.seeking ? 'seeking' : 'offering',
       'serviceCategory': serviceCategory,
+      'serviceCategoryKey': serviceCategoryKey,
       'serviceSubcategory': serviceSubcategory,
+      'serviceSubcategoryKey': serviceSubcategoryKey,
       'timestamp': Timestamp.fromDate(timestamp),
       'imageUrls': imageUrls,
     };
@@ -225,7 +146,9 @@ class Post {
       userId: map['userId'] ?? 'unknown_user_id',
       type: map['type'] == 'seeking' ? PostType.seeking : PostType.offering,
       serviceCategory: map['serviceCategory'] ?? 'Other',
+      serviceCategoryKey: map['serviceCategoryKey'] ?? '',
       serviceSubcategory: map['serviceSubcategory'] ?? '',
+      serviceSubcategoryKey: map['serviceSubcategoryKey'] ?? '',
       timestamp: (map['timestamp'] as Timestamp).toDate(),
       imageUrls: List<String>.from(map['imageUrls'] ?? []),
     );
@@ -239,7 +162,9 @@ class Post {
     String? userId,
     PostType? type,
     String? serviceCategory,
+    String? serviceCategoryKey,
     String? serviceSubcategory,
+    String? serviceSubcategoryKey,
     DateTime? timestamp,
     List<String>? imageUrls,
   }) {
@@ -251,7 +176,9 @@ class Post {
       userId: userId ?? this.userId,
       type: type ?? this.type,
       serviceCategory: serviceCategory ?? this.serviceCategory,
+      serviceCategoryKey: serviceCategoryKey ?? this.serviceCategoryKey,
       serviceSubcategory: serviceSubcategory ?? this.serviceSubcategory,
+      serviceSubcategoryKey: serviceSubcategoryKey ?? this.serviceSubcategoryKey,
       timestamp: timestamp ?? this.timestamp,
       imageUrls: imageUrls ?? this.imageUrls,
     );

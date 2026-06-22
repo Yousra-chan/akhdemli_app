@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:service_app/providers/language_provider.dart';
@@ -22,8 +23,7 @@ class AuthException implements Exception {
 class AuthService {
   // Private instances
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId:
-    "197748991211-f8lv4c72auk07p6bp5jt8169dre2jv4p.apps.googleusercontent.com",
+    serverClientId: '817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com',
   );
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -46,6 +46,11 @@ class AuthService {
   // Public streams
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// Gets current authenticated user
+  User? getCurrentUser() {
+    return _auth.currentUser;
+  }
+
   Stream<UserModel?> get userModelStream {
     return _auth.authStateChanges().asyncMap((user) async {
       if (user == null) return null;
@@ -56,99 +61,19 @@ class AuthService {
   /// Helper method to get translated strings
   String _tr(String key) {
     if (_languageProvider != null) {
-      // Changed from 'auth' to 'auth_service'
       return _languageProvider!.tr(key, category: 'auth_service');
     }
-    // Return fallback English messages if provider not set
-    return _getFallbackEnglish(key);
+    return key;
   }
 
   /// Fallback English messages
   String _getFallbackEnglish(String key) {
-    final Map<String, String> fallback = {
-      'weak_password':
-      'The password provided is too weak. Please use at least 8 characters with mixed case and numbers.',
-      'email_already_in_use':
-      'This email address is already registered. Please try logging in or use a different email.',
-      'invalid_email':
-      'The email address format is invalid. Please check and try again.',
-      'user_not_found':
-      'Invalid email or password. Please check your credentials.',
-      'wrong_password':
-      'Invalid email or password. Please check your credentials.',
-      'network_request_failed':
-      'Network error detected. Please check your internet connection and try again.',
-      'account_exists_different_credential':
-      'An account already exists with this email but different sign-in credentials. Please sign in with the original method.',
-      'operation_not_allowed':
-      'This sign-in method is currently disabled. Please contact support.',
-      'too_many_requests': 'Too many login attempts. Please try again later.',
-      'invalid_credential': 'Invalid credentials provided. Please try again.',
-      'default_auth_error':
-      'An authentication error occurred. Please try again later.',
-      'fcm_token_failed': 'Failed to retrieve FCM token',
-      'fcm_token_warning': 'Warning: Could not save FCM token for user',
-      'fcm_token_remove_warning':
-      'Warning: Could not remove FCM token for user',
-      'invalid_coordinates': 'Invalid geographic coordinates provided',
-      'firestore_save_failed': 'Failed to save user profile',
-      'fetch_user_error': 'Error fetching user profile',
-      'user_creation_failed': 'User creation failed',
-      'empty_credentials': 'Email and password are required',
-      'login_failed': 'Login failed',
-      'profile_not_found': 'User profile not found',
-      'login_error': 'Login failed',
-      'anon_signin_failed': 'Anonymous sign-in failed',
-      'anon_signin_error': 'Anonymous sign-in failed',
-      'google_signin_cancelled': 'Google sign-in was cancelled',
-      'google_signin_failed': 'Google sign-in failed',
-      'google_signin_error': 'Google sign-in failed',
-      'apple_token_missing': 'Apple sign-in failed: Missing identity token',
-      'apple_signin_failed': 'Apple sign-in failed',
-      'apple_signin_cancelled': 'Apple sign-in was cancelled',
-      'apple_signin_error': 'Apple sign-in failed',
-      'invalid_uid': 'Invalid user ID',
-      'update_failed': 'Failed to update user data',
-      'location_update_failed': 'Failed to update location',
-      'role_update_failed': 'Failed to set user role',
-      'empty_email': 'Email is required',
-      'password_reset_error': 'An unexpected error occurred',
-      'account_deletion_failed': 'Failed to delete user account',
-      'empty_password': 'Password is required',
-      'empty_name': 'Name is required',
-      'empty_phone': 'Phone number is required',
-      'invalid_email_format': 'Invalid email format',
-      'logout_error': 'Error during logout',
-    };
-    return fallback[key] ?? key;
+    return key;
   }
 
   /// Handles Firebase Authentication errors and returns user-friendly messages
   String _handleFirebaseAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'weak-password':
-        return _tr('weak_password');
-      case 'email-already-in-use':
-        return _tr('email_already_in_use');
-      case 'invalid-email':
-        return _tr('invalid_email');
-      case 'user-not-found':
-        return _tr('user_not_found');
-      case 'wrong-password':
-        return _tr('wrong_password');
-      case 'network-request-failed':
-        return _tr('network_request_failed');
-      case 'account-exists-with-different-credential':
-        return _tr('account_exists_different_credential');
-      case 'operation-not-allowed':
-        return _tr('operation_not_allowed');
-      case 'too-many-requests':
-        return _tr('too_many_requests');
-      case 'invalid-credential':
-        return _tr('invalid_credential');
-      default:
-        return _tr('default_auth_error');
-    }
+    return _tr(e.code.replaceAll('-', '_'));
   }
 
   // ============================================================================
@@ -179,7 +104,7 @@ class AuthService {
           .update({_fcmTokenField: token});
     } catch (e) {
       // Log error but don't fail authentication
-      print('${_tr('fcm_token_warning')} $uid: $e');
+      debugPrint('⚠️ [AuthService] ${_tr('fcm_token_warning')} $uid: $e');
     }
   }
 
@@ -191,7 +116,7 @@ class AuthService {
           .doc(uid)
           .update({_fcmTokenField: FieldValue.delete()});
     } catch (e) {
-      print('${_tr('fcm_token_remove_warning')} $uid: $e');
+      debugPrint('⚠️ [AuthService] ${_tr('fcm_token_remove_warning')} $uid: $e');
     }
   }
 
@@ -226,9 +151,26 @@ class AuthService {
 
       // If user already exists, merge in any missing fields and return
       if (existingDoc.exists) {
-        final existingUser =
-        UserModel.fromMap(existingDoc.data()!, existingDoc.id);
-        await docRef.set(existingUser.toMap(), SetOptions(merge: true));
+        final existingData = existingDoc.data()!;
+        final existingUser = UserModel.fromMap(existingData, existingDoc.id);
+        
+        // Update basic info if it was missing in Firestore but available now
+        Map<String, dynamic> updates = {};
+        if ((existingData['name'] == null || existingData['name'] == '') && name.isNotEmpty) {
+          updates['name'] = _sanitizeInput(name);
+        }
+        if ((existingData['photoUrl'] == null || existingData['photoUrl'] == '') && (user.photoURL != null)) {
+          updates['photoUrl'] = user.photoURL;
+        }
+        
+        if (updates.isNotEmpty) {
+          await docRef.update(updates);
+          return existingUser.copyWith(
+            name: updates['name'] as String?,
+            photoUrl: updates['photoUrl'] as String?,
+          );
+        }
+
         return existingUser;
       }
 
@@ -282,7 +224,7 @@ class AuthService {
 
       return UserModel.fromMap(doc.data()!, doc.id);
     } catch (e) {
-      print('${_tr('fetch_user_error')}: $e');
+      debugPrint('❌ [AuthService] ${_tr('fetch_user_error')}: $e');
       return null;
     }
   }
@@ -346,7 +288,7 @@ class AuthService {
 
         // Send email verification asynchronously
         await user.sendEmailVerification().catchError(
-              (e) => print('Warning: Could not send verification email: $e'),
+              (e) => debugPrint('⚠️ [AuthService] Warning: Could not send verification email: $e'),
         );
 
         return userModel;
@@ -354,7 +296,7 @@ class AuthService {
         // Delete auth user if Firestore save fails
         await user.delete().catchError(
               (deleteError) =>
-              print('Error cleaning up auth user: $deleteError'),
+              debugPrint('❌ [AuthService] Error cleaning up auth user: $deleteError'),
         );
         rethrow;
       }
@@ -488,31 +430,50 @@ class AuthService {
   /// Throws: AuthException on Google sign-in failure
   Future<UserModel> signInWithGoogle() async {
     try {
+      debugPrint('🚀 [AuthService] Starting Google Sign-In...');
+      
+      // Attempt to sign in
       final googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
+        debugPrint('ℹ️ [AuthService] Google Sign-In cancelled by user');
         throw AuthException(
           _tr('google_signin_cancelled'),
           code: 'google-signin-cancelled',
         );
       }
 
+      debugPrint('✅ [AuthService] Google user obtained: ${googleUser.email}');
+      
       final googleAuth = await googleUser.authentication;
+      debugPrint('✅ [AuthService] Google authentication tokens obtained');
+
+      if (googleAuth.idToken == null) {
+        debugPrint('❌ [AuthService] Google idToken is null. Check Firebase/Google Cloud Console configuration.');
+        throw AuthException(
+          'Google Sign-In failed: Missing ID Token. Please ensure Web Client ID is configured in Firebase.',
+          code: 'google-no-id-token',
+        );
+      }
 
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
       );
 
+      debugPrint('🔄 [AuthService] Signing in to Firebase with Google credentials...');
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user == null) {
+        debugPrint('❌ [AuthService] Firebase user is null after Google sign-in');
         throw AuthException(
           _tr('google_signin_failed'),
           code: 'google-signin-failed',
         );
       }
+
+      debugPrint('✅ [AuthService] Firebase sign-in successful: ${user.uid}');
 
       final userModel = await _saveUserToFirestore(
         user,
@@ -523,13 +484,16 @@ class AuthService {
       );
 
       await _saveFCMToken(user.uid);
+      debugPrint('✅ [AuthService] Google Sign-In completed for ${user.email}');
       return userModel;
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ [AuthService] Firebase Auth Error during Google Sign-In: ${e.code} - ${e.message}');
       throw AuthException(
         _handleFirebaseAuthError(e),
         code: e.code,
       );
     } catch (e) {
+      debugPrint('❌ [AuthService] Unexpected error during Google Sign-In: $e');
       throw AuthException(
         '${_tr('google_signin_error')}: $e',
         code: 'google-signin-error',
@@ -546,6 +510,8 @@ class AuthService {
   /// Throws: AuthException on Apple sign-in failure
   Future<UserModel> signInWithApple() async {
     try {
+      debugPrint('🚀 [AuthService] Starting Apple Sign-In...');
+      
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -553,7 +519,10 @@ class AuthService {
         ],
       );
 
+      debugPrint('✅ [AuthService] Apple credentials obtained');
+
       if (appleCredential.identityToken == null) {
+        debugPrint('❌ [AuthService] Apple identityToken is null');
         throw AuthException(
           _tr('apple_token_missing'),
           code: 'apple-token-missing',
@@ -562,36 +531,52 @@ class AuthService {
 
       final credential = OAuthProvider('apple.com').credential(
         idToken: appleCredential.identityToken,
-        accessToken: appleCredential.authorizationCode,
+        rawNonce: null,
       );
 
+      debugPrint('🔄 [AuthService] Signing in to Firebase with Apple credentials...');
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user == null) {
+        debugPrint('❌ [AuthService] Firebase user is null after Apple sign-in');
         throw AuthException(
           _tr('apple_signin_failed'),
           code: 'apple-signin-failed',
         );
       }
 
+      debugPrint('✅ [AuthService] Firebase sign-in successful: ${user.uid}');
+
+      // Apple only provides name on the FIRST sign-in
+      String displayName = 'User';
+      if (appleCredential.givenName != null) {
+        displayName = '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'.trim();
+      } else if (user.displayName != null && user.displayName!.isNotEmpty) {
+        displayName = user.displayName!;
+      }
+
       final userModel = await _saveUserToFirestore(
         user,
-        name: user.displayName ?? 'User',
+        name: displayName,
         role: 'client',
         phone: '',
         address: '',
       );
 
       await _saveFCMToken(user.uid);
+      debugPrint('✅ [AuthService] Apple Sign-In completed for ${user.uid}');
       return userModel;
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ [AuthService] Firebase Auth Error during Apple Sign-In: ${e.code} - ${e.message}');
       throw AuthException(
         _handleFirebaseAuthError(e),
         code: e.code,
       );
     } catch (e) {
-      if (e.toString().contains('cancelled')) {
+      debugPrint('❌ [AuthService] Unexpected error during Apple Sign-In: $e');
+      if (e.toString().contains('cancelled') || e.toString().contains('canceled')) {
+        debugPrint('ℹ️ [AuthService] Apple Sign-In cancelled by user');
         throw AuthException(
           _tr('apple_signin_cancelled'),
           code: 'apple-signin-cancelled',
@@ -760,8 +745,9 @@ class AuthService {
       // Sign out from all providers
       await _googleSignIn.signOut();
       await _auth.signOut();
+      debugPrint('✅ [AuthService] Logout successful');
     } catch (e) {
-      print('${_tr('logout_error')}: $e');
+      debugPrint('❌ [AuthService] ${_tr('logout_error')}: $e');
       // Continue with logout even if cleanup fails
       rethrow;
     }
@@ -792,8 +778,9 @@ class AuthService {
         await currentUser.delete();
       }
 
-      print('User account deleted: $uid');
+      debugPrint('✅ [AuthService] User account deleted: $uid');
     } catch (e) {
+      debugPrint('❌ [AuthService] ${_tr('account_deletion_failed')}: $e');
       throw AuthException(
         '${_tr('account_deletion_failed')}: $e',
         code: 'account-deletion-failed',
@@ -805,9 +792,22 @@ class AuthService {
   // UTILITY METHODS
   // ============================================================================
 
-  /// Gets current authenticated user
-  User? getCurrentUser() {
-    return _auth.currentUser;
+  /// Sends email verification to the current user
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  /// Reloads the current user and returns the email verification status
+  Future<bool> isEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.reload();
+      return _auth.currentUser!.emailVerified;
+    }
+    return false;
   }
 
   /// Validates and sanitizes user input

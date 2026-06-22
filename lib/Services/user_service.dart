@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/UserModel.dart';
 import '../models/ServicesModel.dart';
@@ -128,7 +129,7 @@ class UserService {
         'subscriptionActive': userData['subscriptionActive'] ?? false,
       };
     } catch (e) {
-      print('Error getting user stats: $e');
+      debugPrint('Error getting user stats: $e');
       rethrow;
     }
   }
@@ -141,7 +142,7 @@ class UserService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating user role: $e');
+      debugPrint('Error updating user role: $e');
       rethrow;
     }
   }
@@ -159,7 +160,7 @@ class UserService {
           .map((doc) => Service.fromFirestore(doc)) // Use fromFirestore instead
           .toList();
     } catch (e) {
-      print('Error getting provider services: $e');
+      debugPrint('Error getting provider services: $e');
       rethrow;
     }
   }
@@ -183,7 +184,7 @@ class UserService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error adding service: $e');
+      debugPrint('Error adding service: $e');
       rethrow;
     }
   }
@@ -211,7 +212,7 @@ class UserService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating service: $e');
+      debugPrint('Error updating service: $e');
       rethrow;
     }
   }
@@ -228,7 +229,7 @@ class UserService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error deleting service: $e');
+      debugPrint('Error deleting service: $e');
       rethrow;
     }
   }
@@ -240,7 +241,7 @@ class UserService {
       if (!doc.exists) return null;
       return Service.fromFirestore(doc);
     } catch (e) {
-      print('Error getting service by ID: $e');
+      debugPrint('Error getting service by ID: $e');
       return null;
     }
   }

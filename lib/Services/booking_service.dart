@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/models/BookingModel.dart';
 import 'package:service_app/Services/booking_notification_service.dart';
@@ -24,43 +25,7 @@ class BookingService {
       }
       return _languageProvider!.tr(key, category: 'booking_service');
     }
-    // Return fallback English messages if provider not set
-    return _getFallbackEnglish(key, params);
-  }
-
-  /// Fallback English messages
-  String _getFallbackEnglish(String key, Map<String, String>? params) {
-    final Map<String, String> fallback = {
-      'log_booking_created': '✅ Booking created with ID: {bookingId}',
-      'log_attempting_notification':
-          '📤 Attempting to send booking notification...',
-      'log_notification_sent':
-          '✅ Booking notification sent successfully to provider',
-      'log_notification_failed': '⚠️ Booking notification failed to send',
-      'log_notification_error':
-          '⚠️ Error sending booking notification: {error}',
-      'log_error_creating_booking': '❌ Error creating booking: {error}',
-      'log_error_getting_bookings': 'Error getting bookings: {error}',
-      'log_error_updating_status': 'Error updating booking status: {error}',
-      'log_error_deleting_booking': 'Error deleting booking: {error}',
-      'error_booking_creation_failed': 'Failed to create booking',
-      'error_status_update_failed': 'Failed to update booking status',
-      'error_booking_deletion_failed': 'Failed to delete booking',
-      'status_pending': 'pending',
-      'status_accepted': 'accepted',
-      'status_confirmed': 'confirmed',
-      'status_completed': 'completed',
-      'status_cancelled': 'cancelled',
-      'status_rejected': 'rejected',
-    };
-
-    String text = fallback[key] ?? key;
-    if (params != null) {
-      params.forEach((key, value) {
-        text = text.replaceAll('{$key}', value);
-      });
-    }
-    return text;
+    return key;
   }
 
   /// Get translated status value for consistent status strings
@@ -80,11 +45,11 @@ class BookingService {
         'id': docRef.id,
       });
 
-      print(_tr('log_booking_created', params: {'bookingId': docRef.id}));
+      debugPrint(_tr('log_booking_created', params: {'bookingId': docRef.id}));
 
       // ⭐ 3. SEND NOTIFICATION TO PROVIDER
       try {
-        print(_tr('log_attempting_notification'));
+        debugPrint(_tr('log_attempting_notification'));
 
         final notificationSent =
             await BookingNotificationService.sendNewBookingNotification(
@@ -98,20 +63,20 @@ class BookingService {
         );
 
         if (notificationSent) {
-          print(_tr('log_notification_sent'));
+          debugPrint(_tr('log_notification_sent'));
         } else {
-          print(_tr('log_notification_failed'));
+          debugPrint(_tr('log_notification_failed'));
         }
       } catch (notificationError) {
         // Don't fail the entire booking if notification fails
-        print(_tr('log_notification_error',
+        debugPrint(_tr('log_notification_error',
             params: {'error': notificationError.toString()}));
         // Booking is still created, just notification failed
       }
 
       return true;
     } catch (e) {
-      print(_tr('log_error_creating_booking', params: {'error': e.toString()}));
+      debugPrint(_tr('log_error_creating_booking', params: {'error': e.toString()}));
       return false;
     }
   }
@@ -155,7 +120,7 @@ class BookingService {
         }).toList();
       });
     } catch (e) {
-      print(_tr('log_error_getting_bookings', params: {'error': e.toString()}));
+      debugPrint(_tr('log_error_getting_bookings', params: {'error': e.toString()}));
       return Stream.value([]);
     }
   }
@@ -168,7 +133,7 @@ class BookingService {
         'updatedAt': Timestamp.now(),
       });
     } catch (e) {
-      print(_tr('log_error_updating_status', params: {'error': e.toString()}));
+      debugPrint(_tr('log_error_updating_status', params: {'error': e.toString()}));
       throw Exception(_tr('error_status_update_failed'));
     }
   }
@@ -178,7 +143,7 @@ class BookingService {
     try {
       await _firestore.collection('bookings').doc(bookingId).delete();
     } catch (e) {
-      print(_tr('log_error_deleting_booking', params: {'error': e.toString()}));
+      debugPrint(_tr('log_error_deleting_booking', params: {'error': e.toString()}));
       throw Exception(_tr('error_booking_deletion_failed'));
     }
   }

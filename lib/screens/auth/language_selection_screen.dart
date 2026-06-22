@@ -44,7 +44,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     // Set the language - provider automatically sets the completion flag
     await languageProvider.setLanguage(locale);
 
-    print('✅ Language selected: $code');
+    debugPrint('✅ Language selected: $code');
 
     // Navigate to Onboarding screen
     if (mounted) {

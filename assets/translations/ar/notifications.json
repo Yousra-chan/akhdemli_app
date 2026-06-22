@@ -9,8 +9,8 @@
   "just_now": "الآن",
   "minutes_ago": "منذ {{minutes}}د",
   "hours_ago": "منذ {{hours}}س",
-  "days_ago": "منذ {{day}}ي",
-  "weeks_ago": "منذ {{weeks}}أ",
+  "days_ago": "منذ {{days}} أيام",
+  "weeks_ago": "منذ {{weeks}} أسابيع",
   "unknown_user": "مستخدم غير معروف",
   "booking_status_accepted": "مقبول",
   "booking_status_rejected": "مرفوض",
@@ -42,5 +42,6 @@
   "view_bookings": "عرض الحجوزات",
   "all_marked_read": "تم تحديد جميع الإشعارات كمقروءة",
   "error_mark_read": "خطأ في تحديث الإشعارات",
-  "success_language_changed": "✅ تم تغيير اللغة"
+  "success_language_changed": "✅ تم تغيير اللغة",
+  "chat": "دردشة"
 }

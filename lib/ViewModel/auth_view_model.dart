@@ -50,6 +50,11 @@ class AuthViewModel with ChangeNotifier {
 
   bool get isInitialized => _initialized;
 
+  bool get isEmailVerified {
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.emailVerified ?? false;
+  }
+
   // Constants
   static const int _imageSizeMaxHeight = 400;
   static const int _imageSizeMaxWidth = 400;
@@ -57,7 +62,7 @@ class AuthViewModel with ChangeNotifier {
   static const int _maxImageFileSizeBytes = 5242880; // 5MB
 
   AuthViewModel() {
-    print('🔄 AuthViewModel constructor called');
+    debugPrint('🔄 [AuthViewModel] Initializing...');
     _initializeAuthState();
   }
 
@@ -65,54 +70,55 @@ class AuthViewModel with ChangeNotifier {
   // PUBLIC AUTH METHODS
   // ============================================================================
 
+  /// Reloads user to check for updated verification status
+  Future<void> checkEmailVerificationStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await user.reload();
+      debugPrint('🔍 [AuthViewModel] Checked email verification: ${user.emailVerified}');
+      notifyListeners();
+    }
+  }
+
+  /// Resends verification email
+  Future<void> resendVerificationEmail() async {
+    return _executeOperation(() async {
+      await _authService.sendEmailVerification();
+      debugPrint('📧 [AuthViewModel] Verification email sent');
+    }, 'Resend verification');
+  }
+
   /// Logs in user with email and password
-  ///
-  /// Parameters:
-  /// - email: User email address
-  /// - password: User password
-  ///
-  /// Returns: UserModel if successful, null otherwise
-  /// Updates state with error on failure
   Future<UserModel?> login(String email, String password) async {
+    debugPrint('🔑 [AuthViewModel] Attempting email login for: $email');
     return _executeAuthOperation(() async {
       _validateLoginInputs(email, password);
 
-      final userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.trim().toLowerCase(),
-        password: password,
-      );
-
-      final uid = userCredential.user?.uid;
-      if (uid == null) {
-        throw AuthViewModelException(
-          'error_login_failed',
-          code: 'no-user-id',
-        );
-      }
-
-      return await _fetchAndSetUser(uid);
+      final userModel = await _authService.login(email, password);
+      _setUser(userModel);
+      debugPrint('✅ [AuthViewModel] Login successful for: $email');
+      return userModel;
     }, 'Login');
   }
 
   /// Signs in user with Google account
-  ///
-  /// Returns: UserModel if successful, null otherwise
   Future<UserModel?> signInWithGoogle() async {
+    debugPrint('🌐 [AuthViewModel] Attempting Google Sign-In');
     return _executeAuthOperation(() async {
       final userModel = await _authService.signInWithGoogle();
       _setUser(userModel);
+      debugPrint('✅ [AuthViewModel] Google Sign-In successful');
       return userModel;
     }, 'Google sign-in');
   }
 
   /// Signs in user with Apple account
-  ///
-  /// Returns: UserModel if successful, null otherwise
   Future<UserModel?> signInWithApple() async {
+    debugPrint('🍎 [AuthViewModel] Attempting Apple Sign-In');
     return _executeAuthOperation(() async {
       final userModel = await _authService.signInWithApple();
       _setUser(userModel);
+      debugPrint('✅ [AuthViewModel] Apple Sign-In successful');
       return userModel;
     }, 'Apple sign-in');
   }
@@ -234,10 +240,10 @@ class AuthViewModel with ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ Firestore role update completed');
+      debugPrint('✅ Firestore role update completed');
 
       _currentUser = _currentUser!.copyWith(role: newRole);
-      print('✅ Local user updated to: ${_currentUser!.role}');
+      debugPrint('✅ Local user updated to: ${_currentUser!.role}');
       notifyListeners();
     }, 'Role update');
   }
@@ -261,13 +267,13 @@ class AuthViewModel with ChangeNotifier {
       );
 
       if (pickedFile == null) {
-        print('ℹ️ Image selection cancelled by user');
+        debugPrint('ℹ️ Image selection cancelled by user');
         return null;
       }
 
       return await _encodeImageToBase64(pickedFile);
     } catch (e) {
-      print('❌ Error picking image: $e');
+      debugPrint('❌ Error picking image: $e');
       _setError('error_image_pick_failed');
       rethrow;
     }
@@ -307,7 +313,7 @@ class AuthViewModel with ChangeNotifier {
 
       return 'data:image/jpeg;base64,$base64Image';
     } catch (e) {
-      print('❌ Error encoding image: $e');
+      debugPrint('❌ Error encoding image: $e');
       _setError('error_image_encode_failed');
       rethrow;
     }
@@ -318,50 +324,38 @@ class AuthViewModel with ChangeNotifier {
   // ============================================================================
 
   /// Initializes authentication state on app startup
-  ///
-  /// 1. Attaches auth state listener
-  /// 2. Checks for existing Firebase user
-  /// 3. Loads user profile from Firestore
   Future<void> _initializeAuthState() async {
-    print('🔄 AuthViewModel: Starting auth initialization');
+    debugPrint('🔄 [AuthViewModel] Starting auth initialization');
 
     try {
-      // Attach auth state listener
       _authService.authStateChanges.listen(_handleAuthStateChange);
-      print('✅ Auth state listener attached');
-
-      // Check for existing Firebase user
+      
       final firebaseUser = _authService.getCurrentUser();
-      print('🔍 Current Firebase user: ${firebaseUser?.uid}');
-
       if (firebaseUser != null) {
-        print('🔄 Fetching user data for ${firebaseUser.uid}');
+        debugPrint('🔍 [AuthViewModel] Found existing Firebase user: ${firebaseUser.uid}');
         await _fetchCurrentUser(firebaseUser.uid);
       } else {
-        print('ℹ️ No Firebase user found on startup');
+        debugPrint('ℹ️ [AuthViewModel] No existing session found');
         _setUser(null);
       }
 
       _initialized = true;
-      print('✅ Initialization completed');
       notifyListeners();
     } catch (e) {
-      print('❌ Error during initialization: $e');
+      debugPrint('❌ [AuthViewModel] Error during initialization: $e');
       _setError('error_initialization_failed');
-      _initialized = true; // Mark as initialized even on error
+      _initialized = true; 
       notifyListeners();
     }
   }
 
   /// Handles Firebase authentication state changes
   void _handleAuthStateChange(User? firebaseUser) async {
-    print('🔄 Auth state changed. Firebase user: ${firebaseUser?.uid}');
+    debugPrint('🔄 [AuthViewModel] Firebase Auth State Change: ${firebaseUser?.uid ?? "Logged Out"}');
 
     if (firebaseUser != null) {
-      print('🔄 Fetching user profile for ${firebaseUser.uid}');
       await _fetchCurrentUser(firebaseUser.uid);
     } else {
-      print('ℹ️ User signed out');
       _clearUser();
     }
   }
@@ -398,25 +392,25 @@ class AuthViewModel with ChangeNotifier {
     try {
       _validateUserId(uid);
 
-      print('🔄 Fetching user profile for uid: $uid');
+      debugPrint('🔄 Fetching user profile for uid: $uid');
       // Ensure subscription expiry is enforced before returning the user
       try {
         final subService = SubscriptionService();
         await subService.checkAndUpdateExpiryForProvider(uid);
       } catch (e) {
-        print('❌ Error checking subscription expiry: $e');
+        debugPrint('❌ Error checking subscription expiry: $e');
       }
 
       final userModel = await _getOrCreateUser(uid);
       if (userModel != null) {
-        print('✅ UserModel loaded: ${userModel.name} (${userModel.role})');
+        debugPrint('✅ UserModel loaded: ${userModel.name} (${userModel.role})');
         _setUser(userModel);
       } else {
-        print('❌ User profile not found in Firestore');
+        debugPrint('❌ User profile not found in Firestore');
         _setError('error_user_not_found');
       }
     } catch (e) {
-      print('❌ Error loading user profile: $e');
+      debugPrint('❌ Error loading user profile: $e');
       _setError('error_loading_profile');
     }
   }
@@ -441,7 +435,7 @@ class AuthViewModel with ChangeNotifier {
       _setUser(userModel);
       return userModel;
     } catch (e) {
-      print('❌ Failed to load user profile: $e');
+      debugPrint('❌ Failed to load user profile: $e');
       _setError('error_loading_profile');
       return null;
     }
@@ -517,20 +511,18 @@ class AuthViewModel with ChangeNotifier {
 
   /// Sets current user and clears error
   void _setUser(UserModel? user) {
-    print('🔄 Setting user: ${user?.uid}');
+    debugPrint('🔄 [AuthViewModel] Setting user: ${user?.uid ?? "null"}');
     _currentUser = user;
     _error = null;
     notifyListeners();
-    print('📢 notifyListeners() called');
   }
 
   /// Clears current user
   void _clearUser() {
-    print('🔄 Clearing user');
+    debugPrint('🔄 [AuthViewModel] Clearing user');
     _currentUser = null;
     _error = null;
     notifyListeners();
-    print('📢 notifyListeners() called');
   }
 
   /// Sets loading state

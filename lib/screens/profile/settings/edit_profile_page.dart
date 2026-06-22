@@ -9,6 +9,7 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/utils/image_optimizer.dart';
 import 'package:service_app/utils/image_utils.dart';
+import 'package:service_app/Services/wilaya_service.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -21,6 +22,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _professionController;
+  late TextEditingController _addressController;
+  late TextEditingController _emailController;
+  
+  String? _selectedWilaya;
+  String? _selectedCommune;
+  String? _photoUrl;
+  List<String> _wilayas = [];
+  List<String> _communes = [];
+  
   List<String> _portfolio = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -30,13 +40,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void initState() {
     super.initState();
     final authVM = Provider.of<AuthViewModel>(context, listen: false);
-    _nameController =
-        TextEditingController(text: authVM.currentUser?.name ?? '');
-    _phoneController =
-        TextEditingController(text: authVM.currentUser?.phone ?? '');
-    _professionController =
-        TextEditingController(text: authVM.currentUser?.profession ?? '');
-    _portfolio = List.from(authVM.currentUser?.portfolio ?? []);
+    final user = authVM.currentUser;
+    
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
+    _professionController = TextEditingController(text: user?.profession ?? '');
+    _addressController = TextEditingController(text: user?.address ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    
+    _portfolio = List.from(user?.portfolio ?? []);
+    _photoUrl = user?.photoUrl;
+    
+    _selectedWilaya = user?.wilaya;
+    _selectedCommune = user?.commune;
+    
+    _loadWilayas();
+  }
+
+  void _loadWilayas() {
+    setState(() {
+      _wilayas = WilayaService.getAllWilayaNamesSafe();
+      if (_selectedWilaya != null && _wilayas.contains(_selectedWilaya)) {
+        _communes = WilayaService.getCommunesForWilayaSafe(_selectedWilaya!);
+      }
+    });
   }
 
   @override
@@ -44,7 +71,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nameController.dispose();
     _phoneController.dispose();
     _professionController.dispose();
+    _addressController.dispose();
+    _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _changeProfilePhoto() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final compressedBytes = await ImageOptimizer.compressImage(File(image.path));
+      final base64Image = base64Encode(compressedBytes);
+      setState(() {
+        _photoUrl = 'data:image/jpeg;base64,$base64Image';
+      });
+      print('✅ Profile photo updated in local state');
+    } catch (e) {
+      print('❌ Error changing photo: $e');
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
+      AppSnackBar.showError(context, lang.trParams('error_changing_photo', category: 'profile', params: {'error': e.toString()}));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _addPortfolioImage() async {
@@ -56,10 +106,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final compressedBytes = await ImageOptimizer.compressImage(File(image.path));
       final base64Image = base64Encode(compressedBytes);
       setState(() {
-        _portfolio.add(base64Image);
+        _portfolio.add('data:image/jpeg;base64,$base64Image');
       });
+      print('✅ Portfolio image added to local list');
     } catch (e) {
-      AppSnackBar.showError(context, 'Error adding image: $e');
+      print('❌ Error adding portfolio image: $e');
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
+      AppSnackBar.showError(context, lang.trParams('error_adding_image', category: 'profile', params: {'error': e.toString()}));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -76,7 +129,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
           name: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
           profession: _professionController.text.trim(),
+          address: _addressController.text.trim(),
+          wilaya: _selectedWilaya,
+          commune: _selectedCommune,
           portfolio: _portfolio,
+          photoUrl: _photoUrl,
         );
         await authVM.updateUserProfile(updatedUser);
       }
@@ -106,9 +163,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     final languageProvider = context.watch<LanguageProvider>();
-    final isProvider = context.read<AuthViewModel>().currentUser?.isProvider ?? false;
+    final user = context.watch<AuthViewModel>().currentUser;
+    final isProvider = user?.isProvider ?? false;
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    
+    print('👤 EditProfilePage Build: isProvider=$isProvider, role=${user?.role}');
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -121,7 +180,74 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Center(
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: theme.primaryColor, width: 4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: ClipOval(
+                                child: _photoUrl != null && _photoUrl!.isNotEmpty
+                                    ? Builder(
+                                        builder: (context) {
+                                          final provider = ImageUtils.getImageProvider(_photoUrl!);
+                                          if (provider == null) return const Icon(Icons.person, size: 60);
+                                          return Image(
+                                            image: provider,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                const Icon(Icons.person, size: 60),
+                                          );
+                                        },
+                                      )
+                                    : const Icon(Icons.person, size: 60),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: _changeProfilePhoto,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: theme.primaryColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      _buildTextField(
+                        theme: theme,
+                        controller: _emailController,
+                        label: languageProvider.tr('email', category: 'auth'),
+                        icon: Icons.email_outlined,
+                        enabled: false,
+                      ),
+                      const SizedBox(height: 20),
                       _buildTextField(
                         theme: theme,
                         controller: _nameController,
@@ -136,6 +262,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         icon: Icons.phone_outlined,
                       ),
                       const SizedBox(height: 20),
+                      
+                      // Wilaya Dropdown
+                      _buildDropdown(
+                        theme: theme,
+                        label: languageProvider.tr('wilaya', category: 'search'),
+                        value: _selectedWilaya,
+                        items: _wilayas,
+                        icon: Icons.map_outlined,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedWilaya = value;
+                            _selectedCommune = null;
+                            _communes = value != null 
+                                ? WilayaService.getCommunesForWilayaSafe(value) 
+                                : [];
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Commune Dropdown
+                      _buildDropdown(
+                        theme: theme,
+                        label: languageProvider.tr('commune', category: 'search'),
+                        value: _selectedCommune,
+                        items: _communes,
+                        icon: Icons.location_city_outlined,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCommune = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      _buildTextField(
+                        theme: theme,
+                        controller: _addressController,
+                        label: languageProvider.tr('address', category: 'auth'),
+                        icon: Icons.location_on_outlined,
+                      ),
+                      const SizedBox(height: 20),
+                      
                       if (isProvider) ...[
                         _buildTextField(
                           theme: theme,
@@ -201,6 +370,53 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
+  Widget _buildDropdown({
+    required ThemeData theme,
+    required String label,
+    required String? value,
+    required List<String> items,
+    required IconData icon,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.2 : 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButtonFormField<String>(
+          value: value != null && items.contains(value) ? value : null,
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon, color: theme.primaryColor),
+            border: InputBorder.none,
+            labelStyle: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor),
+          ),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(
+                item,
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+          dropdownColor: theme.cardColor,
+          isExpanded: true,
+        ),
+      ),
+    );
+  }
+
   Widget _buildPortfolioEditor(LanguageProvider lang, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,15 +465,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: ImageUtils.isBase64Image(_portfolio[index])
-                                ? Image.memory(
-                                    ImageUtils.decodeBase64Image(_portfolio[index])!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Image.network(
-                                    _portfolio[index],
-                                    fit: BoxFit.cover,
-                                  ),
+                            child: Builder(
+                              builder: (context) {
+                                final provider = ImageUtils.getImageProvider(_portfolio[index]);
+                                if (provider == null) return const Icon(Icons.broken_image_outlined);
+                                return Image(
+                                  image: provider,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.broken_image_outlined),
+                                );
+                              },
+                            ),
                           ),
                         ),
                         PositionedDirectional(
@@ -337,34 +556,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required String label,
     required IconData icon,
     int maxLines = 1,
+    bool enabled = true,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: enabled ? theme.cardColor : theme.disabledColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.2 : 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
+          if (enabled)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.2 : 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: theme.primaryColor),
+          prefixIcon: Icon(icon, color: enabled ? theme.primaryColor : theme.disabledColor),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(16),
           labelStyle: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor),
         ),
         style: TextStyle(
-          color: theme.textTheme.bodyLarge?.color,
+          color: enabled ? theme.textTheme.bodyLarge?.color : theme.disabledColor,
           fontSize: 16,
         ),
       ),
     );
   }
 }
+

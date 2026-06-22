@@ -127,7 +127,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
     if (text.isEmpty || _isSendingMessage) return;
 
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-    final senderName = authViewModel.currentUser?.name ?? 'Someone';
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final senderName = authViewModel.currentUser?.name ?? lang.tr('someone', category: 'disscussion');
 
     setState(() => _isSendingMessage = true);
 
@@ -188,7 +189,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
         ),
       );
     } catch (e) {
-      return Scaffold(body: Center(child: Text('UI Guard: $e', style: const TextStyle(color: Colors.red))));
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
+      return Scaffold(body: Center(child: Text(lang.trParams('ui_guard_error', category: 'disscussion', params: {'error': e.toString()}), style: const TextStyle(color: Colors.red))));
     }
   }
 

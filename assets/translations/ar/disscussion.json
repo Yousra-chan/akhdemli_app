@@ -16,5 +16,7 @@
   "start_conversation": "ابدأ المحادثة",
   "test_notifications": "اختبار الإشعارات",
   "type_message": "اكتب رسالة...",
-  "notification_server_offline": "خادم الإشعارات غير متصل. قد تتأخر التنبيهات."
+  "notification_server_offline": "خادم الإشعارات غير متصل. قد تتأخر التنبيهات.",
+  "ui_guard_error": "خطأ في الواجهة: {{error}}",
+  "someone": "شخص ما"
 }

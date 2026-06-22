@@ -42,5 +42,6 @@
   "view_bookings": "Voir les réservations",
   "all_marked_read": "Toutes les notifications marquées comme lues",
   "error_mark_read": "Erreur lors du marquage",
-  "success_language_changed": "✅ Langue modifiée"
+  "success_language_changed": "✅ Langue modifiée",
+  "chat": "Chat"
 }

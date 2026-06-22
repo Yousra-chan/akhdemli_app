@@ -2,12 +2,12 @@
   "skip": "Skip",
   "get_started": "Get Started",
   "next": "Next",
-  "page_1_title": "Welcome to Akhdem Li",
-  "page_1_description": "Your trusted platform for finding and offering professional services",
-  "page_2_title": "Find Services",
-  "page_2_description": "Browse through hundreds of trusted professionals in your area",
-  "page_3_title": "Offer Your Skills",
-  "page_3_description": "Showcase your expertise and grow your client base",
-  "page_4_title": "Get Started",
-  "page_4_description": "Join our community today and experience the difference"
+  "ob_welcome_title": "Welcome to Akhdem Li",
+  "ob_welcome_desc": "Your trusted platform for finding and offering professional services in Algeria.",
+  "ob_find_title": "Find Local Experts",
+  "ob_find_desc": "Browse through hundreds of verified professionals in your area for any task.",
+  "ob_offer_title": "Showcase Your Skills",
+  "ob_offer_desc": "Create your provider profile, showcase your expertise and grow your business.",
+  "ob_start_title": "Ready to Start?",
+  "ob_start_desc": "Join our growing community today and experience the future of local services."
 }

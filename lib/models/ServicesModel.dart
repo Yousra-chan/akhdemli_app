@@ -20,6 +20,7 @@ class Service {
   final double rating;
   final int totalReviews;
   final List<String> tags;
+  final bool isFeatured;
 
   Service({
     required this.id,
@@ -40,6 +41,7 @@ class Service {
     this.rating = 0.0,
     this.totalReviews = 0,
     this.tags = const [],
+    this.isFeatured = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -62,6 +64,7 @@ class Service {
       'rating': rating,
       'totalReviews': totalReviews,
       'tags': tags,
+      'isFeatured': isFeatured,
     };
   }
 
@@ -97,6 +100,7 @@ class Service {
       rating: (map['rating'] as num?)?.toDouble() ?? 0.0,
       totalReviews: (map['totalReviews'] as int?) ?? 0,
       tags: List<String>.from(map['tags'] ?? []),
+      isFeatured: map['isFeatured'] ?? false,
     );
   }
 
@@ -136,6 +140,7 @@ class Service {
     double? rating,
     int? totalReviews,
     List<String>? tags,
+    bool? isFeatured,
   }) {
     return Service(
       id: id ?? this.id,
@@ -156,6 +161,7 @@ class Service {
       rating: rating ?? this.rating,
       totalReviews: totalReviews ?? this.totalReviews,
       tags: tags ?? this.tags,
+      isFeatured: isFeatured ?? this.isFeatured,
     );
   }
 }

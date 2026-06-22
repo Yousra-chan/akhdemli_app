@@ -6,7 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:service_app/screens/profile/profile_page_loader.dart';
 import 'package:service_app/screens/search/search_screen.dart';
 import 'package:service_app/screens/posts/posts_screen.dart';
-import 'package:service_app/screens/admin/admin_codes_page.dart';
+import 'package:service_app/screens/admin/admin_scaffold.dart';
 import 'package:service_app/screens/auth/account_activation_required_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
@@ -246,7 +246,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
         textDirection: languageProvider.isRtl
             ? ui.TextDirection.rtl
             : ui.TextDirection.ltr,
-        child: const AdminCodesPage(),
+        child: const AdminScaffold(),
       );
     }
 

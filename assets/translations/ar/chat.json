@@ -5,7 +5,7 @@
   "all_discussions": "جميع المحادثات",
   "start_discussion": "ابدأ محادثة...",
   "yesterday": "أمس",
-  "days_ago": "منذ {{days}}أيام",
+  "days_ago": "منذ {{days}} أيام",
   "contact_with_id": "جهة اتصال {{id}}...",
   "time_format_24h": "HH:mm",
   "day_abbreviation": "EEE",

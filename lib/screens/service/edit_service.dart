@@ -7,9 +7,11 @@ import 'package:service_app/screens/service/location_section.dart';
 import 'package:service_app/screens/service/input_field.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
+import 'package:service_app/Services/firebase_service.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/providers/theme_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
 class EditServiceScreen extends StatefulWidget {
@@ -71,7 +73,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     _priceController.addListener(_validatePrice);
   }
 
-  void _loadServiceData() {
+  void _loadServiceData() async {
     // Load existing service data
     final service = widget.serviceData;
 
@@ -87,14 +89,26 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     final categoryName = service['category'];
     final subcategoryName = service['subcategory'];
 
-    // You'll need to load categories from your data source
-    // For now, we'll set validation based on existing data
     if (categoryName != null) {
-      _categoryValid = true;
+      final category = await FirebaseService.getCategoryByName(categoryName);
+      if (category != null && mounted) {
+        setState(() {
+          _selectedCategory = category;
+          _categoryValid = true;
+        });
+
+        if (subcategoryName != null) {
+          final subcategory = await FirebaseService.getSubcategoryByName(category.id, subcategoryName);
+          if (subcategory != null && mounted) {
+            setState(() {
+              _selectedSubcategory = subcategory;
+              _subcategoryValid = true;
+            });
+          }
+        }
+      }
     }
-    if (subcategoryName != null) {
-      _subcategoryValid = true;
-    }
+
     if (_locationAddress.isNotEmpty) {
       _locationValid = true;
     }
@@ -166,11 +180,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
   }
 
   void _nextStep() {
-    final lang = Provider.of<LanguageProvider>(context, listen: false);
-
-    print(
-        'Next step pressed. Current step: $_currentStep, Valid: $_currentStepValid');
-
     if (_currentStepValid && _currentStep < _stepTitles.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -180,10 +189,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         _currentStep++;
       });
     } else if (_currentStep == _stepTitles.length - 1) {
-      print('Updating service...');
       _updateService();
     } else {
-      print('Validation failed for step $_currentStep');
       _showValidationErrorForCurrentStep();
     }
   }
@@ -230,6 +237,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
 
   Widget _buildStepIndicator() {
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
     _stepTitles = [
       lang.tr('step_details', category: 'edit_service'),
       lang.tr('step_category', category: 'edit_service'),
@@ -241,8 +249,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        color: theme.cardColor,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Column(
         children: [
@@ -250,8 +258,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
             height: 4,
             child: LinearProgressIndicator(
               value: (_currentStep + 1) / _stepTitles.length,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+              backgroundColor: theme.dividerColor,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -286,8 +294,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                             color: isCompleted
                                 ? kSuccessGreen
                                 : isActive
-                                    ? kPrimaryBlue
-                                    : Colors.grey.shade300,
+                                    ? theme.primaryColor
+                                    : (theme.brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -299,7 +307,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                                     style: TextStyle(
                                       color: isActive
                                           ? Colors.white
-                                          : Colors.grey.shade700,
+                                          : (theme.brightness == Brightness.dark ? Colors.white38 : Colors.grey.shade700),
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
@@ -314,7 +322,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                             fontWeight:
                                 isActive ? FontWeight.w700 : FontWeight.normal,
                             color:
-                                isActive ? kPrimaryBlue : Colors.grey.shade600,
+                                isActive ? theme.primaryColor : (theme.brightness == Brightness.dark ? Colors.white38 : Colors.grey.shade600),
                           ),
                         ),
                       ],
@@ -347,11 +355,11 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -367,7 +375,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                side: BorderSide(color: Colors.grey.shade300),
+                side: BorderSide(color: Theme.of(context).dividerColor),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -375,7 +383,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                   Icon(
                     Icons.arrow_back,
                     size: 18,
-                    color: _currentStep == 0 ? Colors.grey : kPrimaryBlue,
+                    color: _currentStep == 0 ? Colors.grey : Theme.of(context).primaryColor,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -384,7 +392,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                         : lang.tr('back', category: 'edit_service'),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: _currentStep == 0 ? Colors.grey : kPrimaryBlue,
+                      color: _currentStep == 0 ? Colors.grey : Theme.of(context).primaryColor,
                     ),
                   ),
                 ],
@@ -401,10 +409,10 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                   : _nextStep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: authViewModel.currentUser == null
-                    ? Colors.grey.shade300
+                    ? (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300)
                     : _currentStepValid
-                        ? kPrimaryBlue
-                        : Colors.grey.shade300,
+                        ? Theme.of(context).primaryColor
+                        : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -413,10 +421,10 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
               child: authViewModel.currentUser == null
                   ? Text(
                       lang.tr('login_required', category: 'edit_service'),
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.white),
                     )
                   : serviceViewModel.isLoading
-                      ? SizedBox(
+                      ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
@@ -450,46 +458,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     );
   }
 
-  void _showLoginRequiredDialog() {
-    final lang = Provider.of<LanguageProvider>(context, listen: false);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.login, color: kPrimaryBlue),
-            const SizedBox(width: 12),
-            Text(lang.tr('login_required_title', category: 'edit_service')),
-          ],
-        ),
-        content: Text(
-          lang.tr('login_required_message', category: 'edit_service'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(lang.tr('cancel', category: 'edit_service')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/login');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryBlue,
-            ),
-            child: Text(
-              lang.tr('go_to_login', category: 'edit_service'),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showError(String message) {
     AppSnackBar.showError(context, message);
   }
@@ -501,8 +469,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
   void _updateService() async {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
-    print('=== STARTING SERVICE UPDATE ===');
-
     FocusScope.of(context).unfocus();
 
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
@@ -510,39 +476,22 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         Provider.of<ServiceViewModel>(context, listen: false);
 
     if (authViewModel.currentUser == null) {
-      print('❌ No user logged in');
       _showError(lang.tr('error_login_required', category: 'edit_service'));
       return;
     }
 
     if (!_validateAllSteps()) {
-      print('❌ Final validation failed:');
-      print('  Title valid: $_titleValid');
-      print('  Description valid: $_descriptionValid');
-      print('  Category valid: $_categoryValid');
-      print('  Subcategory valid: $_subcategoryValid');
-      print('  Price valid: $_priceValid');
-      print('  Location valid: $_locationValid');
       _showError(lang.tr('error_complete_fields', category: 'edit_service'));
       return;
     }
 
-    print('✅ All validations passed!');
-    print('  Title: ${_titleController.text}');
-    print('  Category: ${_selectedCategory?.name}');
-    print('  Subcategory: ${_selectedSubcategory?.name}');
-    print('  Price: ${_priceController.text}');
-    print('  Location: $_locationAddress');
-
     // Check for null values before proceeding
     if (_selectedCategory == null) {
-      print('❌ Category is null');
       _showError(lang.tr('error_select_category', category: 'edit_service'));
       return;
     }
 
     if (_selectedSubcategory == null) {
-      print('❌ Subcategory is null');
       _showError(lang.tr('error_select_subcategory', category: 'edit_service'));
       return;
     }
@@ -551,14 +500,11 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
       double price;
       try {
         price = double.parse(_priceController.text.trim());
-        print('✅ Price parsed: $price');
       } catch (e) {
-        print('❌ Price parsing error: $e');
         _showError(lang.tr('error_invalid_price', category: 'edit_service'));
         return;
       }
 
-      print('=== Calling updateService ===');
       final success = await serviceViewModel.updateService(
         serviceId: widget.serviceData['id'] ?? '',
         providerId: authViewModel.currentUser!.uid,
@@ -575,7 +521,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
       );
 
       if (success && mounted) {
-        print('✅ Service updated successfully!');
         _showSuccess(
             lang.tr('success_service_updated', category: 'edit_service'));
 
@@ -584,16 +529,10 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
           Navigator.pop(context, true);
         }
       } else if (mounted) {
-        print('❌ ServiceViewModel returned false');
-        print('Error: ${serviceViewModel.error}');
         _showError(serviceViewModel.error ??
             lang.tr('error_update_failed', category: 'edit_service'));
       }
-    } catch (e, stackTrace) {
-      print('❌ EXCEPTION in _updateService:');
-      print('  Error: $e');
-      print('  Stack trace: $stackTrace');
-
+    } catch (e) {
       if (mounted) {
         String errorMessage;
         if (e.toString().contains('permission') ||
@@ -613,13 +552,14 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         _showError(errorMessage);
       }
     }
-
-    print('=== SERVICE UPDATE ENDED ===');
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     _stepTitles = [
       lang.tr('step_details', category: 'edit_service'),
       lang.tr('step_category', category: 'edit_service'),
@@ -629,7 +569,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,7 +582,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
               }),
               style: TextStyle(
                 fontSize: 12,
-                color: kMutedTextColor,
+                color: isDark ? Colors.white54 : kMutedTextColor,
               ),
             ),
             Text(
@@ -650,23 +590,23 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          color: kPrimaryBlue,
+          color: theme.primaryColor,
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
-            color: kPrimaryBlue,
+            color: theme.primaryColor,
             onPressed: () {
               _showHelpDialog();
             },
@@ -690,7 +630,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                 _buildStep2(),
                 _buildStep3(),
                 _buildStep4(),
-                _buildReviewStep(),
+                _buildReviewStep(context),
               ],
             ),
           ),
@@ -767,6 +707,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
           ),
           const SizedBox(height: 24),
           CategorySection(
+            initialCategoryId: _selectedCategory?.id,
             onCategorySelected: (category) {
               setState(() {
                 _selectedCategory = category;
@@ -779,6 +720,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
             const SizedBox(height: 32),
             SubcategorySection(
               selectedCategory: _selectedCategory!,
+              initialSubcategoryId: _selectedSubcategory?.id,
               onSubcategorySelected: (subcategory) {
                 setState(() {
                   _selectedSubcategory = subcategory;
@@ -874,7 +816,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     );
   }
 
-  Widget _buildReviewStep() {
+  Widget _buildReviewStep(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
     final originalService = widget.serviceData;
 
@@ -1059,6 +1001,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     required String title,
     required String subtitle,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1067,10 +1011,10 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: kPrimaryBlue.withOpacity(0.1),
+                color: theme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 24, color: kPrimaryBlue),
+              child: Icon(icon, size: 24, color: theme.primaryColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1079,10 +1023,10 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: kDarkTextColor,
+                      color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1090,7 +1034,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: kMutedTextColor,
+                      color: isDark ? Colors.white54 : kMutedTextColor,
                     ),
                   ),
                 ],
@@ -1108,32 +1052,34 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     required String title,
     required String description,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: kLightBackgroundColor,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 48, color: kMutedTextColor),
+          Icon(icon, size: 48, color: isDark ? Colors.white38 : kMutedTextColor),
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: kDarkTextColor,
+              color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             description,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: kMutedTextColor,
+              color: isDark ? Colors.white54 : kMutedTextColor,
             ),
           ),
         ],
@@ -1147,6 +1093,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     required String description,
     required Color color,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1173,9 +1121,9 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: kDarkTextColor,
+                    color: isDark ? Colors.white70 : kDarkTextColor,
                   ),
                 ),
               ],
@@ -1194,6 +1142,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     required bool isChanged,
     required LanguageProvider lang,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1202,7 +1152,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
             Icon(
               icon,
               size: 18,
-              color: isChanged ? kPrimaryBlue : kMutedTextColor,
+              color: isChanged ? theme.primaryColor : (isDark ? Colors.white38 : kMutedTextColor),
             ),
             const SizedBox(width: 8),
             Text(
@@ -1210,7 +1160,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: kDarkTextColor,
+                color: theme.textTheme.titleSmall?.color ?? kDarkTextColor,
               ),
             ),
             const Spacer(),
@@ -1218,14 +1168,14 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: kPrimaryBlue.withOpacity(0.1),
+                  color: theme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   lang.tr('changed', category: 'edit_service'),
                   style: TextStyle(
                     fontSize: 10,
-                    color: kPrimaryBlue,
+                    color: theme.primaryColor,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1235,7 +1185,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         const SizedBox(height: 8),
         if (isChanged)
           Padding(
-            padding: const EdgeInsets.only(left: 26),
+            padding: const EdgeInsetsDirectional.only(start: 26),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1244,7 +1194,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                       category: 'edit_service', params: {'value': original}),
                   style: TextStyle(
                     fontSize: 12,
-                    color: kMutedTextColor,
+                    color: isDark ? Colors.white38 : kMutedTextColor,
                     decoration: TextDecoration.lineThrough,
                   ),
                 ),
@@ -1252,9 +1202,9 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                 Text(
                   lang.trParams('to',
                       category: 'edit_service', params: {'value': updated}),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: kDarkTextColor,
+                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1263,12 +1213,12 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
           )
         else
           Padding(
-            padding: const EdgeInsets.only(left: 26),
+            padding: const EdgeInsetsDirectional.only(start: 26),
             child: Text(
               original,
               style: TextStyle(
                 fontSize: 14,
-                color: kDarkTextColor.withOpacity(0.8),
+                color: isDark ? Colors.white70 : kDarkTextColor.withOpacity(0.8),
               ),
             ),
           ),
@@ -1277,23 +1227,25 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
   }
 
   Widget _buildTipCard(String tip) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kPrimaryBlue.withOpacity(0.05),
+        color: theme.primaryColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kPrimaryBlue.withOpacity(0.2)),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline, color: kPrimaryBlue, size: 20),
+          Icon(Icons.lightbulb_outline, color: theme.primaryColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               tip,
               style: TextStyle(
-                color: kDarkTextColor,
+                color: isDark ? Colors.white70 : kDarkTextColor,
                 fontSize: 12,
                 height: 1.5,
               ),
@@ -1306,11 +1258,13 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
 
   void _showHelpDialog() {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(lang.tr('help_title', category: 'edit_service')),
+        backgroundColor: theme.cardColor,
+        title: Text(lang.tr('help_title', category: 'edit_service'), style: TextStyle(color: theme.textTheme.titleLarge?.color)),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -1319,22 +1273,27 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step1_title', category: 'edit_service'),
                   lang.tr('help_step1_desc', category: 'edit_service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step2_title', category: 'edit_service'),
                   lang.tr('help_step2_desc', category: 'edit_service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step3_title', category: 'edit_service'),
                   lang.tr('help_step3_desc', category: 'edit_service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step4_title', category: 'edit_service'),
                   lang.tr('help_step4_desc', category: 'edit_service'),
                 ),
                 _buildHelpItem(
+                  theme,
                   lang.tr('help_step5_title', category: 'edit_service'),
                   lang.tr('help_step5_desc', category: 'edit_service'),
                 ),
@@ -1345,14 +1304,15 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(lang.tr('got_it', category: 'edit_service')),
+            child: Text(lang.tr('got_it', category: 'edit_service'), style: TextStyle(color: theme.primaryColor)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHelpItem(String title, String description) {
+  Widget _buildHelpItem(ThemeData theme, String title, String description) {
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -1360,16 +1320,16 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
-              color: kDarkTextColor,
+              color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             description,
             style: TextStyle(
-              color: kMutedTextColor,
+              color: isDark ? Colors.white54 : kMutedTextColor,
               fontSize: 12,
             ),
           ),

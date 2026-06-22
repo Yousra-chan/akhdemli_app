@@ -124,7 +124,7 @@ class ChatViewModel extends ChangeNotifier {
       }
       return '';
     } catch (e) {
-      print('❌ Error fetching user profile image: $e');
+      debugPrint('❌ Error fetching user profile image: $e');
       return '';
     }
   }
@@ -139,7 +139,7 @@ class ChatViewModel extends ChangeNotifier {
 
       return userDoc.data();
     } catch (e) {
-      print('❌ Error fetching user data: $e');
+      debugPrint('❌ Error fetching user data: $e');
       return null;
     }
   }
@@ -156,7 +156,7 @@ class ChatViewModel extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('Error getting chat: $e');
+      debugPrint('Error getting chat: $e');
       return null;
     }
   }

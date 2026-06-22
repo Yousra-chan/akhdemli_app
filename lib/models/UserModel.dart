@@ -21,6 +21,8 @@ class UserModel {
   final Timestamp? subscriptionExpiry;
   final Timestamp? subscriptionExpiresAt;
   final bool isAdmin;
+  final bool isSuspended;
+  final bool isBanned;
   final Timestamp? fcmTokenUpdatedAt;
   final List<String> chatIds;
   final List<String> portfolio;
@@ -50,6 +52,8 @@ class UserModel {
     this.subscriptionExpiry,
     this.subscriptionExpiresAt,
     this.isAdmin = false,
+    this.isSuspended = false,
+    this.isBanned = false,
     this.fcmTokenUpdatedAt,
     this.chatIds = const [],
     this.portfolio = const [],
@@ -82,6 +86,8 @@ class UserModel {
       'fcmTokenUpdatedAt': fcmTokenUpdatedAt,
       'subscriptionExpiresAt': subscriptionExpiresAt ?? subscriptionExpiry,
       'isAdmin': isAdmin,
+      'isSuspended': isSuspended,
+      'isBanned': isBanned,
       'chatIds': chatIds,
       'portfolio': portfolio,
 
@@ -114,6 +120,10 @@ class UserModel {
       fcmTokenUpdatedAt: data['fcmTokenUpdatedAt'],
       chatIds: List<String>.from(data['chatIds'] ?? []),
       portfolio: List<String>.from(data['portfolio'] ?? []),
+
+      // Admin/Moderation fields
+      isSuspended: data['isSuspended'] ?? false,
+      isBanned: data['isBanned'] ?? false,
 
       // Location fields
       wilaya: data['wilaya'],
@@ -179,6 +189,7 @@ class UserModel {
 
   bool get isProvider => role == 'provider';
   bool get isClient => role == 'client';
+  bool get isGuest => role == 'guest';
 
   bool get hasValidSubscription {
     final expiry = subscriptionExpiresAt ?? subscriptionExpiry;

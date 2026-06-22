@@ -5,6 +5,7 @@ import 'package:service_app/Services/firestore_service.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/screens/service/edit_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/providers/theme_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
 class MyServicesPage extends StatefulWidget {
@@ -20,13 +21,15 @@ class _MyServicesPageState extends State<MyServicesPage> {
   bool _isLoading = true;
   String? _error;
 
-  // Colors matching create_service.dart
-  static const Color kPrimaryBlue = Color(0xFF2563EB);
-  static const Color kSuccessGreen = Color(0xFF059669);
-  static const Color kErrorRed = Color(0xFFDC2626);
-  static const Color kDarkTextColor = Color(0xFF1E293B);
-  static const Color kMutedTextColor = Color(0xFF64748B);
-  static const Color kLightBackgroundColor = Color(0xFFF8FAFC);
+  // Colors logic
+  Color _getPrimaryColor(BuildContext context) => Theme.of(context).primaryColor;
+  Color _getSuccessColor() => const Color(0xFF059669);
+  Color _getErrorColor() => const Color(0xFFDC2626);
+  Color _getTextColor(BuildContext context) => Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
+  Color _getMutedColor(BuildContext context) => Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? const Color(0xFF64748B);
+  Color _getBackgroundColor(BuildContext context) => Theme.of(context).scaffoldBackgroundColor;
+  Color _getCardColor(BuildContext context) => Theme.of(context).cardColor;
+  Color _getBorderColor(BuildContext context) => Theme.of(context).dividerColor;
 
   @override
   void initState() {
@@ -73,44 +76,49 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: kLightBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           lang.tr('my_services', category: 'my_services'),
-          style: const TextStyle(
-            color: kDarkTextColor,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
             fontWeight: FontWeight.w700,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kPrimaryBlue),
+          icon: Icon(Icons.arrow_back, color: theme.primaryColor),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: kPrimaryBlue),
+            icon: Icon(Icons.refresh, color: theme.primaryColor),
             onPressed: _refreshServices,
           ),
         ],
       ),
-      body: _buildMainContent(),
+      body: _buildMainContent(context),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.pushNamed(context, '/create-service');
         },
-        backgroundColor: kPrimaryBlue,
+        backgroundColor: theme.primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildMainContent() {
+  Widget _buildMainContent(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    
     return RefreshIndicator(
       onRefresh: _refreshServices,
       child: CustomScrollView(
@@ -119,7 +127,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: _buildStatsOverview(),
+              child: _buildStatsOverview(context),
             ),
           ),
 
@@ -145,7 +153,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                       Navigator.pushNamed(context, '/create-service');
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimaryBlue,
+                      backgroundColor: theme.primaryColor,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
                         vertical: 16,
@@ -167,7 +175,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                         bottom: 20,
                         top: index == 0 ? 0 : 0,
                       ),
-                      child: _buildServiceCard(_services[index]),
+                      child: _buildServiceCard(context, _services[index]),
                     );
                   },
                   childCount: _services.length,
@@ -178,8 +186,10 @@ class _MyServicesPageState extends State<MyServicesPage> {
     );
   }
 
-  Widget _buildStatsOverview() {
+  Widget _buildStatsOverview(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     int totalServices = _services.length;
     double avgRating = _calculateAverageRating();
@@ -188,12 +198,12 @@ class _MyServicesPageState extends State<MyServicesPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -203,36 +213,41 @@ class _MyServicesPageState extends State<MyServicesPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildStatItem(
+            context,
             icon: Icons.work,
             value: '$totalServices',
             label: lang.tr('services', category: 'my_services'),
-            color: kPrimaryBlue,
+            color: theme.primaryColor,
           ),
-          _buildDivider(),
+          _buildDivider(context),
           _buildStatItem(
+            context,
             icon: Icons.star,
             value: avgRating.toStringAsFixed(1),
             label: lang.tr('avg_rating', category: 'my_services'),
             color: const Color(0xFFF59E0B),
           ),
-          _buildDivider(),
+          _buildDivider(context),
           _buildStatItem(
+            context,
             icon: Icons.attach_money,
             value: '${totalEarnings.toStringAsFixed(0)} DZD',
             label: lang.tr('earnings', category: 'my_services'),
-            color: kSuccessGreen,
+            color: _getSuccessColor(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem({
+  Widget _buildStatItem(
+    BuildContext context, {
     required IconData icon,
     required String value,
     required String label,
     required Color color,
   }) {
+    final theme = Theme.of(context);
     return Expanded(
       child: Column(
         children: [
@@ -249,15 +264,15 @@ class _MyServicesPageState extends State<MyServicesPage> {
           Text(
             value,
             style: TextStyle(
-              color: kDarkTextColor,
+              color: theme.textTheme.bodyLarge?.color ?? Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(
             label,
-            style: const TextStyle(
-              color: kMutedTextColor,
+            style: TextStyle(
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey,
               fontSize: 12,
             ),
           ),
@@ -266,27 +281,29 @@ class _MyServicesPageState extends State<MyServicesPage> {
     );
   }
 
-  Widget _buildDivider() {
+  Widget _buildDivider(BuildContext context) {
     return Container(
       width: 1,
       height: 40,
-      color: Colors.grey.shade300,
+      color: Theme.of(context).dividerColor,
     );
   }
 
-  Widget _buildServiceCard(Map<String, dynamic> service) {
+  Widget _buildServiceCard(BuildContext context, Map<String, dynamic> service) {
     final lang = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () => _viewServiceDetails(service),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: theme.dividerColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -308,8 +325,8 @@ class _MyServicesPageState extends State<MyServicesPage> {
                           service['title'] ??
                               lang.tr('untitled_service',
                                   category: 'my_services'),
-                          style: const TextStyle(
-                            color: kDarkTextColor,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
@@ -343,8 +360,8 @@ class _MyServicesPageState extends State<MyServicesPage> {
                   Text(
                     service['description'] ??
                         lang.tr('no_description', category: 'my_services'),
-                    style: const TextStyle(
-                      color: kMutedTextColor,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
                       fontSize: 14,
                     ),
                     maxLines: 2,
@@ -355,7 +372,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
             ),
 
             // Divider
-            Divider(height: 1, color: Colors.grey.shade200),
+            Divider(height: 1, color: theme.dividerColor),
 
             // Service details in sections (matching create service steps)
             Padding(
@@ -364,6 +381,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                 children: [
                   // Category & Subcategory
                   _buildDetailRow(
+                    context,
                     icon: Icons.category,
                     label: lang.tr('category', category: 'my_services'),
                     value: service['category'] ??
@@ -371,6 +389,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                   ),
                   const SizedBox(height: 12),
                   _buildDetailRow(
+                    context,
                     icon: Icons.list,
                     label: lang.tr('subcategory', category: 'my_services'),
                     value: service['subcategory'] ??
@@ -380,6 +399,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
                   // Pricing
                   _buildDetailRow(
+                    context,
                     icon: Icons.attach_money,
                     label: lang.tr('price', category: 'my_services'),
                     value: service['price'] != null
@@ -397,6 +417,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
                   // Location
                   _buildDetailRow(
+                    context,
                     icon: Icons.location_on,
                     label: lang.tr('location', category: 'my_services'),
                     value: service['location'] ??
@@ -406,6 +427,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
                   // Rating
                   _buildDetailRow(
+                    context,
                     icon: Icons.star,
                     label: lang.tr('rating', category: 'my_services'),
                     value: service['rating'] != null
@@ -422,7 +444,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
@@ -434,15 +456,15 @@ class _MyServicesPageState extends State<MyServicesPage> {
                     child: OutlinedButton.icon(
                       onPressed: () => _editService(service),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: kPrimaryBlue),
+                        side: BorderSide(color: theme.primaryColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      icon: Icon(Icons.edit, size: 18, color: kPrimaryBlue),
+                      icon: Icon(Icons.edit, size: 18, color: theme.primaryColor),
                       label: Text(
                         lang.tr('edit', category: 'my_services'),
-                        style: TextStyle(color: kPrimaryBlue),
+                        style: TextStyle(color: theme.primaryColor),
                       ),
                     ),
                   ),
@@ -451,7 +473,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                     child: ElevatedButton.icon(
                       onPressed: () => _viewServiceDetails(service),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryBlue,
+                        backgroundColor: theme.primaryColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -470,15 +492,17 @@ class _MyServicesPageState extends State<MyServicesPage> {
     );
   }
 
-  Widget _buildDetailRow({
+  Widget _buildDetailRow(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: kMutedTextColor),
+        Icon(icon, size: 20, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -486,16 +510,16 @@ class _MyServicesPageState extends State<MyServicesPage> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: kMutedTextColor,
+                style: TextStyle(
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
                   fontSize: 12,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(
-                  color: kDarkTextColor,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -525,15 +549,15 @@ class _MyServicesPageState extends State<MyServicesPage> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return kSuccessGreen;
+        return _getSuccessColor();
       case 'pending':
         return const Color(0xFFF59E0B);
       case 'inactive':
-        return kMutedTextColor;
+        return _getMutedColor(context);
       case 'rejected':
-        return kErrorRed;
+        return _getErrorColor();
       default:
-        return kPrimaryBlue;
+        return _getPrimaryColor(context);
     }
   }
 
@@ -548,9 +572,9 @@ class _MyServicesPageState extends State<MyServicesPage> {
         return Consumer<LanguageProvider>(
           builder: (context, lang, child) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: _getCardColor(context),
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
@@ -571,7 +595,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                           height: 4,
                           margin: const EdgeInsets.only(bottom: 20),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
+                            color: _getBorderColor(context),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -579,10 +603,10 @@ class _MyServicesPageState extends State<MyServicesPage> {
                       Text(
                         service['title'] ??
                             lang.tr('service_details', category: 'my_services'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
-                          color: kDarkTextColor,
+                          color: _getTextColor(context),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -651,14 +675,14 @@ class _MyServicesPageState extends State<MyServicesPage> {
       children: [
         Row(
           children: [
-            Icon(icon, size: 20, color: kPrimaryBlue),
+            Icon(icon, size: 20, color: _getPrimaryColor(context)),
             const SizedBox(width: 8),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: kDarkTextColor,
+                color: _getTextColor(context),
               ),
             ),
           ],
@@ -666,9 +690,9 @@ class _MyServicesPageState extends State<MyServicesPage> {
         const SizedBox(height: 8),
         Text(
           content,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: kMutedTextColor,
+            color: _getMutedColor(context),
           ),
         ),
       ],

@@ -3,9 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'search_constants.dart';
-import 'package:service_app/services/wilaya_service.dart';
-import 'package:service_app/services/categories_service.dart';
-import 'package:service_app/services/geocoding_service.dart';
+import 'package:service_app/Services/wilaya_service.dart';
+import 'package:service_app/Services/categories_service.dart';
+import 'package:service_app/Services/geocoding_service.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:service_app/providers/language_provider.dart';
 
@@ -41,8 +41,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   // Data
   List<String> _wilayas = [];
   List<String> _communes = [];
-  Map<String, List<SubcategoryModel>> _categoriesWithSubcategories = {};
-  List<String> _categories = [];
+  List<CategoryModel> _categoryModels = [];
   List<SubcategoryModel> _availableSubcategories = [];
   bool _isLoading = true;
 
@@ -61,10 +60,9 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
       // Load wilayas
       _wilayas = WilayaService.getAllWilayaNames();
 
-      // Load categories
-      _categoriesWithSubcategories =
-          await _categoriesService.getCategoriesForFilter();
-      _categories = _categoriesWithSubcategories.keys.toList()..sort();
+      // Load categories from service
+      _categoryModels = await _categoriesService.getAllCategories();
+      _categoryModels.sort((a, b) => a.name.compareTo(b.name));
 
       // Set initial values
       _selectedWilaya = widget.initialWilaya;
@@ -99,8 +97,12 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
     }
 
     setState(() {
-      _availableSubcategories =
-          _categoriesWithSubcategories[_selectedCategory!] ?? [];
+      try {
+        final selectedCat = _categoryModels.firstWhere((c) => c.name == _selectedCategory);
+        _availableSubcategories = selectedCat.subcategories;
+      } catch (e) {
+        _availableSubcategories = [];
+      }
 
       // Reset subcategory if not in new list
       if (_selectedSubcategory != null &&
@@ -108,12 +110,6 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
         _selectedSubcategory = null;
       }
     });
-  }
-
-  // Helper method to get translation key for category
-  String _getCategoryKey(String categoryName) {
-    final option = getFilterOptionByValue(categoryName);
-    return option?.labelKey ?? '';
   }
 
   // Update this method to use GeocodingService.getWilayaCoordinates()
@@ -307,7 +303,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
             const SizedBox(height: 12),
             if (_isLoading)
               Center(child: CircularProgressIndicator(color: theme.primaryColor))
-            else if (_categories.isEmpty)
+            else if (_categoryModels.isEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -325,29 +321,26 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: _categories.map((category) {
-                  final isSelected = _selectedCategory == category;
-                  final categoryKey = _getCategoryKey(category);
+                children: _categoryModels.map((category) {
+                  final isSelected = _selectedCategory == category.name;
 
                   return FilterChip(
                     label: Text(
-                      categoryKey.isNotEmpty
-                          ? lang.tr(categoryKey, category: 'categories')
-                          : category,
+                      category.getTranslatedName(lang),
                       style: TextStyle(
                         fontFamily: 'Exo2',
                         color: isSelected ? Colors.white : theme.textTheme.bodyMedium?.color,
                       ),
                     ),
                     avatar: Icon(
-                      getCategoryIcon(category),
+                      category.icon,
                       color: isSelected ? Colors.white : theme.primaryColor,
                       size: 18,
                     ),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
-                        _selectedCategory = selected ? category : null;
+                        _selectedCategory = selected ? category.name : null;
                         _selectedSubcategory = null;
                       });
                       _updateAvailableSubcategories();
@@ -747,10 +740,12 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
     final List<String> activeFilters = [];
 
     if (_selectedCategory != null) {
-      final categoryKey = _getCategoryKey(_selectedCategory!);
-      activeFilters.add(categoryKey.isNotEmpty
-          ? lang.tr(categoryKey, category: 'categories')
-          : _selectedCategory!);
+      try {
+        final cat = _categoryModels.firstWhere((c) => c.name == _selectedCategory);
+        activeFilters.add(cat.getTranslatedName(lang));
+      } catch (e) {
+        activeFilters.add(_selectedCategory!);
+      }
     }
 
     if (_selectedWilaya != null) activeFilters.add(_selectedWilaya!);

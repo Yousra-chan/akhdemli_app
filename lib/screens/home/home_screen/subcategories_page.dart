@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui' as ui;
@@ -6,6 +5,7 @@ import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/Services/firebase_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Soft Clarity – Subcategory row palette
@@ -68,52 +68,41 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   }
 
   void _loadSubCategories() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    setState(() {
-      _subCategories = widget.selectedCategory.subcategories.isNotEmpty
-          ? widget.selectedCategory.subcategories
-          : _getDefaultSubCategories();
-      _filteredSubCategories = List.from(_subCategories);
-      _isLoading = false;
-    });
-  }
+    setState(() => _isLoading = true);
+    
+    // Check if subcategories are already provided in the category object
+    if (widget.selectedCategory.subcategories.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _subCategories = widget.selectedCategory.subcategories;
+          _filteredSubCategories = List.from(_subCategories);
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
-  List<SubcategoryModel> _getDefaultSubCategories() {
-    final lang = Provider.of<LanguageProvider>(context, listen: false);
-    return List.generate(6, (index) {
-      final names = [
-        lang.tr('basic_service', category: 'subcategories_page'),
-        lang.tr('premium_service', category: 'subcategories_page'),
-        lang.tr('emergency_service', category: 'subcategories_page'),
-        lang.tr('advanced_service', category: 'subcategories_page'),
-        lang.tr('standard_package', category: 'subcategories_page'),
-        lang.tr('custom_service', category: 'subcategories_page'),
-      ];
-      final icons = [
-        CupertinoIcons.circle_fill,
-        CupertinoIcons.star_fill,
-        CupertinoIcons.exclamationmark_triangle_fill,
-        CupertinoIcons.rocket_fill,
-        CupertinoIcons.checkmark_seal_fill,
-        CupertinoIcons.gear_alt_fill,
-      ];
-      return SubcategoryModel(
-        id: 'sub-$index',
-        name: names[index],
-        nameKey: '',
-        description: lang.trParams(
-          'service_description',
-          category: 'subcategories_page',
-          params: {
-            'category': widget.selectedCategory.getTranslatedName(lang),
-            'service': names[index].toLowerCase(),
-          },
-        ),
-        descriptionKey: '',
-        icon: icons[index],
-        iconCode: icons[index].toString(),
-      );
-    });
+    // Otherwise fetch from Firestore
+    try {
+      final subcategories = await FirebaseService.getSubcategoriesForCategory(widget.selectedCategory.id);
+      
+      if (mounted) {
+        setState(() {
+          _subCategories = subcategories;
+          _filteredSubCategories = List.from(_subCategories);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading subcategories: $e');
+      if (mounted) {
+        setState(() {
+          _subCategories = [];
+          _filteredSubCategories = [];
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _filterSubCategories(String query) {
@@ -343,9 +332,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
             // Name
             Expanded(
               child: Text(
-                subCategory.nameKey.isNotEmpty
-                    ? subCategory.getTranslatedName(lang)
-                    : subCategory.name,
+                subCategory.getTranslatedName(lang),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

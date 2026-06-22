@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:service_app/models/UserModel.dart';
@@ -146,7 +147,7 @@ class ProviderModel {
           }
         }
       } catch (e) {
-        print('Error fetching service images: $e');
+        debugPrint('Error fetching service images: $e');
       }
     }
 

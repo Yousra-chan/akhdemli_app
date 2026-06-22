@@ -7,6 +7,7 @@ import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/screens/chat/chat_screen.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:service_app/screens/home/providers_list/provider_card.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
@@ -84,13 +85,22 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
       return;
     }
 
-    final chatViewModel = ChatViewModel(userId: currentUserId);
+    final chatViewModel = Provider.of<ChatViewModel?>(context, listen: false);
+
+    if (chatViewModel == null) {
+      AppSnackBar.showError(
+        context,
+        languageProvider.tr('chat_service_unavailable',
+            category: 'providers_list_page'),
+      );
+      return;
+    }
 
     try {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Center(
+        builder: (context) => const Center(
           child: CircularProgressIndicator(),
         ),
       );
@@ -178,8 +188,12 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
       Query servicesQuery = FirebaseFirestore.instance
           .collection('services')
           .where('category', isEqualTo: widget.categoryName)
-          .where('subcategory', isEqualTo: widget.subCategoryName)
           .where('isActive', isEqualTo: true);
+
+      // Only filter by subcategory if it's provided and not empty
+      if (widget.subCategoryName.isNotEmpty) {
+        servicesQuery = servicesQuery.where('subcategory', isEqualTo: widget.subCategoryName);
+      }
 
       final servicesSnapshot = await servicesQuery.get();
       print(
@@ -300,11 +314,13 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
   void _showRatingFilter() {
     final languageProvider =
         Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.all(Radius.circular(20)),
       ),
       builder: (context) {
         return Directionality(
@@ -319,10 +335,11 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                 Text(
                   languageProvider.tr('filter_by_rating',
                       category: 'providers_list_page'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Exo2',
+                    color: theme.textTheme.titleLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -353,8 +370,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                                 ? FontWeight.w600
                                 : FontWeight.normal,
                             color: filter == _selectedRatingFilter
-                                ? Theme.of(context).primaryColor
-                                : Colors.black87,
+                                ? theme.primaryColor
+                                : theme.textTheme.bodyLarge?.color,
                             fontFamily: 'Exo2',
                           ),
                         ),
@@ -363,7 +380,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                     trailing: filter == _selectedRatingFilter
                         ? Icon(
                             Icons.check_rounded,
-                            color: Theme.of(context).primaryColor,
+                            color: theme.primaryColor,
                           )
                         : null,
                     onTap: () {
@@ -381,6 +398,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -402,40 +421,57 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
     );
   }
 
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      if (mounted) {
+        AppSnackBar.showError(context, 'Could not launch call');
+      }
+    }
+  }
+
+  Future<void> _openWhatsApp(String phoneNumber) async {
+    // Remove any non-numeric characters from the phone number
+    final cleanPhone = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final url = "https://wa.me/$cleanPhone";
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        AppSnackBar.showError(context, 'Could not launch WhatsApp');
+      }
+    }
+  }
+
   Widget _buildProviderCard(ProviderModel provider) {
     return ProviderCard(
       provider: provider,
       onMessageTap: (provider) {
-        // Handle message action - navigate to chat page
         _navigateToChatWithProvider(context, provider);
       },
       onCallTap: (provider) {
-        // Handle call action
-        final languageProvider =
-            Provider.of<LanguageProvider>(context, listen: false);
-        print('Call ${provider.name}');
-        AppSnackBar.showSuccess(
-          context,
-          languageProvider.trParams(
-            'calling',
-            category: 'providers_list_page',
-            params: {'name': provider.name},
-          ),
-        );
+        _makePhoneCall(provider.phone);
       },
-      onChatTap: (provider) {
-        // Handle chat action - navigate to chat page
-        _navigateToChatWithProvider(context, provider);
+      onWhatsAppTap: (provider) {
+        _openWhatsApp(provider.phone);
       },
     );
   }
 
   Widget _buildFilterChips() {
     final languageProvider = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.grey[50],
+      color: isDark ? theme.cardColor : Colors.grey[50],
       child: Row(
         children: [
           // Rating Filter Chip
@@ -459,8 +495,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                   style: TextStyle(
                     fontSize: 14,
                     color: _selectedRatingFilter == 'all'
-                        ? Colors.grey[700]
-                        : Colors.amber.shade800,
+                        ? (isDark ? Colors.white70 : Colors.grey[700])
+                        : (isDark ? Colors.amber[200] : Colors.amber.shade800),
                     fontFamily: 'Exo2',
                   ),
                 ),
@@ -468,14 +504,14 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
             ),
             selected: _selectedRatingFilter != 'all',
             onSelected: (_) => _showRatingFilter(),
-            backgroundColor: Colors.white,
-            selectedColor: Colors.amber.shade50,
+            backgroundColor: isDark ? theme.scaffoldBackgroundColor : Colors.white,
+            selectedColor: isDark ? Colors.amber.withOpacity(0.2) : Colors.amber.shade50,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
               side: BorderSide(
                 color: _selectedRatingFilter == 'all'
-                    ? Colors.grey.shade300
-                    : Colors.amber.shade200,
+                    ? (isDark ? Colors.white10 : Colors.grey.shade300)
+                    : (isDark ? Colors.amber.withOpacity(0.5) : Colors.amber.shade200),
               ),
             ),
           ),
@@ -487,9 +523,9 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
               category: 'providers_list_page',
               params: {'count': _filteredProviders.length.toString()},
             ),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Colors.grey,
+              color: isDark ? Colors.white38 : Colors.grey,
               fontFamily: 'Exo2',
             ),
           ),
@@ -500,6 +536,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
 
   Widget _buildEmptyState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
 
     return EmptyStateWidget(
       icon: Icons.star_outline_rounded,
@@ -510,6 +547,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
       action: ElevatedButton(
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          backgroundColor: theme.primaryColor,
+          foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -543,21 +582,24 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.subCategoryName,
+                    widget.subCategoryName.isNotEmpty 
+                        ? widget.subCategoryName 
+                        : widget.categoryName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Exo2',
                     ),
                   ),
-                  Text(
-                    widget.categoryName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontFamily: 'Exo2',
+                  if (widget.subCategoryName.isNotEmpty)
+                    Text(
+                      widget.categoryName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontFamily: 'Exo2',
+                      ),
                     ),
-                  ),
                 ],
               ),
               actions: [

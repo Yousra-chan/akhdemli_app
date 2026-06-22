@@ -10,14 +10,13 @@ import 'package:service_app/ViewModel/search_view_model.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 import 'package:service_app/screens/profile/provider_profile/provider_profile_page.dart';
 import 'package:service_app/screens/search/search_filter_dialog.dart';
+import 'search_constants.dart';
 import 'package:service_app/models/ProviderModel.dart';
-import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/providers/language_provider.dart';
-import 'package:service_app/services/wilaya_service.dart';
-import 'package:service_app/services/categories_service.dart';
-import 'package:service_app/services/location_service.dart';
-import 'package:service_app/services/geocoding_service.dart';
+import 'package:service_app/Services/location_service.dart';
+import 'package:service_app/Services/geocoding_service.dart';
 import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:latlong2/latlong.dart';
 
 // Modern Color Palette
@@ -54,7 +53,6 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   late SearchViewModel _searchViewModel;
 
-  final CategoriesService _categoriesService = CategoriesService();
   final LocationService _locationService = LocationService();
 
   Map<String, dynamic> _currentFilters = {};
@@ -935,39 +933,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
   }
 
   Color _getProfessionColor(String profession) {
-    final p = profession.toLowerCase();
-    if (p.contains('électr') || p.contains('electric')) {
-      return const Color(0xFFFFB74D);
-    }
-    if (p.contains('médec') || p.contains('doctor')) {
-      return const Color(0xFFEF5350);
-    }
-    if (p.contains('plomb') || p.contains('plumb')) {
-      return const Color(0xFF42A5F5);
-    }
-    if (p.contains('profess') || p.contains('teacher') || p.contains('tutor')) {
-      return const Color(0xFF66BB6A);
-    }
-    if (p.contains('menuis') || p.contains('carpent')) {
-      return const Color(0xFF8D6E63);
-    }
-    if (p.contains('peint') || p.contains('paint')) {
-      return const Color(0xFFAB47BC);
-    }
-    if (p.contains('jardin') || p.contains('garden')) {
-      return const Color(0xFF9CCC65);
-    }
-    if (p.contains('déménag') || p.contains('move')) {
-      return const Color(0xFFFF7043);
-    }
-    if (p.contains('nettoy') || p.contains('clean')) {
-      return const Color(0xFF29B6F6);
-    }
-    if (p.contains('répar') || p.contains('repair') || p.contains('handyman')) {
-      return const Color(0xFFFFA726);
-    }
-    if (p.contains('install')) return const Color(0xFF26C6DA);
-    return kPrimaryColor;
+    return getMarkerColorForCategory(profession);
   }
 
   String _getProfessionInitial(String profession) =>
@@ -981,16 +947,19 @@ class _MapSearchPageState extends State<MapSearchPage> {
     final categoryName = _currentFilters['category'] ?? '';
     final distance = _currentFilters['maxDistance'] ?? 20;
 
+    // Use simple translation helper since we can't await here
     String category = categoryName;
     if (categoryName.isNotEmpty) {
-      category = _categoriesService.getCategoryByName(categoryName)?.getTranslatedName(lp) ?? categoryName;
+      category = getTranslatedCategoryName(categoryName, lp);
     }
 
+    final km = lp.tr('unit_km', category: 'search');
+
     if (category.isNotEmpty && wilaya.isNotEmpty) {
-      return '$category • $wilaya • ${distance.toInt()}km';
+      return '$category • $wilaya • ${distance.toInt()}$km';
     }
-    if (wilaya.isNotEmpty) return '$wilaya • ${distance.toInt()}km';
-    if (category.isNotEmpty) return '$category • ${distance.toInt()}km';
+    if (wilaya.isNotEmpty) return '$wilaya • ${distance.toInt()}$km';
+    if (category.isNotEmpty) return '$category • ${distance.toInt()}$km';
     return lp.trParams('active_filters',
         category: 'search',
         params: {'distance': distance.toInt().toString()});

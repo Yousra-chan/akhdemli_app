@@ -414,7 +414,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _initialize() {
-    _chatViewModel = ChatViewModel(userId: widget.userId);
+    _chatViewModel = Provider.of<ChatViewModel>(context, listen: false);
     _setupChatStream();
     _startAutoRefresh();
   }
@@ -424,7 +424,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     _chatSubscription = _chatViewModel.userChatsStream.listen(
       _handleChatsUpdate,
       onError: (error) {
-        print('❌ Chat stream error: $error');
+        debugPrint('❌ Chat stream error: $error');
         if (mounted) {
           final languageProvider =
           Provider.of<LanguageProvider>(context, listen: false);
@@ -448,7 +448,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
       _preloadProfileImages(chats);
     } catch (e) {
-      print('❌ Error handling chats update: $e');
+      debugPrint('❌ Error handling chats update: $e');
     }
   }
 
@@ -506,7 +506,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _setupChatStream();
       _chatViewModel.updateUser(widget.userId);
     } catch (e) {
-      print('❌ Refresh error: $e');
+      debugPrint('❌ Refresh error: $e');
       if (mounted) {
         final languageProvider =
         Provider.of<LanguageProvider>(context, listen: false);
@@ -1221,7 +1221,7 @@ class _SearchModalState extends State<_SearchModal> {
           });
         },
         onError: (error) {
-          print('❌ Error loading chats: $error');
+          debugPrint('❌ Error loading chats: $error');
         },
       );
 
@@ -1229,7 +1229,7 @@ class _SearchModalState extends State<_SearchModal> {
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ Error loading search data: $e');
+      debugPrint('❌ Error loading search data: $e');
       setState(() => _isLoading = false);
     }
   }

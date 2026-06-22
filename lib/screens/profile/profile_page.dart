@@ -84,7 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
     } catch (e) {
-      print('Error loading user stats: $e');
+      debugPrint('Error loading user stats: $e');
       // Fallback to user model data
       if (mounted) {
         setState(() {
@@ -752,7 +752,9 @@ class _ProfilePageState extends State<ProfilePage> {
         languageProvider.tr('switchRole', category: 'common');
     final String tapToChangeText =
         languageProvider.tr('tapToChangeRole', category: 'common');
-    final String targetRole = user.isProvider ? 'Client' : 'Provider';
+    final String targetRole = user.isProvider
+        ? languageProvider.tr('client', category: 'common')
+        : languageProvider.tr('provider', category: 'common');
 
     return Container(
       width: double.infinity,
@@ -853,8 +855,8 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showRoleSwitchDialog(BuildContext context, UserModel user,
       AuthViewModel authViewModel, LanguageProvider languageProvider) {
     final String newRole = user.isProvider ? 'client' : 'provider';
-    final String currentRole = user.role.toUpperCase();
-    final String targetRole = newRole.toUpperCase();
+    final String currentRole = languageProvider.tr(user.role.toLowerCase(), category: 'common');
+    final String targetRole = languageProvider.tr(newRole, category: 'common');
 
     final String title =
         languageProvider.tr('switchRoleQuestion', category: 'common');

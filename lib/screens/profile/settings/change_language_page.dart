@@ -14,26 +14,28 @@ class LanguagePage extends StatefulWidget {
 class _LanguagePageState extends State<LanguagePage> {
   bool _isLoading = false;
 
-  final List<Map<String, String>> _languages = [
-    {
-      'code': 'en',
-      'name': 'English',
-      'nativeName': 'English',
-      'flag': '🇺🇸',
-    },
-    {
-      'code': 'fr',
-      'name': 'French',
-      'nativeName': 'Français',
-      'flag': '🇫🇷',
-    },
-    {
-      'code': 'ar',
-      'name': 'Arabic',
-      'nativeName': 'العربية',
-      'flag': '🇩🇿',
-    },
-  ];
+  List<Map<String, String>> _getLanguages(LanguageProvider lp) {
+    return [
+      {
+        'code': 'en',
+        'name': lp.tr('english', category: 'language'),
+        'nativeName': lp.tr('native_english', category: 'language'),
+        'flag': '🇺🇸',
+      },
+      {
+        'code': 'fr',
+        'name': lp.tr('french', category: 'language'),
+        'nativeName': lp.tr('native_french', category: 'language'),
+        'flag': '🇫🇷',
+      },
+      {
+        'code': 'ar',
+        'name': lp.tr('arabic', category: 'language'),
+        'nativeName': lp.tr('native_arabic', category: 'language'),
+        'flag': '🇩🇿',
+      },
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +45,7 @@ class _LanguagePageState extends State<LanguagePage> {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         final currentLocale = languageProvider.locale.languageCode;
+        final languages = _getLanguages(languageProvider);
 
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
@@ -61,7 +64,7 @@ class _LanguagePageState extends State<LanguagePage> {
                       )
                     : ListView(
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        children: _languages.map((language) {
+                        children: languages.map((language) {
                           final isSelected = currentLocale == language['code'];
 
                           return Container(

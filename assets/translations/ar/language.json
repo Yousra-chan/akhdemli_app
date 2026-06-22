@@ -3,5 +3,8 @@
   "english": "English",
   "french": "Français",
   "arabic": "العربية",
+  "native_english": "English",
+  "native_french": "Français",
+  "native_arabic": "العربية",
   "language_changed_success": "تم تحديث اللغة بنجاح!"
 }

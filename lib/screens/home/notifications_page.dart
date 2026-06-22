@@ -107,7 +107,7 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         _streamController.add(notifications);
       }
     } catch (e) {
-      print('❌ Error loading notifications: $e');
+      debugPrint('❌ Error loading notifications: $e');
       if (mounted) {
         _streamController.add([]);
       }
@@ -282,7 +282,7 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         );
       }
     } catch (e) {
-      print('❌ Error in _markAllAsRead: $e');
+      debugPrint('❌ Error in _markAllAsRead: $e');
       if (mounted) {
         AppSnackBar.showError(
           context,
@@ -297,13 +297,13 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         .collection('notifications')
         .doc(id)
         .update({'isRead': true}).then((_) {
-      print('✅ Marked notification $id as read');
+      debugPrint('✅ Marked notification $id as read');
       _loadNotifications();
-    }).catchError((e) => print('❌ Error updating notification: $e'));
+    }).catchError((e) => debugPrint('❌ Error updating notification: $e'));
   }
 
   void _handleNotificationTap(HomeNotificationItem notification) async {
-    print('👆 Notification tapped: ${notification.id}');
+    debugPrint('👆 Notification tapped: ${notification.id}');
 
     if (!notification.isRead) {
       try {
@@ -314,9 +314,9 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
           'read': true,
           'readAt': FieldValue.serverTimestamp(),
         });
-        print('✅ Marked notification ${notification.id} as read');
+        debugPrint('✅ Marked notification ${notification.id} as read');
       } catch (e) {
-        print('❌ Error marking notification as read: $e');
+        debugPrint('❌ Error marking notification as read: $e');
       }
     }
 
@@ -945,7 +945,9 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
         context,
         MaterialPageRoute(
           builder: (context) => DiscussionPage(
-            contactName: notification.senderName ?? 'Chat',
+            contactName: notification.senderName ?? 
+                Provider.of<LanguageProvider>(context, listen: false)
+                    .tr('chat', category: 'notifications'),
             isOnline: true,
             chatId: notification.chatId!,
             currentUserId: _currentUserId!,

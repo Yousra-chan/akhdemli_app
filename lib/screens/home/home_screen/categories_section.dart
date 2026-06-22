@@ -176,7 +176,7 @@ class CategoriesPage extends StatelessWidget {
             // Name
             Expanded(
               child: Text(
-                category.name,
+                category.getTranslatedName(lang),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

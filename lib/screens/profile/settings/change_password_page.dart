@@ -39,8 +39,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     setState(() => _isLoading = true);
 
     try {
+      final lang = Provider.of<LanguageProvider>(context, listen: false);
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not authenticated');
+      if (user == null) throw Exception(lang.tr('user_not_authenticated', category: 'profile'));
 
       final credential = EmailAuthProvider.credential(
         email: user.email!,

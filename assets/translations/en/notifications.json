@@ -9,8 +9,8 @@
   "just_now": "Just now",
   "minutes_ago": "{{minutes}}m ago",
   "hours_ago": "{{hours}}h ago",
-  "days_ago": "{{day}}d ago",
-  "weeks_ago": "{{week}}w ago",
+  "days_ago": "{{days}}d ago",
+  "weeks_ago": "{{weeks}}w ago",
   "unknown_user": "Unknown User",
   "booking_status_accepted": "ACCEPTED",
   "booking_status_rejected": "REJECTED",
@@ -42,5 +42,6 @@
   "view_bookings": "View Bookings",
   "all_marked_read": "All notifications marked as read",
   "error_mark_read": "Error marking notifications as read",
-  "success_language_changed": "✅ Language changed"
+  "success_language_changed": "✅ Language changed",
+  "chat": "Chat"
 }

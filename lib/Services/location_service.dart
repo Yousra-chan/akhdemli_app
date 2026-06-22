@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -20,7 +21,7 @@ class LocationService {
     try {
       return await Geolocator.isLocationServiceEnabled();
     } catch (e) {
-      print('Error checking location service status: $e');
+      debugPrint('Error checking location service status: $e');
       return false;
     }
   }
@@ -37,13 +38,13 @@ class LocationService {
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
-      print('Current location permission: $permission');
+      debugPrint('Current location permission: $permission');
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        print('Requesting location permission...');
+        debugPrint('Requesting location permission...');
         permission = await Geolocator.requestPermission();
-        print('Permission request result: $permission');
+        debugPrint('Permission request result: $permission');
       }
 
       final bool hasPermission =
@@ -61,7 +62,7 @@ class LocationService {
     } on LocationException {
       rethrow;
     } catch (e) {
-      print('Unexpected error in checkPermission: $e');
+      debugPrint('Unexpected error in checkPermission: $e');
       throw LocationException(
         'Unable to check location permissions. Please try again.',
         code: 'PERMISSION_CHECK_FAILED',
@@ -72,15 +73,15 @@ class LocationService {
   /// Get current location (latitude & longitude) with timeout and error handling
   Future<Position?> getCurrentLocation() async {
     try {
-      print('Starting location fetch...');
+      debugPrint('Starting location fetch...');
 
       bool hasPermission = await checkPermission();
       if (!hasPermission) {
-        print('Location permission not granted');
+        debugPrint('Location permission not granted');
         return null;
       }
 
-      print('Fetching current position...');
+      debugPrint('Fetching current position...');
       final Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       ).timeout(
@@ -93,14 +94,14 @@ class LocationService {
         },
       );
 
-      print(
+      debugPrint(
         'Location fetched successfully: ${position.latitude}, ${position.longitude}',
       );
       return position;
     } on LocationException {
       rethrow;
     } on Exception catch (e) {
-      print('Error getting current location: $e');
+      debugPrint('Error getting current location: $e');
       throw LocationException(
         'Failed to get current location. Please ensure location services are enabled.',
         code: 'LOCATION_FETCH_FAILED',
@@ -111,7 +112,7 @@ class LocationService {
   /// Get formatted address from latitude & longitude with better formatting
   Future<String> getAddressFromCoordinates(double lat, double lng) async {
     try {
-      print('Fetching address for coordinates: $lat, $lng');
+      debugPrint('Fetching address for coordinates: $lat, $lng');
 
       List<Placemark> placemarks = await placemarkFromCoordinates(
         lat,
@@ -127,19 +128,19 @@ class LocationService {
       );
 
       if (placemarks.isEmpty) {
-        print('No address found for coordinates: $lat, $lng');
+        debugPrint('No address found for coordinates: $lat, $lng');
         return _getFallbackAddress(lat, lng);
       }
 
       final placemark = placemarks.first;
       final String formattedAddress = _formatAddress(placemark);
 
-      print('Address found: $formattedAddress');
+      debugPrint('Address found: $formattedAddress');
       return formattedAddress;
     } on LocationException {
       rethrow;
     } catch (e) {
-      print('Error getting address from coordinates: $e');
+      debugPrint('Error getting address from coordinates: $e');
       return _getFallbackAddress(lat, lng);
     }
   }
@@ -177,7 +178,7 @@ class LocationService {
 
     // Fallback if no address parts found
     if (parts.isEmpty) {
-      return 'Unknown Location';
+      return 'unknown_location';
     }
 
     return parts.join(', ');
@@ -185,17 +186,17 @@ class LocationService {
 
   /// Fallback address when geocoding fails
   String _getFallbackAddress(double lat, double lng) {
-    return 'Location: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+    return 'location_coords'; // Plus params handled in UI
   }
 
   /// Helper method to get current address directly (simplifies UI usage)
   Future<String?> getCurrentAddress() async {
     try {
-      print('Getting current address...');
+      debugPrint('Getting current address...');
       final Position? position = await getCurrentLocation();
 
       if (position == null) {
-        print('No position available for address lookup');
+        debugPrint('No position available for address lookup');
         return null;
       }
 
@@ -204,14 +205,14 @@ class LocationService {
         position.longitude,
       );
 
-      print('Current address resolved: $address');
+      debugPrint('Current address resolved: $address');
       return address;
     } on LocationException catch (e) {
-      print('Error getting current address: ${e.message}');
-      return 'Unable to determine address: ${e.message}';
+      debugPrint('Error getting current address: ${e.message}');
+      return 'error_determine_address';
     } catch (e) {
-      print('Unexpected error in getCurrentAddress: $e');
-      return 'Unable to determine current address';
+      debugPrint('Unexpected error in getCurrentAddress: $e');
+      return 'error_determine_address';
     }
   }
 
@@ -226,7 +227,7 @@ class LocationService {
         distanceFilter: distanceFilter,
       ),
     ).handleError((error) {
-      print('Error in location stream: $error');
+      debugPrint('Error in location stream: $error');
       throw LocationException(
         'Failed to track location changes',
         code: 'STREAM_ERROR',
@@ -249,10 +250,10 @@ class LocationService {
         endLng,
       );
 
-      print('Distance calculated: ${distance.toStringAsFixed(2)} meters');
+      debugPrint('Distance calculated: ${distance.toStringAsFixed(2)} meters');
       return distance;
     } catch (e) {
-      print('Error calculating distance: $e');
+      debugPrint('Error calculating distance: $e');
       throw LocationException(
         'Failed to calculate distance between locations',
         code: 'DISTANCE_CALCULATION_FAILED',
@@ -265,7 +266,7 @@ class LocationService {
     try {
       return await Geolocator.getLocationAccuracy();
     } catch (e) {
-      print('Error getting location accuracy: $e');
+      debugPrint('Error getting location accuracy: $e');
       throw LocationException(
         'Unable to determine location accuracy',
         code: 'ACCURACY_CHECK_FAILED',
@@ -281,7 +282,7 @@ class LocationService {
     } on LocationException {
       return false;
     } catch (e) {
-      print('Error checking precise location: $e');
+      debugPrint('Error checking precise location: $e');
       return false;
     }
   }
@@ -289,26 +290,26 @@ class LocationService {
   /// Debug method to log location status
   Future<void> debugLocationStatus() async {
     try {
-      print('=== Location Service Debug ===');
-      print('Location service enabled: ${await isLocationServiceEnabled()}');
-      print('Location permission: ${await Geolocator.checkPermission()}');
-      print('Has precise location: ${await hasPreciseLocation()}');
+      debugPrint('=== Location Service Debug ===');
+      debugPrint('Location service enabled: ${await isLocationServiceEnabled()}');
+      debugPrint('Location permission: ${await Geolocator.checkPermission()}');
+      debugPrint('Has precise location: ${await hasPreciseLocation()}');
 
       final Position? position = await getCurrentLocation();
       if (position != null) {
-        print('Current position: ${position.latitude}, ${position.longitude}');
-        print('Accuracy: ${position.accuracy} meters');
+        debugPrint('Current position: ${position.latitude}, ${position.longitude}');
+        debugPrint('Accuracy: ${position.accuracy} meters');
         final address = await getAddressFromCoordinates(
           position.latitude,
           position.longitude,
         );
-        print('Current address: $address');
+        debugPrint('Current address: $address');
       } else {
-        print('No current position available');
+        debugPrint('No current position available');
       }
-      print('=== End Debug ===');
+      debugPrint('=== End Debug ===');
     } catch (e) {
-      print('Debug error: $e');
+      debugPrint('Debug error: $e');
     }
   }
 }

@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:817258417031:android:d7e7cac765a34d23a8e122",
+        "mobilesdk_app_id": "1:817258417031:android:bbac1cb556bec7b1a8e122",
         "android_client_info": {
-          "package_name": "com.example.service_app"
+          "package_name": "com.akhdemli.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDpVj8RFZGZKr7XodUdbOPvan7dufaK0w4"
@@ -20,7 +25,49 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:817258417031:android:d7e7cac765a34d23a8e122",
+        "android_client_info": {
+          "package_name": "com.example.service_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "817258417031-5fjpl6p1klv1n9uuekn8334nhhjl0fqf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.service_app",
+            "certificate_hash": "cb927372f38aabdf4b0fa720683d43d5fa1d36ff"
+          }
+        },
+        {
+          "client_id": "817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpVj8RFZGZKr7XodUdbOPvan7dufaK0w4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -8,8 +8,7 @@ import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/home/home_screen/create_service_button.dart';
-import 'package:service_app/screens/home/home_screen/subcategories_page.dart';
-import 'package:service_app/services/firebase_service.dart';
+import 'package:service_app/Services/firebase_service.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/screens/service/create_service.dart';
@@ -34,12 +33,16 @@ class _HomePageState extends State<HomePage>
   UserModel? _currentUser;
   int _notificationCount = 0;
   List<CategoryModel> _categories = [];
+  CategoryModel? _selectedCategory;
+  List<SubcategoryModel> _subcategories = [];
 
   bool _isLoadingCategories = true;
+  bool _isLoadingSubcategories = false;
 
   StreamSubscription? _notificationCountSubscription;
   StreamSubscription? _userDataSubscription;
   StreamSubscription? _categoriesSubscription;
+  StreamSubscription? _subcategoriesSubscription;
 
   @override
   void initState() {
@@ -98,14 +101,13 @@ class _HomePageState extends State<HomePage>
   void _handleCategoriesLoaded(List<CategoryModel> categories) {
     if (!mounted) return;
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _categories = categories.isNotEmpty
-              ? categories
-              : CategoryModel.defaultCategories;
-          _isLoadingCategories = false;
-        });
+    setState(() {
+      _categories = categories;
+      _isLoadingCategories = false;
+      
+      // Auto-select first category if none selected, but DON'T navigate
+      if (_selectedCategory == null && _categories.isNotEmpty) {
+        _onCategorySelected(_categories.first, isAutoSelect: true);
       }
     });
   }
@@ -113,14 +115,9 @@ class _HomePageState extends State<HomePage>
   void _handleCategoriesError(Object error) {
     debugPrint('Error loading categories: $error');
     if (!mounted) return;
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _categories = CategoryModel.defaultCategories;
-          _isLoadingCategories = false;
-        });
-      }
+    setState(() {
+      _categories = [];
+      _isLoadingCategories = false;
     });
   }
 
@@ -148,18 +145,178 @@ class _HomePageState extends State<HomePage>
     setState(() => _notificationCount = 0);
   }
 
-  // Navigation Methods
-  void _onCategorySelected(CategoryModel category) {
-    HapticFeedback.lightImpact();
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
+  void _onCategorySelected(CategoryModel category, {bool isAutoSelect = false}) async {
+    if (_isLoadingSubcategories) return;
 
+    // We still update the UI selection for the horizontal list
+    setState(() {
+      _selectedCategory = category;
+    });
+
+    if (isAutoSelect) {
+      // For auto-selection on init, we just load subcategories into the background/grid
+      _loadSubcategoriesInBackground(category.id);
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+    
+    // Show a small loading overlay or indicator while checking subcategories
+    setState(() => _isLoadingSubcategories = true);
+
+    try {
+      final subs = await FirebaseService.getSubcategoriesForCategory(category.id);
+      
+      if (!mounted) return;
+      setState(() => _isLoadingSubcategories = false);
+
+      if (subs.isEmpty) {
+        // CASE 2: No subcategories -> Immediate navigation
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProvidersListPage(
+              categoryName: category.name,
+              subCategoryName: '',
+            ),
+          ),
+        );
+      } else {
+        // CASE 1: Subcategories exist -> Show modern selection picker
+        _showSubcategoryPicker(category, subs);
+      }
+    } catch (e) {
+      debugPrint('Error handling category selection: $e');
+      if (mounted) setState(() => _isLoadingSubcategories = false);
+    }
+  }
+
+  void _loadSubcategoriesInBackground(String categoryId) {
+    _subcategoriesSubscription?.cancel();
+    _subcategoriesSubscription = FirebaseService.getSubCategories(categoryId).listen((subs) {
+      if (mounted) {
+        setState(() {
+          _subcategories = subs;
+        });
+      }
+    });
+  }
+
+  void _showSubcategoryPicker(CategoryModel category, List<SubcategoryModel> subs) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          children: [
+            // Handle Bar
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: getColorForCategory(category.name, 0).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(category.icon, color: getColorForCategory(category.name, 0)),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category.getTranslatedName(languageProvider),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                        Text(
+                          languageProvider.tr('choose_subcategory_desc', category: 'home_page'),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            
+            const Divider(height: 1),
+            
+            // Subcategories Grid
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.1,
+                ),
+                itemCount: subs.length,
+                itemBuilder: (context, index) {
+                  final sub = subs[index];
+                  return _UnifiedServiceCard(
+                    title: sub.getTranslatedName(languageProvider),
+                    icon: sub.icon,
+                    isSelected: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _onSubcategorySelected(sub);
+                    },
+                    color: theme.primaryColor,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onSubcategorySelected(SubcategoryModel subcategory) {
+    if (_selectedCategory == null) return;
+    HapticFeedback.lightImpact();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SubcategoriesPage(
-          selectedCategory: category,
-          onBackPressed: () => Navigator.pop(context),
+        builder: (_) => ProvidersListPage(
+          categoryName: _selectedCategory!.name,
+          subCategoryName: subcategory.name,
         ),
       ),
     );
@@ -180,47 +337,18 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  void _navigateToAllProviders() {
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProvidersListPage(
-          categoryName:
-              languageProvider.tr('all_categories', category: 'home_page'),
-          subCategoryName:
-              languageProvider.tr('all_services', category: 'home_page'),
-        ),
-      ),
-    );
-  }
-
-  void _showSearchResults() {
-    final languageProvider =
-        Provider.of<LanguageProvider>(context, listen: false);
-
-    if (_searchQuery.isEmpty) {
-      _navigateToAllProviders();
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProvidersListPage(
-          categoryName:
-              languageProvider.tr('search_results', category: 'home_page'),
-          subCategoryName: _searchQuery,
-        ),
-      ),
-    );
-  }
-
   void _showNotifications() => showNotificationsWindow(context);
 
-  void _onSearchChanged(String value) => setState(() => _searchQuery = value);
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _searchController.dispose();
+    _notificationCountSubscription?.cancel();
+    _userDataSubscription?.cancel();
+    _categoriesSubscription?.cancel();
+    _subcategoriesSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -241,9 +369,17 @@ class _HomePageState extends State<HomePage>
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildCategoriesSection(languageProvider),
-                          const SizedBox(height: 80),
+                          _buildSectionTitle(languageProvider.tr('categories', category: 'home_page')),
+                          _buildCategoriesHorizontal(languageProvider),
+                          
+                          const SizedBox(height: 24),
+                          
+
+
+                          
+                          const SizedBox(height: 100),
                         ],
                       ),
                     ),
@@ -270,7 +406,7 @@ class _HomePageState extends State<HomePage>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -294,41 +430,36 @@ class _HomePageState extends State<HomePage>
           ),
         ],
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greeting,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        fontFamily: 'Exo2',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      lang.tr('find_service_providers', category: 'home_page'),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                        fontFamily: 'Exo2',
-                      ),
-                    ),
-                  ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Exo2',
+                  ),
                 ),
-              ),
-              _buildNotificationIcon(),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  lang.tr('find_service_providers', category: 'home_page'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontFamily: 'Exo2',
+                  ),
+                ),
+              ],
+            ),
           ),
+          _buildNotificationIcon(),
         ],
       ),
     );
@@ -346,7 +477,7 @@ class _HomePageState extends State<HomePage>
           ),
           child: IconButton(
             onPressed: _showNotifications,
-            icon: Icon(
+            icon: const Icon(
               Icons.notifications_outlined,
               color: Colors.white,
               size: 22,
@@ -381,119 +512,161 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildCategoriesSection(LanguageProvider lang) {
+  Widget _buildSectionTitle(String title) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            lang.tr('categories', category: 'home_page'),
-            style: TextStyle(
-              color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Exo2',
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_isLoadingCategories)
-            const LoadingWidget()
-          else if (_categories.isEmpty)
-            EmptyStateWidget(
-              icon: Icons.category_outlined,
-              message: lang.tr('no_services_available', category: 'home_page'),
-            )
-          else
-            _buildCategoriesGrid(lang),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoriesGrid(LanguageProvider lang) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
-        childAspectRatio: 0.9,
-      ),
-      itemCount: _categories.length,
-      itemBuilder: (context, index) =>
-          _buildCategoryItem(_categories[index], index, lang),
-    );
-  }
-
-  Widget _buildCategoryItem(
-      CategoryModel category, int index, LanguageProvider lang) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: () => _onCategorySelected(category),
-      child: Container(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: _getCategoryColors(index),
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(category.icon, color: Colors.white, size: 32),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              getTranslatedCategoryName(category.name, lang),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: theme.textTheme.bodyMedium?.color ?? kDarkTextColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Exo2',
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          fontFamily: 'Exo2',
+          letterSpacing: -0.5,
         ),
       ),
     );
   }
 
-  List<Color> _getCategoryColors(int index) {
-    const colorSchemes = [
-      [Color(0xFF667EEA), Color(0xFF764BA2)],
-      [Color(0xFF4FACFE), Color(0xFF00F2FE)],
-      [Color(0xFF43E97B), Color(0xFF38F9D7)],
-      [Color(0xFFFA709A), Color(0xFFFEE140)],
-      [Color(0xFFF093FB), Color(0xFFF5576C)],
-    ];
-    return colorSchemes[index % colorSchemes.length];
+  Widget _buildCategoriesHorizontal(LanguageProvider lang) {
+    if (_isLoadingCategories) {
+      return const SizedBox(
+        height: 120,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (_categories.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(lang.tr('no_categories', category: 'home_page')),
+      );
+    }
+
+    return SizedBox(
+      height: 125,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = _selectedCategory?.id == category.id;
+          return _UnifiedServiceCard(
+            title: category.getTranslatedName(lang),
+            icon: category.icon,
+            isSelected: isSelected,
+            onTap: () => _onCategorySelected(category),
+            color: getColorForCategory(category.name, index),
+          );
+        },
+      ),
+    );
   }
 
+}
+
+class _UnifiedServiceCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color color;
+  final bool isSmall;
+
+  const _UnifiedServiceCard({
+    required this.title,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+    required this.color,
+    this.isSmall = false,
+  });
+
   @override
-  void dispose() {
-    _animationController.dispose();
-    _searchController.dispose();
-    _notificationCountSubscription?.cancel();
-    _userDataSubscription?.cancel();
-    _categoriesSubscription?.cancel();
-    super.dispose();
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 100),
+        tween: Tween(begin: 1.0, end: isSelected ? 1.05 : 1.0),
+        builder: (context, scale, child) {
+          return Transform.scale(
+            scale: scale,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: isSmall ? null : 100,
+              margin: EdgeInsets.all(isSmall ? 4 : 8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? color
+                    : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? color : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                  width: 2,
+                ),
+                boxShadow: [
+                  if (isSelected)
+                    BoxShadow(
+                      color: color.withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  else
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
+              ),
+              child: child,
+            ),
+          );
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(isSmall ? 8 : 12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : color,
+                size: isSmall ? 22 : 28,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : kDarkTextColor),
+                  fontSize: isSmall ? 11 : 13,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontFamily: 'Exo2',
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

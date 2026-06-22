@@ -1,18 +1,22 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
+import 'package:service_app/Services/firebase_service.dart';
 
 class SubcategorySection extends StatefulWidget {
   final CategoryModel? selectedCategory;
   final Function(SubcategoryModel) onSubcategorySelected;
+  final String? initialSubcategoryId;
 
   const SubcategorySection({
     super.key,
     required this.selectedCategory,
     required this.onSubcategorySelected,
+    this.initialSubcategoryId,
   });
 
   @override
@@ -21,16 +25,61 @@ class SubcategorySection extends StatefulWidget {
 
 class _SubcategorySectionState extends State<SubcategorySection> {
   String? _selectedSubcategoryId;
+  List<SubcategoryModel> _subcategories = [];
+  StreamSubscription? _subscription;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSubcategoryId = widget.initialSubcategoryId;
+    _loadSubcategories();
+  }
 
   @override
   void didUpdateWidget(SubcategorySection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reset selection when category changes
+    // Reset selection and reload when category changes, UNLESS it's the first load with initial ID
     if (widget.selectedCategory?.id != oldWidget.selectedCategory?.id) {
-      setState(() {
-        _selectedSubcategoryId = null;
-      });
+      if (oldWidget.selectedCategory != null) {
+        setState(() {
+          _selectedSubcategoryId = null;
+          _subcategories = [];
+        });
+      }
+      _loadSubcategories();
     }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  void _loadSubcategories() {
+    _subscription?.cancel();
+    if (widget.selectedCategory == null) return;
+
+    setState(() => _isLoading = true);
+    _subscription = FirebaseService.getSubCategories(widget.selectedCategory!.id)
+        .listen((subcategories) {
+      if (mounted) {
+        setState(() {
+          _subcategories = subcategories;
+          _isLoading = false;
+          
+          if (_selectedSubcategoryId != null && _subcategories.isNotEmpty) {
+            try {
+              final initialSub = _subcategories.firstWhere((s) => s.id == _selectedSubcategoryId);
+              widget.onSubcategorySelected(initialSub);
+            } catch (e) {
+              // Initial subcategory not found in this category's list
+            }
+          }
+        });
+      }
+    });
   }
 
   void _selectSubcategory(SubcategoryModel subcategory) {
@@ -72,8 +121,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                   lang.trParams('subcategory_count',
                       category: 'service',
                       params: {
-                        'count': widget.selectedCategory!.subcategories.length
-                            .toString()
+                        'count': _subcategories.length.toString()
                       }),
                   style: TextStyle(
                     color: theme.primaryColor,
@@ -121,9 +169,14 @@ class _SubcategorySectionState extends State<SubcategorySection> {
       );
     }
 
-    final subcategories = widget.selectedCategory!.subcategories;
+    if (_isLoading) {
+      return const SizedBox(
+        height: 140,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    if (subcategories.isEmpty) {
+    if (_subcategories.isEmpty) {
       return _buildEmptyState(
         theme,
         icon: CupertinoIcons.infinite,
@@ -142,9 +195,9 @@ class _SubcategorySectionState extends State<SubcategorySection> {
       height: 140,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: subcategories.length,
+        itemCount: _subcategories.length,
         itemBuilder: (context, index) {
-          final subcategory = subcategories[index];
+          final subcategory = _subcategories[index];
           final isSelected = _selectedSubcategoryId == subcategory.id;
           final colors = _getSubcategoryColors(index);
 
@@ -226,11 +279,12 @@ class _SubcategorySectionState extends State<SubcategorySection> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       width: isSelected ? 100 : 90,
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () => _selectSubcategory(subcategory),
-            child: AnimatedContainer(
+      child: GestureDetector(
+        onTap: () => _selectSubcategory(subcategory),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               width: isSelected ? 70 : 64,
               height: isSelected ? 70 : 64,
@@ -262,27 +316,23 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                 size: isSelected ? 28 : 24,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              subcategory.nameKey.isNotEmpty
-                  ? subcategory.getTranslatedName(lang)
-                  : (subcategory.name.length > 12
-                      ? '${subcategory.name.substring(0, 10)}...'
-                      : subcategory.name),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isSelected ? colors[0] : theme.textTheme.bodyLarge?.color,
-                fontSize: isSelected ? 13 : 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                fontFamily: 'Exo2',
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                subcategory.getTranslatedName(lang),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSelected ? colors[0] : theme.textTheme.bodyLarge?.color,
+                  fontSize: isSelected ? 13 : 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  fontFamily: 'Exo2',
+                ),
+                maxLines: 2,
               ),
-              maxLines: 2,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -295,7 +345,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
     }
 
     try {
-      final selectedSubcategory = widget.selectedCategory!.subcategories
+      final selectedSubcategory = _subcategories
           .firstWhere((sub) => sub.id == _selectedSubcategoryId);
 
       return Container(
@@ -337,9 +387,7 @@ class _SubcategorySectionState extends State<SubcategorySection> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    selectedSubcategory.nameKey.isNotEmpty
-                        ? selectedSubcategory.getTranslatedName(lang)
-                        : selectedSubcategory.name,
+                    selectedSubcategory.getTranslatedName(lang),
                     style: TextStyle(
                       fontSize: 13,
                       color: theme.textTheme.bodyLarge?.color,

@@ -5,13 +5,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/ViewModel/search_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
-import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/screens/onboarding/onboarding_screen.dart';
@@ -24,6 +22,7 @@ import 'package:service_app/providers/theme_provider.dart';
 import 'package:service_app/Services/auth_service.dart';
 import 'package:service_app/Services/booking_notification_service.dart';
 
+import 'package:service_app/auth_wrapper.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
 
 /// Global navigator key
@@ -31,10 +30,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void setupNotificationTapHandler() {
   NotificationService.onNotificationTap = (data) {
-    print('🎯 Notification Tapped Handler: $data');
+    debugPrint('🎯 Notification Tapped Handler: $data');
     final context = navigatorKey.currentContext;
     if (context == null) {
-      print('⚠️ Navigator context is null');
+      debugPrint('⚠️ Navigator context is null');
       return;
     }
 
@@ -64,10 +63,10 @@ void setupNotificationTapHandler() {
               ),
             );
           } else {
-            print('⚠️ User not logged in or ChatVM not ready');
+            debugPrint('⚠️ User not logged in or ChatVM not ready');
           }
         } catch (e) {
-          print('❌ Error navigating from notification: $e');
+          debugPrint('❌ Error navigating from notification: $e');
         }
       }
     }
@@ -77,7 +76,7 @@ void setupNotificationTapHandler() {
 /// Background handler (when app is closed)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('🔨 [BACKGROUND] Notification received');
+  debugPrint('🔨 [BACKGROUND] Notification received');
 
   // Initialize Firebase
   await Firebase.initializeApp();
@@ -122,36 +121,42 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     payload: json.encode(message.data),
   );
 
-  print('✅ Background notification shown');
+  debugPrint('✅ Background notification shown');
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Global Flutter error handler
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('🚨 FLUTTER ERROR: ${details.exception}');
+    // TODO: Send to Crashlytics in production
+  };
+
   try {
-    print('🚀 App starting...');
+    debugPrint('🚀 App starting...');
 
     /// 1. Initialize Firebase
     await Firebase.initializeApp();
-    print('✅ Firebase initialized');
+    debugPrint('✅ Firebase initialized');
 
     /// 2. Configure background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    print('✅ Background handler configured');
+    debugPrint('✅ Background handler configured');
 
     /// 3. Initialize Notification Service
     await NotificationService.initialize();
-    print('✅ NotificationService initialized');
+    debugPrint('✅ NotificationService initialized');
 
     /// 4. Setup Notification Tap Handler
     setupNotificationTapHandler();
-    print('✅ Notification tap handler configured');
+    debugPrint('✅ Notification tap handler configured');
 
     runApp(const ServiceApp());
   } catch (e, s) {
-    print('❌ Fatal init error: $e');
-    print('Stack trace: $s');
-    // Run app anyway (offline mode)
+    debugPrint('❌ Fatal init error: $e');
+    debugPrint('Stack trace: $s');
     runApp(const ServiceApp());
   }
 }
@@ -194,10 +199,12 @@ class ServiceApp extends StatelessWidget {
           BookingNotificationService.setLanguageProvider(languageProvider);
 
           return MaterialApp(
-            title: 'Akhdem-Li',
+            title: languageProvider.tr('app_name', category: 'common'),
             navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
-            theme: themeProvider.currentTheme,
+            theme: ThemeProvider.lightTheme,
+            darkTheme: ThemeProvider.darkTheme,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
             /// Set locale from LanguageProvider
             locale: languageProvider.locale,
@@ -233,127 +240,3 @@ class ServiceApp extends StatelessWidget {
 /// ============================================================================
 /// AUTH WRAPPER WITH INTELLIGENT LANGUAGE FLOW
 /// ============================================================================
-
-class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  bool _loading = true;
-  bool _hasSeenOnboarding = false;
-  bool _hasCompletedInitialSetup = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initApp();
-  }
-
-  Future<void> _initApp() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Check if user has seen onboarding
-      _hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-
-      // Check if user has completed initial setup (language selection)
-      _hasCompletedInitialSetup =
-          prefs.getBool('hasCompletedInitialSetup') ?? false;
-
-      print('✅ App initialization complete');
-      print('📱 Has seen onboarding: $_hasSeenOnboarding');
-      print('⚙️ Has completed initial setup: $_hasCompletedInitialSetup');
-    } catch (e) {
-      print('⚠️ Error during app initialization: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final authVM = context.watch<AuthViewModel>();
-
-    if (_loading) {
-      return _loadingScreen(context);
-    }
-
-    // 1. FIRST: Show Language Selection ONLY ONCE in entire app lifetime
-    // Only show if user has NOT completed initial setup AND is NOT logged in
-    if (!_hasCompletedInitialSetup && authVM.currentUser == null) {
-      return const LanguageSelectionScreen();
-    }
-
-    // 2. SECOND: Show Onboarding if not seen
-    if (!_hasSeenOnboarding) {
-      return const OnboardingScreen();
-    }
-
-    // 3. THIRD: Handle authentication
-    if (authVM.isLoading && authVM.currentUser == null) {
-      return _loadingScreen(context);
-    }
-
-    if (authVM.currentUser != null) {
-      return _authenticatedApp(authVM.currentUser!);
-    }
-
-    // 4. FINALLY: Show Login screen
-    return const LoginScreen();
-  }
-
-  Widget _authenticatedApp(UserModel user) {
-    // Initialize user notifications after frame is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeUserNotifications(user);
-    });
-
-    return const NavigatorBottom();
-  }
-
-  Future<void> _initializeUserNotifications(UserModel user) async {
-    try {
-      print('🔔 Initializing notifications for ${user.name}');
-      await NotificationService().registerUser(
-        userId: user.uid,
-        userName: user.name,
-      );
-      print('✅ User notifications initialized');
-    } catch (e) {
-      print('⚠️ Error initializing notifications: $e');
-    }
-  }
-
-  Widget _loadingScreen(BuildContext context) {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
-    final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              languageProvider.tr('loading', category: 'common'),
-              style: TextStyle(
-                fontSize: 16,
-                color: theme.brightness == Brightness.dark ? Colors.white70 : Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

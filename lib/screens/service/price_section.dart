@@ -88,7 +88,7 @@ class PriceSection extends StatelessWidget {
   Widget _buildPriceInputCard(LanguageProvider lang, ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     final textSecondary = isDark ? Colors.white38 : const Color(0xFF64748B);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
 
     return Container(
       decoration: BoxDecoration(
@@ -192,7 +192,7 @@ class PriceSection extends StatelessWidget {
   Widget _buildPriceUnitCard(LanguageProvider lang, ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     final textSecondary = isDark ? Colors.white38 : const Color(0xFF64748B);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
 
     return Container(
       decoration: BoxDecoration(
@@ -241,7 +241,7 @@ class PriceSection extends StatelessWidget {
   List<DropdownMenuItem<String>> _buildPriceUnitItems(LanguageProvider lang, ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     final textSecondary = isDark ? Colors.white38 : const Color(0xFF64748B);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
 
     return priceUnits.map((unit) {
       final unitKey = _getPriceUnitKey(unit);
@@ -333,24 +333,25 @@ class PriceSection extends StatelessWidget {
   Widget _buildPriceSummaryCard(double price, LanguageProvider lang, ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     final textSecondary = isDark ? Colors.white38 : const Color(0xFF64748B);
-    final textPrimary = theme.textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
+    final textPrimary = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
     final accentColor = isDark ? const Color(0xFF10B981) : const Color(0xFF059669);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: accentColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accentColor.withOpacity(0.2)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(
             Icons.currency_exchange_rounded,
             size: 16,
             color: accentColor,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,6 +368,7 @@ class PriceSection extends StatelessWidget {
                     color: textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
+                    height: 1.2,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -382,6 +384,7 @@ class PriceSection extends StatelessWidget {
                   style: TextStyle(
                     color: textSecondary,
                     fontSize: 10,
+                    height: 1.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -401,20 +404,21 @@ class PriceSection extends StatelessWidget {
     final comparisonData = _getComparisonData(comparison, price, lang, theme);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: comparisonData.color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: comparisonData.color.withOpacity(0.2)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(
             comparisonData.icon,
             size: 16,
             color: comparisonData.color,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,6 +430,7 @@ class PriceSection extends StatelessWidget {
                     color: comparisonData.color,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
+                    height: 1.2,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -440,6 +445,7 @@ class PriceSection extends StatelessWidget {
                   style: TextStyle(
                     color: textSecondary,
                     fontSize: 10,
+                    height: 1.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

@@ -88,5 +88,9 @@
   "code_not_available_for_you": "Ce code ne vous est pas attribué",
   "subscription_activated": "Abonnement activé !",
   "delete_my_account_cmd": "supprimer mon compte",
-  "type_exact_to_confirm": "Veuillez taper \"{{cmd}}\" pour confirmer"
+  "type_exact_to_confirm": "Veuillez taper \"{{cmd}}\" pour confirmer",
+  "user_not_authenticated": "Utilisateur non authentifié",
+  "whatsapp_sub_message": "Bonjour administrateur, je souhaite acheter un abonnement.\nUID: {{uid}}\nNom: {{name}}",
+  "error_changing_photo": "Erreur lors du changement de photo: {{error}}",
+  "error_adding_image": "Erreur lors de l'ajout de l'image: {{error}}"
 }

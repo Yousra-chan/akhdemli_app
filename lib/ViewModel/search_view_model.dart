@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../Services/search_service.dart';
 import '../models/ProviderModel.dart';
 import '../models/ServicesModel.dart';
 import '../models/CategoryModel.dart';
+import '../providers/language_provider.dart';
 
 class SearchViewModel extends ChangeNotifier {
   final SearchService _searchService = SearchService();
@@ -285,8 +287,9 @@ class SearchViewModel extends ChangeNotifier {
   }
 
   /// Format distance for display
-  String formatDistance(double? meters) {
-    if (meters == null) return 'Distance non disponible';
+  String formatDistance(double? meters, BuildContext context) {
+    final lp = Provider.of<LanguageProvider>(context, listen: false);
+    if (meters == null) return lp.tr('distance_unavailable', category: 'search');
 
     try {
       if (meters < 1000) {
@@ -295,7 +298,7 @@ class SearchViewModel extends ChangeNotifier {
         return '${(meters / 1000).toStringAsFixed(1)} km';
       }
     } catch (e) {
-      return 'Distance non disponible';
+      return lp.tr('distance_unavailable', category: 'search');
     }
   }
 
@@ -362,17 +365,25 @@ class SearchViewModel extends ChangeNotifier {
   }
 
   /// Get search summary text
-  String get searchSummary {
-    if (_isLoading) return 'Recherche en cours...';
-    if (_error != null) return _error!;
-    if (!hasResults) return 'Aucun résultat trouvé';
+  String getSearchSummary(BuildContext context) {
+    final lp = Provider.of<LanguageProvider>(context, listen: false);
+    if (_isLoading) return lp.tr('searching_summary', category: 'search');
+    if (_error != null) return lp.tr(_error!, category: 'common');
+    if (!hasResults) return lp.tr('no_results_found', category: 'search');
 
     if (_providerResults.isNotEmpty && _serviceResults.isNotEmpty) {
-      return '${_providerResults.length} prestataires et ${_serviceResults.length} services trouvés';
+      return lp.trParams('results_summary_both', category: 'search', params: {
+        'providers': _providerResults.length.toString(),
+        'services': _serviceResults.length.toString(),
+      });
     } else if (_providerResults.isNotEmpty) {
-      return '${_providerResults.length} prestataire${_providerResults.length > 1 ? 's' : ''} trouvé${_providerResults.length > 1 ? 's' : ''}';
+      return lp.trParams('results_summary_providers', category: 'search', params: {
+        'count': _providerResults.length.toString(),
+      });
     } else {
-      return '${_serviceResults.length} service${_serviceResults.length > 1 ? 's' : ''} trouvé${_serviceResults.length > 1 ? 's' : ''}';
+      return lp.trParams('results_summary_services', category: 'search', params: {
+        'count': _serviceResults.length.toString(),
+      });
     }
   }
 

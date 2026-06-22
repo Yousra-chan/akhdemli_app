@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/auth/constants.dart';
-import 'package:service_app/services/auth_service.dart';
+import 'package:service_app/Services/auth_service.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {

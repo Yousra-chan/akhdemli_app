@@ -1,4 +1,5 @@
 // firestore_service.dart - This should be in your services folder
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/screens/posts/posts_constants.dart';
 
@@ -22,7 +23,7 @@ class FirestoreService {
     try {
       await _postsCollection.add(post.toMap());
     } catch (e) {
-      print("Error adding post: $e");
+      debugPrint("Error adding post: $e");
       rethrow;
     }
   }
@@ -48,7 +49,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating user address: $e');
+      debugPrint('Error updating user address: $e');
       rethrow;
     }
   }
@@ -59,7 +60,7 @@ class FirestoreService {
       final doc = await _usersCollection.doc(userId).get();
       return doc.data() as Map<String, dynamic>?;
     } catch (e) {
-      print('Error getting user profile: $e');
+      debugPrint('Error getting user profile: $e');
       rethrow;
     }
   }
@@ -72,7 +73,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating user role: $e');
+      debugPrint('Error updating user role: $e');
       rethrow;
     }
   }
@@ -92,7 +93,7 @@ class FirestoreService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting provider services: $e');
+      debugPrint('Error getting provider services: $e');
       rethrow;
     }
   }
@@ -108,7 +109,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error adding service: $e');
+      debugPrint('Error adding service: $e');
       rethrow;
     }
   }
@@ -122,7 +123,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating service: $e');
+      debugPrint('Error updating service: $e');
       rethrow;
     }
   }
@@ -132,7 +133,7 @@ class FirestoreService {
     try {
       await _servicesCollection.doc(serviceId).delete();
     } catch (e) {
-      print('Error deleting service: $e');
+      debugPrint('Error deleting service: $e');
       rethrow;
     }
   }
@@ -146,7 +147,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Error creating/updating user profile: $e');
+      debugPrint('Error creating/updating user profile: $e');
       rethrow;
     }
   }
@@ -163,7 +164,7 @@ class FirestoreService {
           .map((doc) => doc.data())
           .toList();
     } catch (e) {
-      print('Error getting user ratings: $e');
+      debugPrint('Error getting user ratings: $e');
       return [];
     }
   }
@@ -181,7 +182,7 @@ class FirestoreService {
           .map((doc) => doc.data())
           .toList();
     } catch (e) {
-      print('Error getting bookings by provider: $e');
+      debugPrint('Error getting bookings by provider: $e');
       return [];
     }
   }
@@ -199,7 +200,7 @@ class FirestoreService {
           .map((doc) => doc.data())
           .toList();
     } catch (e) {
-      print('Error getting bookings by client: $e');
+      debugPrint('Error getting bookings by client: $e');
       return [];
     }
   }
@@ -214,7 +215,7 @@ class FirestoreService {
 
       return querySnapshot.size;
     } catch (e) {
-      print('Error getting user services count: $e');
+      debugPrint('Error getting user services count: $e');
       return 0;
     }
   }
@@ -229,7 +230,7 @@ class FirestoreService {
       }
       return {};
     } catch (e) {
-      print('Error getting user stats: $e');
+      debugPrint('Error getting user stats: $e');
       return {};
     }
   }

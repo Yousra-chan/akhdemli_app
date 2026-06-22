@@ -89,6 +89,10 @@
   "subscription_activated": "Subscription activated!",
   "delete_my_account_cmd": "delete my account",
   "type_exact_to_confirm": "Please type \"{{cmd}}\" to confirm",
+  "user_not_authenticated": "User not authenticated",
+  "whatsapp_sub_message": "Hello admin, I want to buy a subscription.\nUID: {{uid}}\nName: {{name}}",
+  "error_changing_photo": "Error changing photo: {{error}}",
+  "error_adding_image": "Error adding image: {{error}}",
 
   "categories": {
     "electrician": "Electrician",

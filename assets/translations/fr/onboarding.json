@@ -2,12 +2,12 @@
   "skip": "Passer",
   "get_started": "Commencer",
   "next": "Suivant",
-  "page_1_title": "Bienvenue sur Akhdem Li",
-  "page_1_description": "Votre plateforme de confiance pour trouver et proposer des services professionnels",
-  "page_2_title": "Trouver des Services",
-  "page_2_description": "Parcourez des centaines de professionnels de confiance dans votre région",
-  "page_3_title": "Proposez vos Compétences",
-  "page_3_description": "Mettez en avant votre expertise et développez votre clientèle",
-  "page_4_title": "C'est Parti",
-  "page_4_description": "Rejoignez notre communauté aujourd'hui et vivez l'expérience"
+  "ob_welcome_title": "Bienvenue sur Akhdem Li",
+  "ob_welcome_desc": "Votre plateforme de confiance pour trouver et proposer des services professionnels en Algérie.",
+  "ob_find_title": "Trouver des Experts",
+  "ob_find_desc": "Parcourez des centaines de professionnels vérifiés dans votre région pour toute tâche.",
+  "ob_offer_title": "Proposez vos Compétences",
+  "ob_offer_desc": "Créez votre profil, mettez en avant votre expertise et développez votre activité.",
+  "ob_start_title": "Prêt à commencer ?",
+  "ob_start_desc": "Rejoignez notre communauté aujourd'hui et découvrez le futur des services locaux."
 }

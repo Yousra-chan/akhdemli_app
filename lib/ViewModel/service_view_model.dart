@@ -43,10 +43,10 @@ class ServiceViewModel with ChangeNotifier {
       setLoading(true);
       setError(null);
 
-      print('Creating service with providerId: $providerId');
-      print('Title: $title');
-      print('Category: $category');
-      print('Price: $price');
+      debugPrint('Creating service with providerId: $providerId');
+      debugPrint('Title: $title');
+      debugPrint('Category: $category');
+      debugPrint('Price: $price');
 
       // Create document reference
       final docRef = _firestore.collection(_collectionName).doc();
@@ -73,12 +73,12 @@ class ServiceViewModel with ChangeNotifier {
         totalReviews: 0,
       );
 
-      print('Service object created: ${service.toMap()}');
+      debugPrint('Service object created: ${service.toMap()}');
 
       // Save to Firestore
       await docRef.set(service.toMap());
 
-      print('Service saved to Firestore successfully');
+      debugPrint('Service saved to Firestore successfully');
 
       // Add to local list
       _services.add(service);
@@ -89,8 +89,7 @@ class ServiceViewModel with ChangeNotifier {
     } catch (e) {
       setLoading(false);
       setError('error_create_failed');
-      print('❌ Error in createServiceFromData: $e');
-      print('Stack trace: ${e.toString()}');
+      debugPrint('❌ Error in createServiceFromData: $e');
       return false;
     }
   }
@@ -230,7 +229,7 @@ class ServiceViewModel with ChangeNotifier {
     } catch (e) {
       setLoading(false);
       setError('error_update_failed');
-      print('❌ Error in updateService: $e');
+      debugPrint('❌ Error in updateService: $e');
       return false;
     }
   }
