@@ -116,7 +116,7 @@ class BookingNotificationService {
     );
   }
 
-  /// 🚀 Core logic: Send Push + Save to Firestore
+  /// 🚀 Core logic: Send Push (Server handles DB logging)
   static Future<bool> _sendAndSave({
     required String receiverId,
     required String senderId,
@@ -137,32 +137,22 @@ class BookingNotificationService {
           'message': body,
           'senderName': senderName,
           'title': title,
+          'type': type,
           ...data,
         }),
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         debugPrint('✅ Booking Push Sent via Render: $receiverId');
+        return true;
       } else {
         debugPrint('⚠️ Booking Push failed (Status: ${response.statusCode}): ${response.body}');
+        return false;
       }
 
-      // 2. Save to Firestore for Notification Page
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'receiverId': receiverId,
-        'senderId': senderId,
-        'senderName': senderName,
-        'title': title,
-        'body': body,
-        'type': type,
-        'timestamp': FieldValue.serverTimestamp(),
-        'read': false,
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        ...data,
-      });
-
-      debugPrint('✅ Booking Notification Saved to DB');
-      return true;
+      // 🛑 REMOVED: Firestore add here.
+      // The Render server already does db.collection('notifications').add(...)
+      // Removing this prevents duplicate entries in the notification history list.
     } catch (e) {
       debugPrint('❌ Booking Notification Error: $e');
       return false;

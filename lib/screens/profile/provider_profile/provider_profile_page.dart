@@ -441,16 +441,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       final success = await _bookingService.createBooking(booking);
 
       if (success) {
-        await BookingNotificationService.sendNewBookingNotification(
-          providerId: _provider.uid!,
-          providerName: _provider.name,
-          clientName: currentUser.name,
-          serviceName: _selectedService!['title'],
-          clientId: currentUser.uid,
-          bookingId: booking.id,
-          appointmentDate: appointmentDateTime,
-        );
-
         await _loadBookedCount();
         _showSuccessDialog(appointmentDateTime);
       } else {
@@ -464,11 +454,29 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final theme = Theme.of(context);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: theme.primaryColor,
+              onPrimary: Colors.white,
+              onSurface: theme.textTheme.bodyLarge?.color,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: theme.primaryColor,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -478,9 +486,27 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Future<void> _selectTime(BuildContext context) async {
+    final theme = Theme.of(context);
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: theme.primaryColor,
+              onPrimary: Colors.white,
+              onSurface: theme.textTheme.bodyLarge?.color,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: theme.primaryColor,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _selectedTime) {
       setState(() {

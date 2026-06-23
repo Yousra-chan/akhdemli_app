@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -37,20 +38,39 @@ class NotificationService {
       _firebaseMessaging = FirebaseMessaging.instance;
       _localNotifications = FlutterLocalNotificationsPlugin();
 
-      // 1. Request Permissions (For iOS and Android 13+)
+      // 1. Request Permissions (Android 13+ and iOS)
+      // For Android 13+, we use permission_handler for a more reliable prompt
+      if (await _requestNotificationPermission()) {
+        debugPrint('✅ Notification permission granted');
+      } else {
+        debugPrint('⚠️ Notification permission denied');
+      }
+
+      // FCM internal permission request (mostly for iOS/macOS)
       await _firebaseMessaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
         provisional: false,
+        criticalAlert: true,
       );
 
-      // 2. Initialize Local Notifications for Foreground
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      // 2. Set foreground presentation options (Crucial for iOS banners)
+      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // 3. Initialize Local Notifications
+      const androidSettings = AndroidInitializationSettings('ic_notification');
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
         requestSoundPermission: true,
+        defaultPresentAlert: true,
+        defaultPresentBadge: true,
+        defaultPresentSound: true,
       );
       
       await _localNotifications.initialize(
@@ -58,7 +78,8 @@ class NotificationService {
         onDidReceiveNotificationResponse: (details) {
           if (details.payload != null && onNotificationTap != null) {
             try {
-              onNotificationTap!(json.decode(details.payload!));
+              final data = json.decode(details.payload!);
+              onNotificationTap!(data);
             } catch (e) {
               debugPrint('❌ Local Notification Tap Error: $e');
             }
@@ -66,31 +87,45 @@ class NotificationService {
         },
       );
 
-      // 3. Create Android Notification Channel
+      // 4. Create "Heads-up" Android Notification Channel
+      // This is what allows notifications to "pop up" as banners
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'high_importance_channel',
         'High Importance Notifications',
-        description: 'This channel is used for important notifications.',
-        importance: Importance.max,
+        description: 'This channel is used for important real-time notifications.',
+        importance: Importance.max, // MAX is required for heads-up banners
         playSound: true,
+        enableVibration: true,
+        showBadge: true,
       );
 
       await _localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      // 4. Handle FCM Listeners
-      FirebaseMessaging.onMessage.listen((msg) => _showLocalNotification(msg));
+      // 5. Setup Listeners
+      // Foreground
+      FirebaseMessaging.onMessage.listen((msg) {
+        debugPrint('📩 Foreground Message: ${msg.messageId}');
+        _showLocalNotification(msg);
+      });
+
+      // Background Tap
       FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-        debugPrint('🎯 Notification Tapped (Background): ${msg.data}');
+        debugPrint('🎯 Notification Tapped (App in background): ${msg.data}');
         onNotificationTap?.call(msg.data);
       });
 
       _initialized = true;
-      debugPrint('✅ NotificationService initialized successfully');
+      debugPrint('✅ NotificationService initialized with Heads-up support');
     } catch (e) {
       debugPrint('❌ Notification Init Error: $e');
     }
+  }
+
+  Future<bool> _requestNotificationPermission() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
   }
 
   /// Handles the message that launched the app from a terminated state
@@ -139,25 +174,32 @@ class NotificationService {
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
-    if (notification == null) return;
+    // For "Heads-up" we prioritize the notification object if it exists
+    final title = notification?.title ?? message.data['title'] ?? 'New Message';
+    final body = notification?.body ?? message.data['body'] ?? '';
 
     await _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
-      const NotificationDetails(
+      message.hashCode,
+      title,
+      body,
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'high_importance_channel',
           'High Importance Notifications',
           channelDescription: 'This channel is used for important notifications.',
           importance: Importance.max,
-          priority: Priority.high,
+          priority: Priority.max,
+          category: AndroidNotificationCategory.message,
+          icon: 'ic_notification',
           playSound: true,
+          enableVibration: true,
+          fullScreenIntent: false, // Set to true only for calls
         ),
-        iOS: DarwinNotificationDetails(
+        iOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          interruptionLevel: InterruptionLevel.active,
         ),
       ),
       payload: json.encode(message.data),
@@ -177,7 +219,7 @@ class NotificationService {
       final name = senderName ?? _currentUserName ?? 'Someone';
       final title = _languageProvider?.trParams('new_message_from', category: 'disscussion', params: {'name': name}) ?? 'New message from $name';
 
-      // 1. Push via Render
+      // 1. Push via Render (The server will handle saving to Firestore history)
       await _sendPush(receiverUserId, title, messageText, {
         'type': 'message',
         'chatId': chatId,
@@ -185,17 +227,9 @@ class NotificationService {
         'senderName': name,
       });
 
-      // 2. Save to DB
-      await _saveToFirestore(
-        receiverUserId: receiverUserId,
-        senderId: sId,
-        senderName: name,
-        title: title,
-        body: messageText,
-        type: 'message',
-        data: {'chatId': chatId, 'senderId': sId, 'senderName': name},
-      );
-
+      // 🛑 REMOVED: _saveToFirestore here. 
+      // It was causing duplicates because the Render server also saves to Firestore.
+      
       return true;
     } catch (e) {
       debugPrint('❌ Message Notification Error: $e');
@@ -217,28 +251,17 @@ class NotificationService {
       final sId = senderId ?? _currentUserId;
       final sName = senderName ?? _currentUserName;
 
-      // 1. Push via Render
+      // 1. Push via Render (The server will handle saving to Firestore history)
       await _sendPush(receiverUserId, title, body, {
         'type': 'booking',
         'bookingId': bookingId,
         'bookingStatus': status ?? 'pending',
+        'senderId': sId,
+        'senderName': sName,
       });
 
-      // 2. Save to DB
-      await _saveToFirestore(
-        receiverUserId: receiverUserId,
-        senderId: sId,
-        senderName: sName,
-        title: title,
-        body: body,
-        type: 'booking',
-        data: {
-          'bookingId': bookingId,
-          'bookingStatus': status ?? 'pending',
-          'senderId': sId,
-          'senderName': sName,
-        },
-      );
+      // 🛑 REMOVED: _saveToFirestore here.
+      // It was causing duplicates because the Render server also saves to Firestore.
 
       return true;
     } catch (e) {

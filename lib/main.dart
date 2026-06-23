@@ -90,17 +90,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // IMPORTANT: We only show a manual notification if message.notification is NULL.
   // If message.notification is NOT NULL, Firebase on Android will automatically
   // show the notification based on the notification object in the payload.
-  // Showing it manually here would cause duplicates.
   
   debugPrint('🔨 [BACKGROUND] Message received: ${message.messageId}');
 
   if (message.notification != null) {
-    debugPrint('ℹ️ Message has notification payload. OS will handle it.');
+    debugPrint('ℹ️ Message has notification payload. Android OS will handle it.');
+    // Ensure you have configured "default_notification_channel_id" in AndroidManifest
     return;
   }
 
   // Handle data-only message by showing a local notification
-  debugPrint('ℹ️ Data-only message. Showing local notification.');
+  debugPrint('ℹ️ Data-only message. Showing manual local notification.');
 
   try {
     await Firebase.initializeApp();
@@ -110,9 +110,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel',
       'High Importance Notifications',
-      description: 'This channel is used for important notifications.',
-      importance: Importance.high,
+      description: 'This channel is used for important real-time notifications.',
+      importance: Importance.max, // MAX for banners
       playSound: true,
+      enableVibration: true,
     );
 
     await flutterLocalNotificationsPlugin
@@ -129,11 +130,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           channel.id,
           channel.name,
           channelDescription: channel.description,
-          importance: Importance.high,
-          priority: Priority.high,
+          importance: Importance.max,
+          priority: Priority.max,
+          icon: 'ic_notification',
           playSound: true,
+          enableVibration: true,
+          category: AndroidNotificationCategory.message,
         ),
-        iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, 
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.active,
+        ),
       ),
       payload: json.encode(message.data),
     );

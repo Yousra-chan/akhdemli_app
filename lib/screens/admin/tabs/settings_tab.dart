@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/ViewModel/auth_view_model.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../providers/language_provider.dart';
+import '../../../Services/notification_service.dart';
 
 class AdminSettingsTab extends StatelessWidget {
   const AdminSettingsTab({super.key});
@@ -87,6 +89,82 @@ class AdminSettingsTab extends StatelessWidget {
                   onChanged: (v) {
                     if (v != null) langProvider.setLanguage(Locale(v));
                   },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // ── Notification Debugging Section ────────────────────────────
+          Text(
+            "NOTIFICATION DEBUGGING",
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              letterSpacing: 1.1,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: cs.outlineVariant.withOpacity(0.5),
+                width: 0.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Self-Test Notification",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Triggers a real push notification from the server to this device. Useful for verifying background/terminated banners.",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.send_rounded),
+                    label: const Text("Trigger Test Push"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: cs.primary,
+                      foregroundColor: cs.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async {
+                      final auth = context.read<AuthViewModel>();
+                      if (auth.currentUser == null) return;
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Sending test push request to Render server..."))
+                      );
+
+                      final success = await NotificationService().sendBookingNotification(
+                        receiverUserId: auth.currentUser!.uid,
+                        bookingId: 'test_id',
+                        title: '🔔 Test Notification',
+                        body: 'This is a high-priority banner test. If you see this as a popup, it works!',
+                        status: 'info',
+                      );
+
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("✅ Test push sent successfully!"))
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("❌ Failed to send test push."))
+                        );
+                      }
+                    },
+                  ),
                 ),
               ],
             ),

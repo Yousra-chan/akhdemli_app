@@ -36,43 +36,28 @@ class BookingService {
   // Create a new booking
   Future<bool> createBooking(BookingModel booking) async {
     try {
-      // 1. Create booking in Firestore
-      final docRef =
-          await _firestore.collection('bookings').add(booking.toMap());
-
-      // 2. Update the booking ID
-      await _firestore.collection('bookings').doc(docRef.id).update({
-        'id': docRef.id,
-      });
+      // 1. Create booking in Firestore with a pre-generated ID for speed
+      final docRef = _firestore.collection('bookings').doc();
+      final bookingWithId = booking.copyWith(id: docRef.id);
+      
+      await docRef.set(bookingWithId.toMap());
 
       debugPrint(_tr('log_booking_created', params: {'bookingId': docRef.id}));
 
-      // ⭐ 3. SEND NOTIFICATION TO PROVIDER
-      try {
-        debugPrint(_tr('log_attempting_notification'));
-
-        final notificationSent =
-            await BookingNotificationService.sendNewBookingNotification(
-          clientId: booking.clientId,
-          clientName: booking.clientName,
-          providerId: booking.providerId,
-          providerName: booking.providerName,
-          serviceName: booking.serviceTitle,
-          bookingId: docRef.id,
-          appointmentDate: booking.appointmentDate,
-        );
-
-        if (notificationSent) {
-          debugPrint(_tr('log_notification_sent'));
-        } else {
-          debugPrint(_tr('log_notification_failed'));
-        }
-      } catch (notificationError) {
-        // Don't fail the entire booking if notification fails
-        debugPrint(_tr('log_notification_error',
-            params: {'error': notificationError.toString()}));
-        // Booking is still created, just notification failed
-      }
+      // ⭐ 3. SEND NOTIFICATION TO PROVIDER (Non-blocking)
+      // We don't await this to keep the UI responsive
+      BookingNotificationService.sendNewBookingNotification(
+        clientId: booking.clientId,
+        clientName: booking.clientName,
+        providerId: booking.providerId,
+        providerName: booking.providerName,
+        serviceName: booking.serviceTitle,
+        bookingId: docRef.id,
+        appointmentDate: booking.appointmentDate,
+      ).catchError((e) {
+        debugPrint('⚠️ Non-blocking notification error: $e');
+        return false;
+      });
 
       return true;
     } catch (e) {
