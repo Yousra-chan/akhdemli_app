@@ -9,6 +9,8 @@ import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/screens/auth/constants.dart';
 import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/Services/wilaya_service.dart';
+import 'package:dzair_data_usage/langs.dart';
 import 'package:service_app/screens/auth/register/registration_widget.dart'
     hide
         kAppFont,
@@ -36,7 +38,11 @@ class _RegisterPageState extends State<RegisterPage> {
   String _password = '';
   String _role = 'client';
   String _phone = '';
-  String _address = '';
+  
+  String? _selectedWilaya;
+  String? _selectedCommune;
+  List<String> _wilayas = [];
+  List<String> _communes = [];
 
   // Geolocation state variables
   Position? _currentPosition;
@@ -48,10 +54,49 @@ class _RegisterPageState extends State<RegisterPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadWilayas();
       final lang = Provider.of<LanguageProvider>(context, listen: false);
       setState(() {
         _locationMessage = lang.tr('gps_button', category: 'auth');
       });
+    });
+  }
+
+  Language _getDzairLanguage(String langCode) {
+    switch (langCode.toLowerCase()) {
+      case 'ar':
+        return Language.AR;
+      case 'fr':
+        return Language.FR;
+      case 'en':
+        return Language.FR;
+      default:
+        return Language.FR;
+    }
+  }
+
+  void _loadWilayas() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    setState(() {
+      _wilayas = WilayaService.getAllWilayaNamesSafe(
+        language: _getDzairLanguage(languageProvider.locale.languageCode),
+      );
+    });
+  }
+
+  void _onWilayaChanged(String? newValue) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    setState(() {
+      _selectedWilaya = newValue;
+      _selectedCommune = null;
+      if (newValue != null) {
+        _communes = WilayaService.getCommunesForWilayaSafe(
+          newValue,
+          language: _getDzairLanguage(languageProvider.locale.languageCode),
+        );
+      } else {
+        _communes = [];
+      }
     });
   }
 
@@ -74,7 +119,13 @@ class _RegisterPageState extends State<RegisterPage> {
             context, lang.tr('google_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
           (route) => false,
         );
       } else {
@@ -103,7 +154,13 @@ class _RegisterPageState extends State<RegisterPage> {
             context, lang.tr('apple_sign_in_success', category: 'auth'));
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
           (route) => false,
         );
       } else {
@@ -206,7 +263,8 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _password,
         role: _role,
         phone: _phone,
-        address: _address,
+        wilaya: _selectedWilaya,
+        commune: _selectedCommune,
         lat: _latitude,
         lon: _longitude,
       );
@@ -219,10 +277,16 @@ class _RegisterPageState extends State<RegisterPage> {
             lang.trParams('register_success',
                 category: 'auth', params: {'name': user.name ?? ''}));
 
-        // Reset to AuthWrapper to let it handle verification check
+        // Reset to AuthWrapper with a smooth transition
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
           (route) => false,
         );
       } else {
@@ -555,28 +619,43 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 const SizedBox(height: 16),
 
-                                // Address Field
-                                TextFormField(
+                                // Wilaya Dropdown
+                                DropdownButtonFormField<String>(
+                                  value: _selectedWilaya,
                                   decoration: _buildAestheticInputDecoration(
-                                    lang.tr('address_hint', category: 'auth'),
+                                    lang.tr('wilaya_label', category: 'auth'),
                                     lang,
                                   ),
-                                  keyboardType: TextInputType.streetAddress,
-                                  maxLines: 2,
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
-                                  style: const TextStyle(
-                                    fontFamily: kAppFont,
-                                    color: kDarkTextColor,
+                                  items: _wilayas.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value, style: const TextStyle(fontFamily: kAppFont)),
+                                    );
+                                  }).toList(),
+                                  onChanged: _onWilayaChanged,
+                                  validator: (value) => value == null ? lang.tr('validation_wilaya_required', category: 'auth') : null,
+                                  icon: const Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
+                                  dropdownColor: Colors.white,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Commune Dropdown
+                                DropdownButtonFormField<String>(
+                                  value: _selectedCommune,
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('commune_label', category: 'auth'),
+                                    lang,
                                   ),
-                                  validator: (value) {
-                                    if (value!.isEmpty && _latitude == null) {
-                                      return lang.tr('gps_or_address',
-                                          category: 'auth');
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (value) => _address = value!,
+                                  items: _communes.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value, style: const TextStyle(fontFamily: kAppFont)),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) => setState(() => _selectedCommune = value),
+                                  validator: (value) => value == null ? lang.tr('validation_commune_required', category: 'auth') : null,
+                                  icon: const Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
+                                  dropdownColor: Colors.white,
                                 ),
                                 const SizedBox(height: 16),
 
@@ -679,10 +758,23 @@ class _RegisterPageState extends State<RegisterPage> {
                     // Sign In Link
                     SignInLink(
                       onTap: () {
-                        Navigator.push(
+                        Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(-1, 0),
+                                  end: Offset.zero,
+                                ).animate(CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeInOutCubic,
+                                )),
+                                child: child,
+                              );
+                            },
+                            transitionDuration: const Duration(milliseconds: 500),
                           ),
                         );
                       },

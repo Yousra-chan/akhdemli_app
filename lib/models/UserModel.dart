@@ -26,6 +26,7 @@ class UserModel {
   final Timestamp? fcmTokenUpdatedAt;
   final List<String> chatIds;
   final List<String> portfolio;
+  final bool profileCompleted;
 
   // Location fields
   final String? wilaya;
@@ -57,6 +58,7 @@ class UserModel {
     this.fcmTokenUpdatedAt,
     this.chatIds = const [],
     this.portfolio = const [],
+    this.profileCompleted = false,
 
     // Location fields
     this.wilaya,
@@ -90,6 +92,7 @@ class UserModel {
       'isBanned': isBanned,
       'chatIds': chatIds,
       'portfolio': portfolio,
+      'profileCompleted': profileCompleted,
 
       // Location fields
       'wilaya': wilaya,
@@ -120,6 +123,11 @@ class UserModel {
       fcmTokenUpdatedAt: data['fcmTokenUpdatedAt'],
       chatIds: List<String>.from(data['chatIds'] ?? []),
       portfolio: List<String>.from(data['portfolio'] ?? []),
+      profileCompleted: data['profileCompleted'] ??
+          (data['wilaya'] != null &&
+              data['commune'] != null &&
+              data['phone'] != null &&
+              data['phone'].toString().isNotEmpty),
 
       // Admin/Moderation fields
       isSuspended: data['isSuspended'] ?? false,
@@ -156,6 +164,7 @@ class UserModel {
     Timestamp? fcmTokenUpdatedAt,
     List<String>? chatIds,
     List<String>? portfolio,
+    bool? profileCompleted,
     String? wilaya,
     String? commune,
   }) {
@@ -182,6 +191,7 @@ class UserModel {
       fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt,
       chatIds: chatIds ?? this.chatIds,
       portfolio: portfolio ?? this.portfolio,
+      profileCompleted: profileCompleted ?? this.profileCompleted,
       wilaya: wilaya ?? this.wilaya,
       commune: commune ?? this.commune,
     );

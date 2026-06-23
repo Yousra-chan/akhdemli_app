@@ -20,11 +20,10 @@ class WilayaException implements Exception {
 /// Provides access to:
 /// - All wilayas (states/provinces) in Algeria
 /// - Communes (cities/districts) within each wilaya
-/// - Localized names in French
+/// - Localized names in French/Arabic
 /// - Sorted lists for UI display
 class WilayaService {
-  // Singleton instance (kept for parity with previous API surface;
-  // all real work happens through the static members below).
+  // Singleton instance
   static final WilayaService _instance = WilayaService._internal();
 
   factory WilayaService() => _instance;
@@ -46,9 +45,7 @@ class WilayaService {
   // CACHE MANAGEMENT
   // ============================================================================
 
-  /// Clears every cached wilaya/commune lookup, forcing the next call to
-  /// re-read from the underlying data source. Useful for tests or after a
-  /// locale change.
+  /// Clears every cached wilaya/commune lookup.
   static void refreshCache() {
     _wilayasCache = null;
     _communesCache = null;
@@ -59,9 +56,6 @@ class WilayaService {
   // ============================================================================
 
   /// Retrieves all wilayas (states/provinces) in Algeria.
-  ///
-  /// Returns: List of Wilaya objects
-  /// Throws: WilayaException if data cannot be retrieved
   static List<Wilaya> getAllWilayas() {
     if (_wilayasCache != null && _wilayasCache!.isNotEmpty) {
       return _wilayasCache!;
@@ -90,20 +84,21 @@ class WilayaService {
     }
   }
 
-  /// Retrieves all wilaya names sorted alphabetically.
-  /// Throws: WilayaException if data cannot be retrieved.
-  static List<String> getAllWilayaNames() {
+  /// Retrieves all wilaya names sorted alphabetically in specified language.
+  static List<String> getAllWilayaNames({Language? language}) {
     final wilayas = getAllWilayas();
-    final names = wilayas.map(_getWilayaName).where((n) => n.isNotEmpty).toList()..sort();
+    final names = wilayas
+        .map((w) => _getWilayaName(w, language: language))
+        .where((n) => n.isNotEmpty)
+        .toList()
+      ..sort();
     return names;
   }
 
-  /// Safe variant — never throws. Returns an empty list on failure so UI
-  /// dropdowns always have something to render instead of crashing the
-  /// widget tree.
-  static List<String> getAllWilayaNamesSafe() {
+  /// Safe variant — never throws.
+  static List<String> getAllWilayaNamesSafe({Language? language}) {
     try {
-      return getAllWilayaNames();
+      return getAllWilayaNames(language: language);
     } catch (e) {
       debugPrint('WilayaService: getAllWilayaNamesSafe falling back to []: $e');
       return const [];
@@ -111,14 +106,12 @@ class WilayaService {
   }
 
   /// Retrieves communes for a specific wilaya.
-  /// Throws: WilayaException on validation failure or if not found.
-  static List<String> getCommunesForWilaya(String wilayaName) {
+  static List<String> getCommunesForWilaya(String wilayaName, {Language? language}) {
     _validateWilayaName(wilayaName);
 
-    if (_communesCache != null && _communesCache!.containsKey(wilayaName)) {
-      return _communesCache![wilayaName]!;
-    }
-
+    // We don't cache by language yet, so we refresh if needed or just don't cache for localized names
+    // if we expect frequent language changes. For now, simple implementation.
+    
     final wilaya = _findWilayaByName(wilayaName);
     if (wilaya == null) {
       throw WilayaException(
@@ -129,21 +122,20 @@ class WilayaService {
 
     final communes = wilaya.getCommunes();
     final communeList = (communes ?? const []).whereType<Commune>().toList()
-      ..sort((a, b) => _getCommuneName(a).compareTo(_getCommuneName(b)));
+      ..sort((a, b) => _getCommuneName(a, language: language).compareTo(_getCommuneName(b, language: language)));
 
-    final communeNames =
-    communeList.map(_getCommuneName).where((n) => n.isNotEmpty).toList();
-
-    _communesCache ??= {};
-    _communesCache![wilayaName] = communeNames;
+    final communeNames = communeList
+        .map((c) => _getCommuneName(c, language: language))
+        .where((n) => n.isNotEmpty)
+        .toList();
 
     return communeNames;
   }
 
-  /// Safe variant — never throws. Returns an empty list on any failure.
-  static List<String> getCommunesForWilayaSafe(String wilayaName) {
+  /// Safe variant — never throws.
+  static List<String> getCommunesForWilayaSafe(String wilayaName, {Language? language}) {
     try {
-      return getCommunesForWilaya(wilayaName);
+      return getCommunesForWilaya(wilayaName, language: language);
     } catch (e) {
       debugPrint('WilayaService: getCommunesForWilayaSafe($wilayaName) falling back to []: $e');
       return const [];
@@ -198,17 +190,16 @@ class WilayaService {
     }
   }
 
-  /// Clears the internal cache. Kept as an alias of [refreshCache] for
-  /// backward compatibility with any existing call sites.
+  /// Clears the internal cache.
   static void clearCache() => refreshCache();
 
   // ============================================================================
   // PRIVATE HELPER METHODS
   // ============================================================================
 
-  static String _getWilayaName(Wilaya wilaya) {
+  static String _getWilayaName(Wilaya wilaya, {Language? language}) {
     try {
-      final name = wilaya.getWilayaName(Language.FR);
+      final name = wilaya.getWilayaName(language ?? Language.FR);
       if (name == null || name.isEmpty) return _unknownLabel;
       return _sanitizeName(name);
     } catch (e) {
@@ -216,9 +207,9 @@ class WilayaService {
     }
   }
 
-  static String _getCommuneName(Commune commune) {
+  static String _getCommuneName(Commune commune, {Language? language}) {
     try {
-      final name = commune.getCommuneName(Language.FR);
+      final name = commune.getCommuneName(language ?? Language.FR);
       if (name == null || name.isEmpty) return _unknownLabel;
       return _sanitizeName(name);
     } catch (e) {
@@ -230,7 +221,9 @@ class WilayaService {
     try {
       final normalizedSearchName = wilayaName.trim().toLowerCase();
       for (final wilaya in getAllWilayas()) {
-        if (_getWilayaName(wilaya).toLowerCase() == normalizedSearchName) {
+        // Try multiple languages to find the wilaya object
+        if (_getWilayaName(wilaya, language: Language.FR).toLowerCase() == normalizedSearchName ||
+            _getWilayaName(wilaya, language: Language.AR).toLowerCase() == normalizedSearchName) {
           return wilaya;
         }
       }

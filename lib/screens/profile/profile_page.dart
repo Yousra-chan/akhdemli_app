@@ -144,12 +144,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     // My Bookings Tile - Shows for all users
                     _buildMyBookingsTile(context, isProvider, languageProvider),
 
-                    const SizedBox(height: 20),
-
-                    // Dynamic Info Card with translations
-                    _buildRoleOrAddressCard(
-                        currentUser, isProvider, languageProvider),
-
                     const SizedBox(height: 15),
 
                     // Logout Button with translations
@@ -1159,31 +1153,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
     );
-  }
-
-  // Role or Address Card - Updated for real-time language
-  Widget _buildRoleOrAddressCard(
-      UserModel profile, bool isProvider, LanguageProvider languageProvider) {
-    String title;
-    String content;
-    IconData icon;
-
-    final String userAddress = _userStats?['address'] ?? profile.address;
-
-    if (userAddress.isNotEmpty) {
-      title = languageProvider.tr('address', category: 'common');
-      content = userAddress;
-      icon = CupertinoIcons.location_solid;
-    } else if (isProvider) {
-      title = languageProvider.tr('myRole', category: 'common');
-      content = languageProvider.tr('registeredAsProvider', category: 'common');
-      icon = CupertinoIcons.briefcase_fill;
-    } else {
-      title = languageProvider.tr('myRole', category: 'common');
-      content = languageProvider.tr('registeredAsClient', category: 'common');
-      icon = CupertinoIcons.person_alt_circle_fill;
-    }
-    return _buildInfoCard(title: title, content: content, icon: icon);
   }
 
   // Info Card - Static (only title and content change)

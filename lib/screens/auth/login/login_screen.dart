@@ -101,10 +101,16 @@ class _LoginScreenState extends State<LoginScreen> {
           AppSnackBar.showSuccess(
               context, lang.tr('sign_in_success', category: 'auth'));
 
-          // Reset to AuthWrapper to let it handle verification check
+          // Reset to AuthWrapper with a smooth transition
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => AuthWrapper()),
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 600),
+            ),
             (route) => false,
           );
         } else {
@@ -134,7 +140,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
           (route) => false,
         );
       } else {
@@ -164,7 +176,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
           (route) => false,
         );
       } else {
@@ -389,10 +407,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 40),
                     _SignUpLink(
                       onTap: () {
-                        Navigator.push(
+                        Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterPage(),
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => const RegisterPage(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(1, 0),
+                                  end: Offset.zero,
+                                ).animate(CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeInOutCubic,
+                                )),
+                                child: child,
+                              );
+                            },
+                            transitionDuration: const Duration(milliseconds: 500),
                           ),
                         );
                       },

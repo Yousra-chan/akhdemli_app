@@ -142,6 +142,8 @@ class AuthService {
         required String role,
         required String phone,
         String address = '',
+        String? wilaya,
+        String? commune,
         double? lat,
         double? lon,
       }) async {
@@ -198,6 +200,11 @@ class AuthService {
         createdAt: Timestamp.now(),
         location: location,
         address: _sanitizeInput(address),
+        wilaya: wilaya,
+        commune: commune,
+        profileCompleted: (wilaya != null &&
+            commune != null &&
+            _sanitizeInput(phone).isNotEmpty),
       );
 
       await docRef.set(userModel.toMap());
@@ -249,7 +256,9 @@ class AuthService {
     required String password,
     required String role,
     required String phone,
-    required String address,
+    String address = '',
+    String? wilaya,
+    String? commune,
     double? lat,
     double? lon,
   }) async {
@@ -279,6 +288,8 @@ class AuthService {
           role: role,
           phone: phone,
           address: address,
+          wilaya: wilaya,
+          commune: commune,
           lat: lat,
           lon: lon,
         );
@@ -758,7 +769,7 @@ class AuthService {
   /// WARNING: This operation is irreversible
   /// - Removes user from Firebase Auth
   /// - Deletes Firestore profile
-  /// - Cleans up FCM tokens
+  /// - Cleans up all related data (services, bookings, ratings, etc.)
   Future<void> deleteUserAccount(String uid) async {
     try {
       if (uid.isEmpty) {
@@ -770,15 +781,59 @@ class AuthService {
 
       final currentUser = _auth.currentUser;
 
-      // Delete Firestore profile
+      // 1. Delete user's services
+      final services = await _firestore
+          .collection('services')
+          .where('providerId', isEqualTo: uid)
+          .get();
+      for (var doc in services.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. Delete user's bookings (as client or provider)
+      final clientBookings = await _firestore
+          .collection('bookings')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in clientBookings.docs) {
+        await doc.reference.delete();
+      }
+      
+      final providerBookings = await _firestore
+          .collection('bookings')
+          .where('providerId', isEqualTo: uid)
+          .get();
+      for (var doc in providerBookings.docs) {
+        await doc.reference.delete();
+      }
+
+      // 3. Delete user's ratings
+      final ratings = await _firestore
+          .collection('ratings')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in ratings.docs) {
+        await doc.reference.delete();
+      }
+
+      // 4. Delete user's notifications
+      final notifications = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in notifications.docs) {
+        await doc.reference.delete();
+      }
+
+      // 5. Delete Firestore profile
       await _firestore.collection(_usersCollection).doc(uid).delete();
 
-      // Delete Firebase Auth user
+      // 6. Delete Firebase Auth user
       if (currentUser != null && currentUser.uid == uid) {
         await currentUser.delete();
       }
 
-      debugPrint('✅ [AuthService] User account deleted: $uid');
+      debugPrint('✅ [AuthService] All user data deleted: $uid');
     } catch (e) {
       debugPrint('❌ [AuthService] ${_tr('account_deletion_failed')}: $e');
       throw AuthException(

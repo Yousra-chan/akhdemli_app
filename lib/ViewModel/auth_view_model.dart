@@ -142,7 +142,9 @@ class AuthViewModel with ChangeNotifier {
     required String password,
     required String role,
     required String phone,
-    required String address,
+    String address = '',
+    String? wilaya,
+    String? commune,
     double? lat,
     double? lon,
   }) async {
@@ -153,7 +155,8 @@ class AuthViewModel with ChangeNotifier {
         password: password,
         role: role,
         phone: phone,
-        address: address,
+        wilaya: wilaya,
+        commune: commune,
       );
 
       final userModel = await _authService.signup(
@@ -163,6 +166,8 @@ class AuthViewModel with ChangeNotifier {
         role: role,
         phone: phone,
         address: address,
+        wilaya: wilaya,
+        commune: commune,
         lat: lat,
         lon: lon,
       );
@@ -246,6 +251,46 @@ class AuthViewModel with ChangeNotifier {
       debugPrint('✅ Local user updated to: ${_currentUser!.role}');
       notifyListeners();
     }, 'Role update');
+  }
+
+  /// Completes user profile with additional information
+  /// 
+  /// Parameters:
+  /// - wilaya: Selected wilaya
+  /// - commune: Selected commune
+  /// - phone: User's phone number
+  /// - lat, lon: Optional geographic coordinates
+  Future<void> completeProfile({
+    required String wilaya,
+    required String commune,
+    required String phone,
+    double? lat,
+    double? lon,
+  }) async {
+    return _executeOperation(() async {
+      if (_currentUser == null) {
+        throw AuthViewModelException(
+          'No user logged in',
+          code: 'no-current-user',
+        );
+      }
+
+      GeoPoint? location;
+      if (lat != null && lon != null) {
+        location = GeoPoint(lat, lon);
+      }
+
+      final updatedUser = _currentUser!.copyWith(
+        wilaya: wilaya,
+        commune: commune,
+        phone: phone,
+        location: location,
+        profileCompleted: true,
+      );
+
+      await _userService.updateUser(updatedUser);
+      _setUser(updatedUser);
+    }, 'Complete profile');
   }
 
   // ============================================================================
@@ -605,7 +650,8 @@ class AuthViewModel with ChangeNotifier {
     required String password,
     required String role,
     required String phone,
-    required String address,
+    String? wilaya,
+    String? commune,
   }) {
     if (name.trim().isEmpty) {
       throw AuthViewModelException(
@@ -653,17 +699,17 @@ class AuthViewModel with ChangeNotifier {
       );
     }
 
-    if (address.trim().isEmpty) {
+    if (wilaya == null || wilaya.isEmpty) {
       throw AuthViewModelException(
-        'Address cannot be empty',
-        code: 'empty-address',
+        'Wilaya must be selected',
+        code: 'empty-wilaya',
       );
     }
 
-    if (address.length > 200) {
+    if (commune == null || commune.isEmpty) {
       throw AuthViewModelException(
-        'Address is too long (max 200 characters)',
-        code: 'address-too-long',
+        'Commune must be selected',
+        code: 'empty-commune',
       );
     }
   }

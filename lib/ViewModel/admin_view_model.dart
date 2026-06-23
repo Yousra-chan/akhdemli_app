@@ -234,9 +234,9 @@ class AdminViewModel extends ChangeNotifier {
     }
   }
 
-  Future<String> generateNewCode({required String userId, required int months}) async {
+  Future<String> generateNewCode({required String email, required int months}) async {
     final code = await _subService.generateSubscriptionCode(
-      assignedUserId: userId,
+      assignedEmail: email,
       months: months,
     );
     await fetchCodes();

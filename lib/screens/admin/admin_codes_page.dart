@@ -94,66 +94,117 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     final lang = Provider.of<LanguageProvider>(context, listen: false);
     final emailCtrl = TextEditingController();
     int months = 1;
+    Map<String, dynamic>? selectedUser;
+    List<Map<String, dynamic>> searchResults = [];
 
-    final result = await showDialog<Map<String, dynamic>>(
+    await showDialog(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
+            void updateSearch(String query) {
+              if (query.isEmpty) {
+                setDialogState(() => searchResults = []);
+                return;
+              }
+              final q = query.toLowerCase();
+              setDialogState(() {
+                searchResults = _users.where((u) {
+                  final email = (u['email'] ?? '').toString().toLowerCase();
+                  final name = (u['name'] ?? '').toString().toLowerCase();
+                  return email.contains(q) || name.contains(q);
+                }).take(5).toList();
+              });
+            }
+
             return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                lang.tr('generate_user_code', category: 'admin'),
-                style: const TextStyle(
-                    fontFamily: kAppFont, fontWeight: FontWeight.w600),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
                 children: [
-                  Text(lang.tr('user_email_required', category: 'admin'),
-                      style: const TextStyle(fontSize: 13, color: kMutedTextColor)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      hintText: lang.tr('user_email_placeholder', category: 'admin'),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(lang.tr('duration', category: 'admin'),
-                      style: const TextStyle(fontSize: 13, color: kMutedTextColor)),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<int>(
-                    initialValue: months,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    items: [1, 2, 3, 6, 12]
-                        .map((m) => DropdownMenuItem(
-                              value: m,
-                              child: Text(m == 12 ? lang.tr('one_year', category: 'admin') : lang.trParams('month_plural', category: 'admin', params: {'count': m.toString()})),
-                            ))
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => months = val);
-                    },
-                  ),
+                  const Icon(Icons.vpn_key_outlined, color: kPrimaryBlue),
+                  const SizedBox(width: 10),
+                  Text(lang.tr('generate_user_code', category: 'admin')),
                 ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(lang.tr('search_users', category: 'admin'),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kMutedTextColor)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: emailCtrl,
+                        onChanged: updateSearch,
+                        decoration: InputDecoration(
+                          hintText: lang.tr('user_email_placeholder', category: 'admin'),
+                          prefixIcon: const Icon(Icons.person_search_outlined),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                      ),
+                      if (searchResults.isNotEmpty && selectedUser == null)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                          ),
+                          child: Column(
+                            children: searchResults.map((u) => ListTile(
+                              dense: true,
+                              title: Text(u['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(u['email'] ?? ''),
+                              onTap: () {
+                                setDialogState(() {
+                                  selectedUser = u;
+                                  emailCtrl.text = u['email'];
+                                  searchResults = [];
+                                });
+                              },
+                            )).toList(),
+                          ),
+                        ),
+                      if (selectedUser != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Chip(
+                            avatar: const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                            label: Text(selectedUser!['name'] ?? selectedUser!['email']),
+                            onDeleted: () => setDialogState(() {
+                              selectedUser = null;
+                              emailCtrl.clear();
+                            }),
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                      Text(lang.tr('duration', category: 'admin'),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kMutedTextColor)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        children: [1, 3, 6, 12].map((m) {
+                          final isSel = months == m;
+                          return ChoiceChip(
+                            label: Text(m == 12 ? '1 ${lang.tr('year', category: 'admin')}' : '$m ${lang.tr('months', category: 'admin')}'),
+                            selected: isSel,
+                            selectedColor: kPrimaryBlue.withOpacity(0.2),
+                            onSelected: (s) => setDialogState(() => months = m),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
@@ -164,11 +215,14 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: () => Navigator.pop(dialogContext, {
-                    'email': emailCtrl.text.trim(),
-                    'months': months,
-                  }),
+                  onPressed: selectedUser == null && emailCtrl.text.isEmpty
+                      ? null
+                      : () {
+                          Navigator.pop(dialogContext);
+                          _generate(email: emailCtrl.text.trim(), months: months);
+                        },
                   child: Text(lang.tr('generate', category: 'admin')),
                 ),
               ],
@@ -177,31 +231,15 @@ class _AdminCodesPageState extends State<AdminCodesPage>
         );
       },
     );
-
-    if (result == null) return;
-    final email = (result['email'] as String).trim();
-    final selectedMonths = result['months'] as int;
-    if (email.isEmpty) {
-      AppSnackBar.showError(context, lang.tr('email_required_error', category: 'admin'));
-      return;
-    }
-    await _generate(email: email, months: selectedMonths);
   }
 
   Future<void> _generate({required String email, required int months}) async {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
     setState(() => _loading = true);
     try {
-      final user = await _service.findUserByEmail(email);
-      if (user == null) {
-        AppSnackBar.showError(context, lang.trParams('no_user_found_email', category: 'admin', params: {'email': email}));
-        setState(() => _loading = false);
-        return;
-      }
-
       final code = await _service.generateSubscriptionCode(
         months: months,
-        assignedUserId: user['uid'],
+        assignedEmail: email.toLowerCase().trim(),
       );
 
       await _loadAll();
@@ -290,19 +328,51 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     }
   }
 
+  Future<void> _deleteAllCodes(bool onlyUsed) async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(onlyUsed ? lang.tr('delete_used_codes', category: 'admin') : lang.tr('delete_all_codes', category: 'admin')),
+        content: Text(onlyUsed ? lang.tr('confirm_delete_used', category: 'admin') : lang.tr('confirm_delete_all', category: 'admin')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(lang.tr('cancel', category: 'common'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(lang.tr('delete', category: 'common')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _loading = true);
+    try {
+      await _service.deleteAllCodes(onlyUsed: onlyUsed);
+      await _loadAll();
+      if (mounted) AppSnackBar.showSuccess(context, lang.tr('codes_deleted_success', category: 'admin'));
+    } catch (e) {
+      if (mounted) AppSnackBar.showError(context, '${lang.tr('operation_failed', category: 'admin')}: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _exportCodes() {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
     final buffer = StringBuffer();
-    buffer.writeln('Code,AssignedUID,Duration(Months),Expiry,Status');
+    buffer.writeln('Code,AssignedEmail,Duration(Months),Expiry,Status');
     for (final c in _filteredCodes) {
       final code = c['code'] ?? '';
-      final uid = c['assignedUserId'] ?? '';
+      final email = c['assignedEmail'] ?? '';
       final duration = c['duration'] ?? '';
       final expiresAt = c['expiresAt'] != null
           ? (c['expiresAt'] as Timestamp).toDate().toString().split(' ')[0]
           : '';
       final used = (c['isUsed'] ?? false) ? lang.tr('status_used', category: 'admin') : lang.tr('available', category: 'admin');
-      buffer.writeln('$code,$uid,$duration,$expiresAt,$used');
+      buffer.writeln('$code,$email,$duration,$expiresAt,$used');
     }
     Clipboard.setData(ClipboardData(text: buffer.toString()));
     AppSnackBar.showSuccess(context, lang.tr('codes_exported', category: 'admin'));
@@ -314,9 +384,8 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     final bool used = codeData['isUsed'] ?? false;
     final expiresAtTs = codeData['expiresAt'];
     final int? duration = codeData['duration'] as int?;
-    final assignedUserId = codeData['assignedUserId'] as String?;
+    final assignedEmail = codeData['assignedEmail'] as String?;
     final createdAtTs = codeData['createdAt'];
-    final linkedEmail = _emailForUid(assignedUserId);
 
     showModalBottomSheet(
       context: context,
@@ -355,7 +424,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
             ),
             const Divider(height: 24),
             _detailRow(Icons.person_outline, lang.tr('assigned_to', category: 'admin'),
-                linkedEmail ?? assignedUserId ?? lang.tr('unknown', category: 'admin')),
+                assignedEmail ?? lang.tr('unknown', category: 'admin')),
             _detailRow(
                 Icons.calendar_today_outlined,
                 lang.tr('created', category: 'bookings'), // Reuse 'created' key
@@ -462,9 +531,8 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       final q = _codeSearch.toLowerCase();
       result = result.where((c) {
         final code = (c['code'] ?? '').toString().toLowerCase();
-        final assignedUserId = (c['assignedUserId'] ?? '').toString().toLowerCase();
-        final emailFromUid = (_emailForUid(c['assignedUserId']) ?? '').toLowerCase();
-        return code.contains(q) || assignedUserId.contains(q) || emailFromUid.contains(q);
+        final assignedEmail = (c['assignedEmail'] ?? '').toString().toLowerCase();
+        return code.contains(q) || assignedEmail.contains(q);
       }).toList();
     }
 
@@ -571,10 +639,57 @@ class _AdminCodesPageState extends State<AdminCodesPage>
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: kPrimaryBlue),
-            tooltip: lang.tr('refresh', category: 'admin'),
-            onPressed: _loading ? null : _loadAll,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: kPrimaryBlue),
+            onSelected: (val) {
+              if (val == 'delete_all') _deleteAllCodes(false);
+              if (val == 'delete_used') _deleteAllCodes(true);
+              if (val == 'export') _exportCodes();
+              if (val == 'refresh') _loadAll();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    const Icon(Icons.refresh, size: 20, color: kPrimaryBlue),
+                    const SizedBox(width: 10),
+                    Text(lang.tr('refresh', category: 'admin')),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    const Icon(Icons.content_copy, size: 20, color: kPrimaryBlue),
+                    const SizedBox(width: 10),
+                    Text(lang.tr('export', category: 'admin')),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'delete_used',
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_sweep_outlined, size: 20, color: Colors.orange),
+                    const SizedBox(width: 10),
+                    Text(lang.tr('delete_used_codes', category: 'admin')),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete_all',
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_forever, size: 20, color: Colors.red),
+                    const SizedBox(width: 10),
+                    Text(lang.tr('delete_all_codes', category: 'admin')),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -723,7 +838,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
   Widget _buildCodeCard(Map<String, dynamic> codeData, LanguageProvider lang) {
     final bool used = codeData['isUsed'] ?? false;
     final String code = codeData['code'] ?? '';
-    final String assignedTo = codeData['assignedUserId'] ?? '';
+    final String assignedTo = codeData['assignedEmail'] ?? '';
     final expiresAtTs = codeData['expiresAt'];
 
     return GestureDetector(
@@ -753,7 +868,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
                 ],
               ),
               const SizedBox(height: 8),
-              Text('${lang.tr('assigned_to', category: 'admin')}: ${_emailForUid(assignedTo) ?? assignedTo}',
+              Text('${lang.tr('assigned_to', category: 'admin')}: $assignedTo',
                   style: const TextStyle(color: kMutedTextColor, fontSize: 13)),
               const SizedBox(height: 14),
               Row(
@@ -819,7 +934,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
 
   Widget _buildHistoryCard(Map<String, dynamic> c, LanguageProvider lang) {
     final String code = c['code'] ?? '';
-    final String assignedTo = c['assignedUserId'] ?? '';
+    final String assignedTo = c['assignedEmail'] ?? '';
     final usedAtTs = c['usedAt'];
     return Container(
       decoration: BoxDecoration(
@@ -831,7 +946,7 @@ class _AdminCodesPageState extends State<AdminCodesPage>
       child: ListTile(
         leading: const Icon(Icons.history, color: kPrimaryBlue),
         title: Text(code, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${lang.tr('used_by', category: 'admin')}: ${_emailForUid(assignedTo) ?? assignedTo}\n${lang.tr('at', category: 'admin')}: ${usedAtTs != null ? (usedAtTs as Timestamp).toDate().toString() : "-"}'),
+        subtitle: Text('${lang.tr('used_by', category: 'admin')}: $assignedTo\n${lang.tr('at', category: 'admin')}: ${usedAtTs != null ? (usedAtTs as Timestamp).toDate().toString() : "-"}'),
       ),
     );
   }
@@ -840,22 +955,34 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     final users = _filteredUsers;
     return RefreshIndicator(
       onRefresh: _loadAll,
+      color: kPrimaryBlue,
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
               onChanged: (v) => setState(() => _userSearch = v),
-              decoration: InputDecoration(hintText: lang.tr('search_users', category: 'admin')),
+              decoration: InputDecoration(
+                hintText: lang.tr('search_users', category: 'admin'),
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: kBorderColor),
+                ),
+              ),
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: users.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, index) => _buildUserCard(users[index], lang),
-            ),
+            child: users.isEmpty
+                ? Center(child: Text(lang.tr('no_users_found', category: 'admin')))
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: users.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) => _buildUserCard(users[index], lang),
+                  ),
           ),
         ],
       ),
@@ -864,35 +991,70 @@ class _AdminCodesPageState extends State<AdminCodesPage>
 
   Widget _buildUserCard(Map<String, dynamic> u, LanguageProvider lang) {
     final email = (u['email'] ?? '') as String;
-    return Card(
-      child: ListTile(
-        title: Text(u['name'] ?? email),
-        subtitle: Text(email),
-        trailing: IconButton(
-          icon: const Icon(Icons.qr_code),
-          onPressed: () => _quickGenerateForUser(email, lang),
+    final name = (u['name'] ?? 'User') as String;
+    final isActive = u['subscriptionActive'] ?? false;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorderColor),
+      ),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: kPrimaryBlue.withOpacity(0.1),
+          child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U',
+              style: const TextStyle(color: kPrimaryBlue, fontWeight: FontWeight.bold)),
         ),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(email, style: const TextStyle(fontSize: 12)),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            isActive ? lang.tr('status_active', category: 'admin') : lang.tr('inactive', category: 'admin'),
+            style: TextStyle(color: isActive ? Colors.green : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(),
+                Text(lang.tr('quick_generate', category: 'admin'),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kMutedTextColor)),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [1, 3, 6, 12].map((m) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimaryBlue.withOpacity(0.05),
+                          foregroundColor: kPrimaryBlue,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _generate(email: email, months: m),
+                        child: Text(m == 12 ? '1Y' : '${m}M', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _quickGenerateForUser(String email, LanguageProvider lang) async {
-    int months = 1;
-    final selectedMonths = await showDialog<int>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-        title: Text(lang.trParams('generate_for', category: 'admin', params: {'email': email})),
-        content: DropdownButton<int>(
-          value: months,
-          items: [1, 2, 3, 6, 12].map((m) => DropdownMenuItem(value: m, child: Text(lang.trParams('month_plural', category: 'admin', params: {'count': m.toString()})) )).toList(),
-          onChanged: (v) => setS(() => months = v!),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(lang.tr('cancel', category: 'common'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, months), child: Text(lang.tr('generate', category: 'admin'))),
-        ],
-      )),
-    );
-    if (selectedMonths != null) await _generate(email: email, months: selectedMonths);
-  }
+  // End of AdminCodesPage
 }

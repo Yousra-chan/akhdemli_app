@@ -16,7 +16,7 @@ class SubscriptionService {
 
   Future<String> generateSubscriptionCode({
     required int months,
-    required String assignedUserId,
+    required String assignedEmail,
   }) async {
     final now = DateTime.now();
     final validDays = months * 30;
@@ -26,7 +26,7 @@ class SubscriptionService {
     final docRef = _firestore.collection(_codes).doc(code);
     await docRef.set({
       'code': code,
-      'assignedUserId': assignedUserId,
+      'assignedEmail': assignedEmail.toLowerCase().trim(),
       'duration': months,
       'isUsed': false,
       'createdAt': FieldValue.serverTimestamp(),
@@ -74,12 +74,25 @@ class SubscriptionService {
     await _firestore.collection(_codes).doc(codeId).delete();
   }
 
+  Future<void> deleteAllCodes({bool onlyUsed = false}) async {
+    Query query = _firestore.collection(_codes);
+    if (onlyUsed) {
+      query = query.where('isUsed', isEqualTo: true);
+    }
+    final snap = await query.get();
+    final batch = _firestore.batch();
+    for (var doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   Future<bool> activateSubscription({
-    required String userId,
+    required String email,
     required String code,
   }) async {
     final codeRef = _firestore.collection(_codes).doc(code);
-    final userRef = _firestore.collection(_users).doc(userId);
+    final userQuery = _firestore.collection(_users).where('email', isEqualTo: email.toLowerCase().trim()).limit(1);
 
     return _firestore.runTransaction((tx) async {
       final codeSnap = await tx.get(codeRef);
@@ -88,20 +101,21 @@ class SubscriptionService {
 
       final isUsed = codeData['isUsed'] ?? false;
       final expiresAt = codeData['expiresAt'] as Timestamp?;
-      final assignedUserId = codeData['assignedUserId'] as String?;
+      final assignedEmail = codeData['assignedEmail'] as String?;
 
       if (isUsed) throw Exception('Code already used');
       if (expiresAt == null || expiresAt.toDate().isBefore(DateTime.now())) {
         throw Exception('Code expired');
       }
 
-      // STRICT VALIDATION: Must match assignedUserId
-      if (assignedUserId != userId) {
+      // STRICT VALIDATION: Must match assignedEmail
+      if (assignedEmail != email.toLowerCase().trim()) {
         throw Exception('This code was not generated for your account');
       }
 
-      final userSnap = await tx.get(userRef);
-      if (!userSnap.exists) throw Exception('User not found');
+      final userSnap = await userQuery.get();
+      if (userSnap.docs.isEmpty) throw Exception('User not found');
+      final userRef = userSnap.docs.first.reference;
 
       tx.update(userRef, {
         'subscriptionActive': true,

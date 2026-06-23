@@ -88,7 +88,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
     try {
       await _service.activateSubscription(
-        userId: user.uid,
+        email: user.email,
         code: code,
       );
 

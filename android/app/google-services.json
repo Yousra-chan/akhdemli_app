@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "817258417031-2jaghvu4qbqnd9hfa684tte5me5e1oa0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.akhdemli.app",
+            "certificate_hash": "cb927372f38aabdf4b0fa720683d43d5fa1d36ff"
+          }
+        },
+        {
           "client_id": "817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com",
           "client_type": 3
         }

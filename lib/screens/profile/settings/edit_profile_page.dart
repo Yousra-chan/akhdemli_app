@@ -1,3 +1,4 @@
+import 'package:dzair_data_usage/langs.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -54,15 +55,47 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _selectedWilaya = user?.wilaya;
     _selectedCommune = user?.commune;
     
-    _loadWilayas();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadWilayas();
+    });
+  }
+
+  Language _getDzairLanguage(String langCode) {
+    switch (langCode.toLowerCase()) {
+      case 'ar':
+        return Language.AR;
+      case 'fr':
+        return Language.FR;
+      case 'en':
+        return Language.FR; // Fallback to FR for location data
+      default:
+        return Language.FR;
+    }
   }
 
   void _loadWilayas() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final dzairLang = _getDzairLanguage(languageProvider.locale.languageCode);
+    
     setState(() {
-      _wilayas = WilayaService.getAllWilayaNamesSafe();
-      if (_selectedWilaya != null && _wilayas.contains(_selectedWilaya)) {
-        _communes = WilayaService.getCommunesForWilayaSafe(_selectedWilaya!);
+      _wilayas = WilayaService.getAllWilayaNamesSafe(language: dzairLang);
+      if (_selectedWilaya != null) {
+        // Since the names in the dropdown are in the selected language, 
+        // we might need to be careful if we saved them in another language.
+        // For simplicity, we assume consistent language usage or rely on _findWilayaByName.
+        _communes = WilayaService.getCommunesForWilayaSafe(_selectedWilaya!, language: dzairLang);
       }
+    });
+  }
+
+  void _onWilayaChanged(String? newValue) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    setState(() {
+      _selectedWilaya = newValue;
+      _selectedCommune = null;
+      _communes = newValue != null 
+          ? WilayaService.getCommunesForWilayaSafe(newValue, language: _getDzairLanguage(languageProvider.locale.languageCode)) 
+          : [];
     });
   }
 
@@ -270,15 +303,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         value: _selectedWilaya,
                         items: _wilayas,
                         icon: Icons.map_outlined,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedWilaya = value;
-                            _selectedCommune = null;
-                            _communes = value != null 
-                                ? WilayaService.getCommunesForWilayaSafe(value) 
-                                : [];
-                          });
-                        },
+                        onChanged: _onWilayaChanged,
                       ),
                       const SizedBox(height: 20),
                       
@@ -590,4 +615,3 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
-

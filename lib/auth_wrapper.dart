@@ -5,6 +5,7 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/auth/email_verification_screen.dart';
+import 'package:service_app/screens/auth/complete_profile_screen.dart';
 import 'package:service_app/screens/auth/account_activation_required_page.dart';
 import 'package:service_app/screens/navigator_bottom.dart';
 import 'package:service_app/screens/onboarding/onboarding_screen.dart';
@@ -83,7 +84,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (!user.isGuest && !authVM.isEmailVerified) {
         return const EmailVerificationScreen();
       }
-      
+
+      // 3.1.5 Check Profile Completion (Exclude Guests)
+      if (!user.isGuest && !user.profileCompleted) {
+        return CompleteProfileScreen();
+      }
+
       // 3.2 Check Subscription Activation (Exclude Admins and Guests)
       if (!user.isAdmin && !user.isGuest && !user.subscriptionActive) {
         return const AccountActivationRequiredPage();

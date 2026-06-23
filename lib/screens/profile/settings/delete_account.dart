@@ -128,8 +128,12 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     LanguageProvider languageProvider,
   ) async {
     try {
-      // Delete user data from Firestore first
-      await _deleteUserData(userId);
+      final authService = context.read<AuthViewModel>(); // We use ViewModel which uses AuthService
+      // Actually AuthService is private in AuthViewModel, but let's see if we can use it.
+      // Alternatively, just instantiate AuthService here since it's a data service.
+      
+      // Let's use the thorough logic I just added to AuthService but adapted for this UI flow
+      await _thoroughCleanup(userId);
 
       // Delete Firebase Auth user
       final user = FirebaseAuth.instance.currentUser;
@@ -159,33 +163,55 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     }
   }
 
-  Future<void> _deleteUserData(String userId) async {
+  Future<void> _thoroughCleanup(String userId) async {
     final firestore = FirebaseFirestore.instance;
 
-    // Delete user document
-    await firestore.collection('users').doc(userId).delete();
-
-    // Delete user's services if they're a provider
-    final servicesSnapshot = await firestore
+    // 1. Delete services
+    final services = await firestore
         .collection('services')
         .where('providerId', isEqualTo: userId)
         .get();
-
-    for (final doc in servicesSnapshot.docs) {
+    for (var doc in services.docs) {
       await doc.reference.delete();
     }
 
-    // Delete user's bookings
-    final bookingsSnapshot = await firestore
+    // 2. Delete bookings
+    final clientBookings = await firestore
         .collection('bookings')
         .where('userId', isEqualTo: userId)
         .get();
-
-    for (final doc in bookingsSnapshot.docs) {
+    for (var doc in clientBookings.docs) {
+      await doc.reference.delete();
+    }
+    
+    final providerBookings = await firestore
+        .collection('bookings')
+        .where('providerId', isEqualTo: userId)
+        .get();
+    for (var doc in providerBookings.docs) {
       await doc.reference.delete();
     }
 
-    print('User data deleted successfully for: $userId');
+    // 3. Delete ratings
+    final ratings = await firestore
+        .collection('ratings')
+        .where('userId', isEqualTo: userId)
+        .get();
+    for (var doc in ratings.docs) {
+      await doc.reference.delete();
+    }
+
+    // 4. Delete notifications
+    final notifications = await firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .get();
+    for (var doc in notifications.docs) {
+      await doc.reference.delete();
+    }
+
+    // 5. Delete user document
+    await firestore.collection('users').doc(userId).delete();
   }
 
   @override

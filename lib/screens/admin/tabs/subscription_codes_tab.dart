@@ -96,7 +96,7 @@ class SubscriptionCodesTab extends StatelessWidget {
   Widget _buildCodeCard(BuildContext context, Map<String, dynamic> data, AdminViewModel vm, LanguageProvider lang, bool isDark) {
     final bool isUsed = data['isUsed'] ?? false;
     final String code = data['code'] ?? '';
-    final String assignedTo = data['assignedUserId'] ?? lang.tr('unknown', category: 'admin');
+    final String assignedTo = data['assignedEmail'] ?? lang.tr('unknown', category: 'admin');
     final int duration = data['duration'] ?? 1;
     final DateTime? expiresAt = data['expiresAt'] is Timestamp ? (data['expiresAt'] as Timestamp).toDate() : null;
     final statusColor = isUsed ? Colors.grey : AdminColors.success;
@@ -219,14 +219,14 @@ class SubscriptionCodesTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  lang.tr('enter_uid_desc', category: 'admin'),
+                  lang.tr('user_email_required', category: 'admin'),
                   style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white54 : AdminColors.textSecondary),
                 ),
                 const SizedBox(height: 12),
                 AdminTextField(
                   controller: uidCtrl,
-                  hintText: 'User UID',
-                  prefixIcon: Icons.person_outline,
+                  hintText: lang.tr('user_email_placeholder', category: 'admin'),
+                  prefixIcon: Icons.email_outlined,
                 ),
                 const SizedBox(height: 24),
                 Text(
@@ -279,11 +279,11 @@ class SubscriptionCodesTab extends StatelessWidget {
               label: lang.tr('save', category: 'common'),
               onPressed: () async {
                 if (uidCtrl.text.trim().isEmpty) {
-                  AppSnackBar.showError(context, lang.tr('uid_required', category: 'admin'));
+                  AppSnackBar.showError(context, lang.tr('email_required_error', category: 'admin'));
                   return;
                 }
                 final code = await vm.generateNewCode(
-                    userId: uidCtrl.text.trim(),
+                    email: uidCtrl.text.trim(),
                     months: selectedMonths
                 );
                 Navigator.pop(ctx);
