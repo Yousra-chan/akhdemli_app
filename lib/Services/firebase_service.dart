@@ -223,8 +223,25 @@ class FirebaseService {
         batch.delete(doc.reference);
       }
       await batch.commit();
+      await recalculateUnreadCount(userId);
     } catch (e) {
       debugPrint('❌ Error deleting notifications for chat: $e');
+    }
+  }
+
+  static Future<void> recalculateUnreadCount(String userId) async {
+    try {
+      final unreadNotifications = await _firestore
+          .collection('notifications')
+          .where('receiverId', isEqualTo: userId)
+          .where('read', isEqualTo: false)
+          .get();
+
+      await _firestore.collection('users').doc(userId).update({
+        'unreadCount': unreadNotifications.docs.length,
+      });
+    } catch (e) {
+      debugPrint('❌ Error recalculating unread count: $e');
     }
   }
 
@@ -351,27 +368,13 @@ class FirebaseService {
       }
 
       await batch.commit();
-      await _recalculateUnreadCount(userId);
+      await recalculateUnreadCount(userId);
     } catch (e) {
       debugPrint('❌ Error marking sender notifications as read: $e');
     }
   }
 
-  static Future<void> _recalculateUnreadCount(String userId) async {
-    try {
-      final unreadNotifications = await _firestore
-          .collection('notifications')
-          .where('receiverId', isEqualTo: userId)
-          .where('read', isEqualTo: false)
-          .get();
 
-      await _firestore.collection('users').doc(userId).update({
-        'unreadCount': unreadNotifications.docs.length,
-      });
-    } catch (e) {
-      debugPrint('❌ Error recalculating unread count: $e');
-    }
-  }
 
   static Future<void> resetMessageCount(String userId, String senderId) async {
     try {
@@ -389,7 +392,7 @@ class FirebaseService {
           'readAt': FieldValue.serverTimestamp(),
         });
       }
-      await _recalculateUnreadCount(userId);
+      await recalculateUnreadCount(userId);
     } catch (e) {
       debugPrint('❌ Error resetting message count: $e');
     }

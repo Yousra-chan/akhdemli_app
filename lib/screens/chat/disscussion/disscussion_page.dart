@@ -5,6 +5,7 @@ import 'package:service_app/ViewModel/chat_view_model.dart';
 import 'package:service_app/models/MessageModel.dart';
 import 'package:intl/intl.dart';
 import 'package:service_app/Services/notification_service.dart';
+import 'package:service_app/Services/firebase_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
@@ -41,6 +42,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
   final ScrollController _scrollController = ScrollController();
 
   List<MessageModel> _messages = [];
+  final List<MessageModel> _pendingMessages = []; // Local messages while sending
   StreamSubscription? _messagesSubscription;
   String? _contactProfileImageUrl;
   String? _contactUserId;
@@ -92,6 +94,9 @@ class _DiscussionPageState extends State<DiscussionPage> {
   }
 
   void _setupMessageListener() {
+    // Clear notifications for this chat when entering
+    FirebaseService.deleteNotificationsForChat(widget.currentUserId, widget.chatId);
+
     _messagesSubscription?.cancel();
     _messagesSubscription = widget.chatViewModel
         .listenMessages(widget.chatId)
@@ -124,29 +129,34 @@ class _DiscussionPageState extends State<DiscussionPage> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _isSendingMessage) return;
+    if (text.isEmpty) return;
 
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final lang = Provider.of<LanguageProvider>(context, listen: false);
     final senderName = authViewModel.currentUser?.name ?? lang.tr('someone', category: 'disscussion');
 
-    setState(() => _isSendingMessage = true);
+    // 1. OPTIMISTIC UI: Create local message and clear input immediately
+    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+    final message = MessageModel(
+      id: 'pending_$tempId',
+      senderId: widget.currentUserId,
+      text: text,
+      timestamp: Timestamp.now(),
+      type: 'text',
+    );
 
+    setState(() {
+      _pendingMessages.add(message);
+      _messageController.clear(); // Clear input instantly
+      _shouldAutoScroll = true;
+    });
+    _scrollToBottom();
+
+    // 2. BACKGROUND SYNC: Send to database without blocking the UI
     try {
-      final message = MessageModel(
-        senderId: widget.currentUserId,
-        text: text,
-        timestamp: Timestamp.now(),
-        type: 'text',
-      );
-
       final success = await widget.chatViewModel.sendMessage(widget.chatId, message);
       
-      if (success && mounted) {
-        _messageController.clear();
-        _shouldAutoScroll = true;
-        _scrollToBottom();
-
+      if (success) {
         if (_contactUserId != null && _contactUserId != widget.currentUserId) {
           NotificationService().sendMessageNotification(
             receiverUserId: _contactUserId!,
@@ -156,9 +166,18 @@ class _DiscussionPageState extends State<DiscussionPage> {
             senderName: senderName,
           ).catchError((e) => debugPrint('Notification error: $e'));
         }
+      } else {
+        // If send failed, remove from pending and show error
+        if (mounted) {
+          AppSnackBar.showError(context, lang.tr('failed_to_send_message', category: 'disscussion'));
+        }
       }
+    } catch (e) {
+      debugPrint('❌ Send message error: $e');
     } finally {
-      if (mounted) setState(() => _isSendingMessage = false);
+      if (mounted) {
+        setState(() => _pendingMessages.removeWhere((m) => m.id == 'pending_$tempId'));
+      }
     }
   }
 
@@ -237,7 +256,9 @@ class _DiscussionPageState extends State<DiscussionPage> {
   }
 
   Widget _buildMessagesList(LanguageProvider lang, bool isDark) {
-    if (_messages.isEmpty) {
+    final combinedMessages = [..._messages, ..._pendingMessages];
+    
+    if (combinedMessages.isEmpty) {
       return EmptyStateWidget(
         message: lang.tr('no_messages_yet', category: 'disscussion'),
         icon: Icons.chat_bubble_outline,
@@ -247,11 +268,16 @@ class _DiscussionPageState extends State<DiscussionPage> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: _messages.length,
+      itemCount: combinedMessages.length,
       itemBuilder: (context, index) {
-        final msg = _messages[index];
+        final msg = combinedMessages[index];
         final isMe = msg.senderId == widget.currentUserId;
-        return _MessageBubble(message: msg, isMe: isMe);
+        final isPending = msg.id?.startsWith('pending_') ?? false;
+        
+        return Opacity(
+          opacity: isPending ? 0.6 : 1.0,
+          child: _MessageBubble(message: msg, isMe: isMe),
+        );
       },
     );
   }

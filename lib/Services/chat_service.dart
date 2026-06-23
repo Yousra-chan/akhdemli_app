@@ -405,12 +405,15 @@ class ChatService {
           .where((msg) => msg.senderId != userId && !msg.isRead)
           .toList();
 
+      final chatRef = _chatsRef.doc(chatId);
+
       if (unreadMessages.isEmpty) {
+        // Even if no messages were in the provided list, ensure the count is 0 in Firestore
+        await chatRef.update({'$_unreadCountField.$userId': 0});
         return;
       }
 
       final batch = _firestore.batch();
-      final chatRef = _chatsRef.doc(chatId);
 
       for (final message in unreadMessages) {
         if (message.id != null && message.id!.isNotEmpty) {
@@ -488,8 +491,11 @@ class ChatService {
           final unreadCount = doc.data()[_unreadCountField] ?? {};
           final count = unreadCount[userId];
 
-          if (count is int) total += count;
-          if (count is num) total += count.toInt();
+          if (count is int) {
+            total += count;
+          } else if (count is num) {
+            total += count.toInt();
+          }
         }
 
         return total;
