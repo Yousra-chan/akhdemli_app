@@ -211,5 +211,6 @@
   "csv_status": "Statut",
   "csv_date": "Date d'inscription",
   "loading": "Chargement...",
-  "error": "Erreur"
+  "error": "Erreur",
+  "edit_service": "Modifier le service"
 }

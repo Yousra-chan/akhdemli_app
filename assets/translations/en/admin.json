@@ -211,5 +211,6 @@
   "csv_status": "Status",
   "csv_date": "Registration Date",
   "loading": "Loading...",
-  "error": "Error"
+  "error": "Error",
+  "edit_service": "Modify service"
 }
