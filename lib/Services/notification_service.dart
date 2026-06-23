@@ -37,37 +37,103 @@ class NotificationService {
       _firebaseMessaging = FirebaseMessaging.instance;
       _localNotifications = FlutterLocalNotificationsPlugin();
 
-      await _firebaseMessaging.requestPermission(alert: true, badge: true, sound: true);
+      // 1. Request Permissions (For iOS and Android 13+)
+      await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
+      // 2. Initialize Local Notifications for Foreground
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      
       await _localNotifications.initialize(
-        const InitializationSettings(android: androidSettings),
+        const InitializationSettings(android: androidSettings, iOS: iosSettings),
         onDidReceiveNotificationResponse: (details) {
           if (details.payload != null && onNotificationTap != null) {
-            onNotificationTap!(json.decode(details.payload!));
+            try {
+              onNotificationTap!(json.decode(details.payload!));
+            } catch (e) {
+              debugPrint('❌ Local Notification Tap Error: $e');
+            }
           }
         },
       );
 
+      // 3. Create Android Notification Channel
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'High Importance Notifications',
+        description: 'This channel is used for important notifications.',
+        importance: Importance.max,
+        playSound: true,
+      );
+
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+
+      // 4. Handle FCM Listeners
       FirebaseMessaging.onMessage.listen((msg) => _showLocalNotification(msg));
-      FirebaseMessaging.onMessageOpenedApp.listen((msg) => onNotificationTap?.call(msg.data));
+      FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+        debugPrint('🎯 Notification Tapped (Background): ${msg.data}');
+        onNotificationTap?.call(msg.data);
+      });
 
       _initialized = true;
+      debugPrint('✅ NotificationService initialized successfully');
     } catch (e) {
       debugPrint('❌ Notification Init Error: $e');
+    }
+  }
+
+  /// Handles the message that launched the app from a terminated state
+  Future<void> handleInitialMessage() async {
+    try {
+      RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('🎯 Initial Message Found: ${initialMessage.data}');
+        // Delay slightly to ensure navigator is ready
+        Future.delayed(const Duration(milliseconds: 500), () {
+          onNotificationTap?.call(initialMessage.data);
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error handling initial message: $e');
     }
   }
 
   Future<void> registerUser({required String userId, required String userName}) async {
     _currentUserId = userId;
     _currentUserName = userName;
+    
+    // Save current token
     final token = await _firebaseMessaging.getToken();
     if (token != null) {
+      await _updateTokenInFirestore(userId, token);
+    }
+
+    // Listen for token refreshes
+    _firebaseMessaging.onTokenRefresh.listen((newToken) {
+      _updateTokenInFirestore(userId, newToken);
+    });
+  }
+
+  Future<void> _updateTokenInFirestore(String userId, String token) async {
+    try {
       await FirebaseFirestore.instance.collection('users').doc(userId).set({
         'fcmToken': token,
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      debugPrint('✅ FCM token saved to Firestore');
+      debugPrint('✅ FCM token updated in Firestore for user $userId');
+    } catch (e) {
+      debugPrint('❌ Failed to update FCM token: $e');
     }
   }
 
@@ -83,8 +149,15 @@ class NotificationService {
         android: AndroidNotificationDetails(
           'high_importance_channel',
           'High Importance Notifications',
+          channelDescription: 'This channel is used for important notifications.',
           importance: Importance.max,
           priority: Priority.high,
+          playSound: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       ),
       payload: json.encode(message.data),

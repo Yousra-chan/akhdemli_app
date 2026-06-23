@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../Services/subscription_service.dart';
 import '../Services/notification_service.dart';
 import '../models/CategoryModel.dart';
@@ -17,6 +19,31 @@ class AdminViewModel extends ChangeNotifier {
   int totalUsers = 0;
 
   List<Map<String, dynamic>> subscriptionCodes = [];
+  List<Map<String, dynamic>> paginatedCodes = [];
+  DocumentSnapshot? _lastCodeDoc;
+  bool _hasMoreCodes = true;
+  bool _isLoadingMoreCodes = false;
+  
+  bool get hasMoreCodes => _hasMoreCodes;
+  bool get isLoadingMoreCodes => _isLoadingMoreCodes;
+
+  Map<String, int> codeStats = {
+    'total': 0,
+    'used': 0,
+    'active': 0,
+    'expired': 0,
+    'activated': 0,
+  };
+
+  String _codeSearchQuery = '';
+  String? _codeStatusFilter;
+  String _codeSortField = 'createdAt';
+  bool _codeSortDescending = true;
+  Set<String> selectedCodeIds = {};
+
+  List<Map<String, dynamic>> analyticsRedemptions = [];
+  List<Map<String, dynamic>> expiringSoonCodes = [];
+
   List<CategoryModel> categories = [];
   
   StreamSubscription? _usersSubscription;
@@ -34,7 +61,9 @@ class AdminViewModel extends ChangeNotifier {
     try {
       // Setup Real-time listeners
       _setupListeners();
-      await fetchCodes();
+      await fetchCodeStats();
+      await fetchCodes(isRefresh: true);
+      await fetchAnalytics();
     } catch (e) {
       debugPrint('Error during admin init: $e');
     } finally {
@@ -225,26 +254,157 @@ class AdminViewModel extends ChangeNotifier {
   }
 
   // --- SUBSCRIPTION CODES ---
-  Future<void> fetchCodes() async {
+  Future<void> fetchCodes({bool isRefresh = false}) async {
+    if (isRefresh) {
+      _lastCodeDoc = null;
+      _hasMoreCodes = true;
+      paginatedCodes = [];
+    }
+
+    if (!_hasMoreCodes) return;
+
     try {
-      subscriptionCodes = await _subService.getSubscriptionCodes();
+      final snapshot = await _subService.getSubscriptionCodesQuery(
+        limit: 20,
+        startAfter: _lastCodeDoc,
+        statusFilter: _codeStatusFilter,
+        sortField: _codeSortField,
+        descending: _codeSortDescending,
+        searchQuery: _codeSearchQuery.isEmpty ? null : _codeSearchQuery,
+      );
+
+      final List<Map<String, dynamic>> newCodes = snapshot.docs.map((d) {
+        final data = d.data() as Map<String, dynamic>;
+        data['id'] = d.id;
+        return data;
+      }).toList();
+
+      if (isRefresh) {
+        paginatedCodes = newCodes;
+        // Also update the simple list for backward compatibility if needed
+        subscriptionCodes = newCodes;
+      } else {
+        paginatedCodes.addAll(newCodes);
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        _lastCodeDoc = snapshot.docs.last;
+      }
+
+      _hasMoreCodes = newCodes.length == 20;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error codes: $e');
+      debugPrint('Error fetching paginated codes: $e');
     }
   }
 
+  Future<void> loadMoreCodes() async {
+    if (_isLoadingMoreCodes || !_hasMoreCodes) return;
+    _isLoadingMoreCodes = true;
+    notifyListeners();
+    await fetchCodes(isRefresh: false);
+    _isLoadingMoreCodes = false;
+    notifyListeners();
+  }
+
+  Future<void> fetchCodeStats() async {
+    try {
+      codeStats = await _subService.getSubscriptionStats();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error fetching code stats: $e');
+    }
+  }
+
+  Future<void> fetchAnalytics() async {
+    try {
+      analyticsRedemptions = await _subService.getRedemptionAnalytics();
+      expiringSoonCodes = await _subService.getExpiringSoonCodes();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error fetching analytics: $e');
+    }
+  }
+
+  void setCodeFilters({String? status, String? sortField, bool? descending, String? search}) {
+    if (status != null) _codeStatusFilter = status == 'all' ? null : status;
+    if (sortField != null) _codeSortField = sortField;
+    if (descending != null) _codeSortDescending = descending;
+    if (search != null) _codeSearchQuery = search;
+    fetchCodes(isRefresh: true);
+  }
+
+  void toggleCodeSelection(String codeId) {
+    if (selectedCodeIds.contains(codeId)) {
+      selectedCodeIds.remove(codeId);
+    } else {
+      selectedCodeIds.add(codeId);
+    }
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    selectedCodeIds.clear();
+    notifyListeners();
+  }
+
+  Future<void> batchDeleteSelectedCodes() async {
+    if (selectedCodeIds.isEmpty) return;
+    final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+    await _subService.batchDeleteCodes(selectedCodeIds.toList(), adminId);
+    selectedCodeIds.clear();
+    await fetchCodes(isRefresh: true);
+    await fetchCodeStats();
+  }
+
+  Future<void> batchUpdateSelectedCodesStatus(bool isEnabled) async {
+    if (selectedCodeIds.isEmpty) return;
+    final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+    await _subService.batchUpdateStatus(selectedCodeIds.toList(), isEnabled, adminId);
+    await fetchCodes(isRefresh: true);
+  }
+
   Future<String> generateNewCode({required String email, required int months}) async {
+    final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
     final code = await _subService.generateSubscriptionCode(
       assignedEmail: email,
       months: months,
+      createdByAdminId: adminId,
     );
-    await fetchCodes();
+    await fetchCodes(isRefresh: true);
+    await fetchCodeStats();
     return code;
   }
 
   Future<void> deleteCode(String codeId) async {
-    await _subService.deleteCode(codeId);
-    await fetchCodes();
+    final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+    await _subService.deleteCode(codeId, adminId);
+    await fetchCodes(isRefresh: true);
+    await fetchCodeStats();
+  }
+
+  Future<void> toggleCodeStatus(String codeId, bool isEnabled) async {
+    final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+    await _subService.updateCodeStatus(codeId, isEnabled, adminId);
+    // Update local state to avoid full refresh
+    final index = paginatedCodes.indexWhere((c) => c['id'] == codeId);
+    if (index != -1) {
+      paginatedCodes[index]['isEnabled'] = isEnabled;
+      notifyListeners();
+    }
+  }
+
+  Future<void> exportSelectedToCsv() async {
+    if (selectedCodeIds.isEmpty) return;
+    
+    final selectedCodes = paginatedCodes.where((c) => selectedCodeIds.contains(c['id'])).toList();
+    
+    String csv = 'Code,Assigned Email,Months,Status,Created At,Expires At,Used By,Used At\n';
+    for (var c in selectedCodes) {
+      final status = (c['isUsed'] ?? false) ? 'Used' : (!(c['isEnabled'] ?? true) ? 'Disabled' : 'Active');
+      csv += '${c['code']},${c['assignedEmail']},${c['duration']},$status,${c['createdAt']},${c['expiresAt']},${c['usedBy'] ?? ''},${c['usedAt'] ?? ''}\n';
+    }
+    
+    await Clipboard.setData(ClipboardData(text: csv));
   }
 }

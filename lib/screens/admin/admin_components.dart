@@ -58,7 +58,7 @@ class AdminStatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 16),
-          Expanded(
+          Flexible(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +151,7 @@ class AdminCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (title != null)
-                    Expanded(
+                    Flexible(
                       child: Text(
                         title!,
                         style: TextStyle(

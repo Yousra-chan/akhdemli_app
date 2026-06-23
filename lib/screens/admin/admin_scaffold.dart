@@ -24,7 +24,6 @@ class AdminScaffold extends StatefulWidget {
 class _AdminScaffoldState extends State<AdminScaffold> {
   int _selectedIndex = 0;
 
-  // _tabs is now a getter so DashboardOverview receives the live callback
   List<Widget> get _tabs => [
     DashboardOverview(onNavigate: _onSelect),
     const UsersTab(),
@@ -114,58 +113,40 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           const SizedBox(height: 32),
           // ---------- Brand ----------
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [AdminColors.primary, Color(0xFF5B6CFF)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AdminColors.primary.withOpacity(0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 58,
+                    height: 58,
+                    fit: BoxFit.cover,
                   ),
-                  child: const Icon(Icons.security_rounded, color: Colors.white, size: 22),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    lang.tr('app_name', category: 'auth').toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                      letterSpacing: 1.1,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 10),
+                Text(
+                  lang.tr('app_name', category: 'auth').toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    letterSpacing: 1.4,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  lang.tr('admin_console', category: 'admin'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                    color: isDark ? Colors.white38 : Colors.black38,
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                lang.tr('admin_console', category: 'admin'),
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.4,
-                  color: isDark ? Colors.white54 : Colors.black54,
-                ),
-              ),
             ),
           ),
           const SizedBox(height: 28),
@@ -232,7 +213,6 @@ class _AdminScaffoldState extends State<AdminScaffold> {
 
   void _onSelect(int index) {
     setState(() => _selectedIndex = index);
-    // Only close the drawer on mobile, and only if it's actually open
     if (MediaQuery.of(context).size.width <= 1200) {
       final scaffold = Scaffold.maybeOf(context);
       if (scaffold != null && scaffold.isDrawerOpen) {
@@ -332,7 +312,10 @@ class _AdminScaffoldState extends State<AdminScaffold> {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: AdminColors.primary,
-                  child: Text(lang.tr('super_admin', category: 'admin').substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(
+                    lang.tr('super_admin', category: 'admin').substring(0, 1).toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(

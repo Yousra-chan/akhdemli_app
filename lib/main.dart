@@ -24,6 +24,7 @@ import 'package:service_app/Services/booking_notification_service.dart';
 
 import 'package:service_app/auth_wrapper.dart';
 import 'package:service_app/screens/chat/disscussion/disscussion_page.dart';
+import 'package:service_app/screens/Booking/my_booking_page.dart';
 
 /// Global navigator key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -69,6 +70,16 @@ void setupNotificationTapHandler() {
           debugPrint('❌ Error navigating from notification: $e');
         }
       }
+    } else if (type == 'booking') {
+      try {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+        );
+      } catch (e) {
+        debugPrint('❌ Error navigating to bookings: $e');
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      }
     }
   };
 }
@@ -76,52 +87,59 @@ void setupNotificationTapHandler() {
 /// Background handler (when app is closed)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('🔨 [BACKGROUND] Notification received');
+  // IMPORTANT: We only show a manual notification if message.notification is NULL.
+  // If message.notification is NOT NULL, Firebase on Android will automatically
+  // show the notification based on the notification object in the payload.
+  // Showing it manually here would cause duplicates.
+  
+  debugPrint('🔨 [BACKGROUND] Message received: ${message.messageId}');
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  if (message.notification != null) {
+    debugPrint('ℹ️ Message has notification payload. OS will handle it.');
+    return;
+  }
 
-  // Initialize local notifications
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  // Handle data-only message by showing a local notification
+  debugPrint('ℹ️ Data-only message. Showing local notification.');
 
-  // Create notification channel
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'high_importance_channel',
-    'High Importance Notifications',
-    description: 'This channel is used for important notifications.',
-    importance: Importance.high,
-    playSound: true,
-  );
+  try {
+    await Firebase.initializeApp();
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
 
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'High Importance Notifications',
+      description: 'This channel is used for important notifications.',
+      importance: Importance.high,
+      playSound: true,
+    );
 
-  // Show notification
-  const AndroidNotificationDetails androidNotificationDetails =
-      AndroidNotificationDetails(
-    'high_importance_channel',
-    'High Importance Notifications',
-    channelDescription: 'Your channel description',
-    importance: Importance.high,
-    priority: Priority.high,
-    playSound: true,
-  );
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
-  const NotificationDetails notificationDetails =
-      NotificationDetails(android: androidNotificationDetails);
-
-  await flutterLocalNotificationsPlugin.show(
-    0,
-    message.notification?.title ?? 'New Message',
-    message.notification?.body ?? 'You have a new message',
-    notificationDetails,
-    payload: json.encode(message.data),
-  );
-
-  debugPrint('✅ Background notification shown');
+    await flutterLocalNotificationsPlugin.show(
+      message.hashCode,
+      message.data['title'] ?? 'New Alert',
+      message.data['body'] ?? 'You have a new update',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+        ),
+        iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      ),
+      payload: json.encode(message.data),
+    );
+  } catch (e) {
+    debugPrint('❌ Error in background handler: $e');
+  }
 }
 
 Future<void> main() async {
@@ -152,6 +170,10 @@ Future<void> main() async {
     /// 4. Setup Notification Tap Handler
     setupNotificationTapHandler();
     debugPrint('✅ Notification tap handler configured');
+
+    /// 5. Handle initial message (from terminated state)
+    await NotificationService().handleInitialMessage();
+    debugPrint('✅ Initial message handled');
 
     runApp(const ServiceApp());
   } catch (e, s) {

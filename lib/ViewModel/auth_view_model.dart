@@ -438,6 +438,13 @@ class AuthViewModel with ChangeNotifier {
       _validateUserId(uid);
 
       debugPrint('🔄 Fetching user profile for uid: $uid');
+      
+      // Add debugPrint of raw data if possible, or right after fetching
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        debugPrint('📄 [DEBUG] Raw Firestore User Data: ${doc.data()}');
+      }
+
       // Ensure subscription expiry is enforced before returning the user
       try {
         final subService = SubscriptionService();

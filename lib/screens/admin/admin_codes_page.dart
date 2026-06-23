@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/Services/subscription_service.dart';
@@ -237,9 +238,11 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     final lang = Provider.of<LanguageProvider>(context, listen: false);
     setState(() => _loading = true);
     try {
+      final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
       final code = await _service.generateSubscriptionCode(
         months: months,
         assignedEmail: email.toLowerCase().trim(),
+        createdByAdminId: adminId,
       );
 
       await _loadAll();
@@ -316,7 +319,8 @@ class _AdminCodesPageState extends State<AdminCodesPage>
     );
     if (confirm != true) return;
     try {
-      await _service.deleteCode(code);
+      final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+      await _service.deleteCode(code, adminId);
       await _loadAll();
       if (mounted) {
         AppSnackBar.showSuccess(context, lang.tr('code_deleted', category: 'admin'));

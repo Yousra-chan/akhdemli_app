@@ -1,0 +1,37 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "generated_codes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isEnabled", "order": "ASCENDING" },
+        { "fieldPath": "isUsed", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "generated_codes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isEnabled", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "generated_codes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isUsed", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "generated_codes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "usedAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
