@@ -264,6 +264,10 @@ class AppSnackBar {
     _show(context, message, Colors.orange, Icons.warning_amber_outlined);
   }
 
+  static void showInfo(BuildContext context, String message) {
+    _show(context, message, const Color.fromARGB(255, 12, 94, 153), Icons.info_outline);
+  }
+
   static void _show(BuildContext context, String message, Color color, IconData icon) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(

@@ -46,5 +46,9 @@
   "existing_chats": "Existing discussions",
   "new_discussion": "New discussion",
   "new": "New",
-  "chat": "Chat"
+  "chat": "Chat",
+  "delete_chat_title": "Delete Discussion",
+  "delete_chat_confirm": "Do you really want to delete the discussion with {{name}}?",
+  "chat_deleted": "Discussion deleted",
+  "delete_failed": "Failed to delete discussion"
 }

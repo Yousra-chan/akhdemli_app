@@ -270,5 +270,10 @@
   "disabled": "Disabled",
   "audit": "Audit",
   "years": "Years",
-  "months": "Months"
+  "months": "Months",
+  "category_image": "Category Image/Icon",
+  "select_image": "Select Image",
+  "change_image": "Change Image",
+  "remove_image": "Remove Image",
+  "subcategory_image": "Subcategory Image"
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/screens/service/create_service.dart';
+import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/Services/firestore_service.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
@@ -107,7 +109,22 @@ class _MyServicesPageState extends State<MyServicesPage> {
       body: _buildMainContent(context),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/create-service');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MultiProvider(
+                providers: [
+                  ChangeNotifierProvider(create: (_) => AuthViewModel()),
+                  ChangeNotifierProvider(create: (_) => ServiceViewModel()),
+                ],
+                child: const CreateServiceScreen(),
+              ),
+            ),
+          ).then((value) {
+            if (value == true) {
+              _refreshServices();
+            }
+          });
         },
         backgroundColor: theme.primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
@@ -150,7 +167,22 @@ class _MyServicesPageState extends State<MyServicesPage> {
                   subtitle: lang.tr('create_first_service_hint', category: 'my_services'),
                   action: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/create-service');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MultiProvider(
+                            providers: [
+                              ChangeNotifierProvider(create: (_) => AuthViewModel()),
+                              ChangeNotifierProvider(create: (_) => ServiceViewModel()),
+                            ],
+                            child: const CreateServiceScreen(),
+                          ),
+                        ),
+                      ).then((value) {
+                        if (value == true) {
+                          _refreshServices();
+                        }
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.primaryColor,

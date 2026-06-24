@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui' as ui;
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
@@ -14,6 +15,7 @@ import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/screens/service/create_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/utils/image_utils.dart';
 import 'home_constants.dart';
 
 class HomePage extends StatefulWidget {
@@ -282,9 +284,9 @@ class _HomePageState extends State<HomePage>
                 padding: const EdgeInsets.all(20),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.1,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.9,
                 ),
                 itemCount: subs.length,
                 itemBuilder: (context, index) {
@@ -292,6 +294,7 @@ class _HomePageState extends State<HomePage>
                   return _UnifiedServiceCard(
                     title: sub.getTranslatedName(languageProvider),
                     icon: sub.icon,
+                    imageUrl: sub.imageUrl,
                     isSelected: false,
                     onTap: () {
                       Navigator.pop(context);
@@ -532,7 +535,7 @@ class _HomePageState extends State<HomePage>
   Widget _buildCategoriesHorizontal(LanguageProvider lang) {
     if (_isLoadingCategories) {
       return const SizedBox(
-        height: 120,
+        height: 150,
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
@@ -544,18 +547,27 @@ class _HomePageState extends State<HomePage>
       );
     }
 
-    return SizedBox(
-      height: 125,
+    return Container(
+      height: 170,
+      margin: const EdgeInsets.only(top: 8),
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         itemCount: _categories.length,
         itemBuilder: (context, index) {
           final category = _categories[index];
           final isSelected = _selectedCategory?.id == category.id;
+          
+          // Debugging info (can be removed later)
+          if (category.iconUrl != null && category.iconUrl!.startsWith('data:image')) {
+            debugPrint('📸 Category ${category.name} has Base64 image');
+          }
+
           return _UnifiedServiceCard(
             title: category.getTranslatedName(lang),
             icon: category.icon,
+            imageUrl: category.iconUrl,
             isSelected: isSelected,
             onTap: () => _onCategorySelected(category),
             color: getColorForCategory(category.name, index),
@@ -570,6 +582,7 @@ class _HomePageState extends State<HomePage>
 class _UnifiedServiceCard extends StatelessWidget {
   final String title;
   final IconData icon;
+  final String? imageUrl;
   final bool isSelected;
   final VoidCallback onTap;
   final Color color;
@@ -578,6 +591,7 @@ class _UnifiedServiceCard extends StatelessWidget {
   const _UnifiedServiceCard({
     required this.title,
     required this.icon,
+    this.imageUrl,
     required this.isSelected,
     required this.onTap,
     required this.color,
@@ -589,40 +603,34 @@ class _UnifiedServiceCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Soft "Glass" colors
+    final cardBg = isSelected 
+        ? color 
+        : (isDark ? const Color(0xFF252529) : Colors.white);
+    
     return GestureDetector(
       onTap: onTap,
       child: TweenAnimationBuilder<double>(
-        duration: const Duration(milliseconds: 100),
+        duration: const Duration(milliseconds: 200),
         tween: Tween(begin: 1.0, end: isSelected ? 1.05 : 1.0),
         builder: (context, scale, child) {
           return Transform.scale(
             scale: scale,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isSmall ? null : 100,
-              margin: EdgeInsets.all(isSmall ? 4 : 8),
+              duration: const Duration(milliseconds: 300),
+              width: isSmall ? null : 120,
+              margin: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 8, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? color
-                    : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? color : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
-                  width: 2,
-                ),
+                color: cardBg,
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
-                  if (isSelected)
-                    BoxShadow(
-                      color: color.withOpacity(0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  else
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
-                    ),
+                  BoxShadow(
+                    color: isSelected 
+                        ? color.withOpacity(0.3) 
+                        : Colors.black.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
                 ],
               ),
               child: child,
@@ -630,42 +638,75 @@ class _UnifiedServiceCard extends StatelessWidget {
           );
         },
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: EdgeInsets.all(isSmall ? 8 : 12),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white.withOpacity(0.2)
-                    : color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? Colors.white : color,
-                size: isSmall ? 22 : 28,
+            // Image Section
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black26 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: _buildImage(isSelected),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
+            // Label Section
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Text(
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark ? Colors.white70 : kDarkTextColor),
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF2D2D2D)),
                   fontSize: isSmall ? 11 : 13,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontFamily: 'Exo2',
                 ),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildImage(bool isSelected) {
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      if (ImageUtils.isBase64Image(imageUrl)) {
+        final bytes = ImageUtils.decodeBase64Image(imageUrl);
+        if (bytes != null) {
+          return Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(isSelected),
+          );
+        }
+      } else {
+        return CachedNetworkImage(
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => const Center(
+            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          errorWidget: (context, url, error) => _buildFallbackIcon(isSelected),
+        );
+      }
+    }
+    return _buildFallbackIcon(isSelected);
+  }
+
+  Widget _buildFallbackIcon(bool isSelected) {
+    return Center(
+      child: Icon(
+        icon,
+        color: isSelected ? Colors.white : color,
+        size: isSmall ? 24 : 32,
       ),
     );
   }

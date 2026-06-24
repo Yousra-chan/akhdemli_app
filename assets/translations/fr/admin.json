@@ -252,5 +252,10 @@
   "csv_date": "Date d'inscription",
   "loading": "Chargement...",
   "error": "Erreur",
-  "edit_service": "Modifier le service"
+  "edit_service": "Modifier le service",
+  "category_image": "Image/Icône de catégorie",
+  "select_image": "Sélectionner une image",
+  "change_image": "Changer d'image",
+  "remove_image": "Supprimer l'image",
+  "subcategory_image": "Image de sous-catégorie"
 }

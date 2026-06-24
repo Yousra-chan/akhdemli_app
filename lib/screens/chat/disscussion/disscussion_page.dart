@@ -10,6 +10,9 @@ import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import '../../../ViewModel/auth_view_model.dart';
+import '../../../models/UserModel.dart';
+import '../../../models/ProviderModel.dart';
+import '../../profile/provider_profile/provider_profile_page.dart';
 import '../../../utils/image_utils.dart';
 import 'dart:ui' as ui;
 
@@ -90,6 +93,32 @@ class _DiscussionPageState extends State<DiscussionPage> {
       }
     } catch (e) {
       debugPrint('Error loading profile: $e');
+    }
+  }
+
+  void _navigateToContactProfile() async {
+    if (_contactUserId == null || _contactUserId!.isEmpty) return;
+    
+    try {
+      final userData = await widget.chatViewModel.getUserData(_contactUserId!);
+      if (userData != null && mounted) {
+        final user = UserModel.fromMap(userData, _contactUserId!);
+        if (user.isProvider) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProviderProfileScreen(
+                provider: ProviderModel.fromUser(user),
+                serviceCategory: user.profession ?? 'Service Provider',
+              ),
+            ),
+          );
+        } else {
+          AppSnackBar.showInfo(context, "Public profile not available for this user");
+        }
+      }
+    } catch (e) {
+      debugPrint('Error navigating to profile: $e');
     }
   }
 
@@ -227,30 +256,33 @@ class _DiscussionPageState extends State<DiscussionPage> {
         onPressed: () => Navigator.pop(context),
       ),
       titleSpacing: 0,
-      title: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: Colors.blue.shade100,
-            backgroundImage: imgProvider,
-            child: imgProvider == null 
-              ? Text(widget.contactName.isNotEmpty ? widget.contactName[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))
-              : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.contactName, 
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                Text(widget.isOnline ? lang.tr('online', category: 'disscussion') : lang.tr('offline', category: 'disscussion'),
-                  style: TextStyle(fontSize: 11, color: widget.isOnline ? Colors.green : Colors.grey)),
-              ],
+      title: InkWell(
+        onTap: _navigateToContactProfile,
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.blue.shade100,
+              backgroundImage: imgProvider,
+              child: imgProvider == null 
+                ? Text(widget.contactName.isNotEmpty ? widget.contactName[0].toUpperCase() : '?',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))
+                : null,
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.contactName, 
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                  Text(widget.isOnline ? lang.tr('online', category: 'disscussion') : lang.tr('offline', category: 'disscussion'),
+                    style: TextStyle(fontSize: 11, color: widget.isOnline ? Colors.green : Colors.grey)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

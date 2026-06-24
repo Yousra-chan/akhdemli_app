@@ -91,6 +91,10 @@ class ChatViewModel extends ChangeNotifier {
     return _chatService.getTotalUnreadCount(_currentUserId!);
   }
 
+  Future<List<Map<String, dynamic>>> getAvailableProviders() async {
+    return _chatService.getAvailableProviders();
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
@@ -104,6 +108,21 @@ class ChatViewModel extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> deleteChat(String chatId) async {
+    if (_currentUserId == null) {
+      throw Exception('User ID not defined');
+    }
+    _setLoading(true);
+    try {
+      await _chatService.deleteChat(chatId, _currentUserId!);
+    } catch (e) {
+      _setError('failed_to_delete_chat');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // Add to ChatViewModel

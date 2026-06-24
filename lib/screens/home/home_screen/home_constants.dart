@@ -1,8 +1,10 @@
 // constants/home_constants.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/image_utils.dart';
 
 // Colors
 const Color kPrimaryBlue = Color.fromARGB(255, 12, 94, 153);
@@ -153,12 +155,13 @@ InputDecoration buildAestheticInputDecoration(String labelText,
 Widget buildCategoryCard(CategoryModel category, int index, VoidCallback onTap,
     LanguageProvider lang) {
   return Card(
-    elevation: kCardElevation,
+    elevation: 2,
+    shadowColor: Colors.black.withOpacity(0.1),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+      borderRadius: BorderRadius.circular(20),
     ),
     child: InkWell(
-      borderRadius: BorderRadius.circular(kDefaultBorderRadius),
+      borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(kDefaultPadding),
@@ -166,22 +169,44 @@ Widget buildCategoryCard(CategoryModel category, int index, VoidCallback onTap,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color:
                     getColorForCategory(category.name, index).withOpacity(0.1),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(
-                category.icon,
-                color: getColorForCategory(category.name, index),
-                size: 24,
-              ),
+              child: category.iconUrl != null && category.iconUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: ImageUtils.isBase64Image(category.iconUrl)
+                          ? Image.memory(
+                              ImageUtils.decodeBase64Image(category.iconUrl)!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: category.iconUrl!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorWidget: (context, url, error) => Icon(
+                                category.icon,
+                                color: getColorForCategory(category.name, index),
+                                size: 24,
+                              ),
+                            ),
+                    )
+                  : Icon(
+                      category.icon,
+                      color: getColorForCategory(category.name, index),
+                      size: 24,
+                    ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               category.getTranslatedName(lang),
-              style: kCardTitleTextStyle.copyWith(fontSize: 14),
+              style: kCardTitleTextStyle.copyWith(fontSize: 14, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

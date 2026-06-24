@@ -5,6 +5,8 @@ import 'package:service_app/screens/Booking/my_booking_page.dart'
     hide kLightBackgroundColor, kMutedTextColor;
 import 'package:service_app/screens/service/provider_services_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/screens/service/create_service.dart';
+import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/Services/auth_service.dart';
 import 'package:service_app/Services/firestore_service.dart';
@@ -145,6 +147,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildMyBookingsTile(context, isProvider, languageProvider),
 
                     const SizedBox(height: 15),
+
+                    // Create Service Button (only for providers)
+                    if (isProvider)
+                      _buildCreateServiceButton(context, languageProvider),
 
                     // Logout Button with translations
                     _buildLogoutButton(context, languageProvider),
@@ -529,6 +535,54 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateServiceButton(
+      BuildContext context, LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MultiProvider(
+                providers: [
+                  ChangeNotifierProvider(create: (_) => AuthViewModel()),
+                  ChangeNotifierProvider(create: (_) => ServiceViewModel()),
+                ],
+                child: const CreateServiceScreen(),
+              ),
+            ),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.primaryColor,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          elevation: 2,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_circle_outline, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              languageProvider.tr('create_service', category: 'service'),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

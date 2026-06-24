@@ -270,5 +270,10 @@
   "disabled": "معطل",
   "audit": "تدقيق",
   "years": "سنوات",
-  "months": "شهور"
+  "months": "شهور",
+  "category_image": "صورة/أيقونة الفئة",
+  "select_image": "اختر صورة",
+  "change_image": "تغيير الصورة",
+  "remove_image": "إزالة الصورة",
+  "subcategory_image": "صورة الفئة الفرعية"
 }

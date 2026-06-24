@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui' as ui;
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/Services/firebase_service.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -310,25 +312,50 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     return GestureDetector(
       onTap: () => _onSubCategorySelected(subCategory),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAFAF8),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E0DA), width: 0.5),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFE2E0DA).withOpacity(0.5), width: 0.5),
         ),
         child: Row(
           children: [
             // Icon chip
             Container(
-              width: 38,
-              height: 38,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: chipBg,
-                borderRadius: BorderRadius.circular(10),
+                color: chipBg.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(subCategory.icon, color: iconColor, size: 20),
+              child: subCategory.imageUrl != null && subCategory.imageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: ImageUtils.isBase64Image(subCategory.imageUrl)
+                          ? Image.memory(
+                              ImageUtils.decodeBase64Image(subCategory.imageUrl)!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(subCategory.icon, color: iconColor, size: 24),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: subCategory.imageUrl!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5))),
+                              errorWidget: (context, url, error) => Icon(subCategory.icon, color: iconColor, size: 24),
+                            ),
+                    )
+                  : Icon(subCategory.icon, color: iconColor, size: 24),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             // Name
             Expanded(
               child: Text(
@@ -337,23 +364,24 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Color(0xFF2D2D2D),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   fontFamily: 'Exo2',
-                  height: 1.3,
+                  height: 1.2,
                 ),
               ),
             ),
             // Chevron
             const Icon(
               Icons.arrow_forward_ios_rounded,
-              size: 11,
+              size: 12,
               color: Color(0xFFB0B0B0),
             ),
           ],
         ),
       ),
     );
+  }
   }
 
   // ── Empty state ───────────────────────────────────────────

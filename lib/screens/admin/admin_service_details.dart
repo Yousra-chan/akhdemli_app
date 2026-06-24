@@ -6,6 +6,7 @@ import '../../ViewModel/admin_view_model.dart';
 import '../../models/ServicesModel.dart';
 import '../../models/UserModel.dart';
 import '../../providers/language_provider.dart';
+import '../../utils/image_utils.dart';
 import '../service/edit_service.dart';
 import 'admin_components.dart';
 
@@ -249,19 +250,28 @@ class _AdminServiceDetailsScreenState extends State<AdminServiceDetailsScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: _currentService.images.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) => ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Image.network(
-            _currentService.images[index],
-            width: 300,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              width: 300,
-              color: Colors.grey[200],
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            ),
-          ),
-        ),
+        itemBuilder: (context, index) {
+          final imageUrl = _currentService.images[index];
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: ImageUtils.isBase64Image(imageUrl)
+                ? Image.memory(
+                    ImageUtils.decodeBase64Image(imageUrl)!,
+                    width: 300,
+                    fit: BoxFit.cover,
+                  )
+                : Image.network(
+                    imageUrl,
+                    width: 300,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 300,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
+          );
+        },
       ),
     );
   }
@@ -334,7 +344,9 @@ class _AdminServiceDetailsScreenState extends State<AdminServiceDetailsScreen> {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundImage: _provider!.photoUrl.isNotEmpty ? NetworkImage(_provider!.photoUrl) : null,
+                backgroundImage: _provider!.photoUrl.isNotEmpty 
+                    ? ImageUtils.getImageProvider(_provider!.photoUrl)
+                    : null,
                 child: _provider!.photoUrl.isEmpty ? const Icon(Icons.person) : null,
               ),
               const SizedBox(width: 16),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/image_utils.dart';
 import 'dart:ui' as ui;
 
 // ─────────────────────────────────────────────────────────────
@@ -154,25 +156,49 @@ class CategoriesPage extends StatelessWidget {
     return GestureDetector(
       onTap: () => _navigateToProviders(context, category, lang),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAFAF8),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E0DA), width: 0.5),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           children: [
             // Icon chip
             Container(
-              width: 38,
-              height: 38,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
-                color: chipBg,
-                borderRadius: BorderRadius.circular(10),
+                color: chipBg.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(category.icon, color: iconColor, size: 20),
+              child: category.iconUrl != null && category.iconUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: ImageUtils.isBase64Image(category.iconUrl)
+                          ? Image.memory(
+                              ImageUtils.decodeBase64Image(category.iconUrl)!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(category.icon, color: iconColor, size: 28),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: category.iconUrl!,
+                              width: 54,
+                              height: 54,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+                              errorWidget: (context, url, error) => Icon(category.icon, color: iconColor, size: 28),
+                            ),
+                    )
+                  : Icon(category.icon, color: iconColor, size: 28),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 14),
             // Name
             Expanded(
               child: Text(
@@ -181,8 +207,8 @@ class CategoriesPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Color(0xFF2D2D2D),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                   fontFamily: 'Exo2',
                 ),
               ),
@@ -190,13 +216,14 @@ class CategoriesPage extends StatelessWidget {
             // Chevron
             const Icon(
               Icons.arrow_forward_ios_rounded,
-              size: 11,
-              color: Color(0xFFB0B0B0),
+              size: 14,
+              color: Color(0xFFC0C0C0),
             ),
           ],
         ),
       ),
     );
+}
   }
 
   // ── Empty state ───────────────────────────────────────────

@@ -1,16 +1,22 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../Services/subscription_service.dart';
 import '../Services/notification_service.dart';
 import '../models/CategoryModel.dart';
 
 class AdminViewModel extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final SubscriptionService _subService = SubscriptionService();
   final NotificationService _notifService = NotificationService();
+  final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -117,9 +123,44 @@ class AdminViewModel extends ChangeNotifier {
     super.dispose();
   }
 
+  // --- IMAGE UPLOAD ---
+  Future<String?> pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery, 
+      imageQuality: 30, // Higher compression
+      maxWidth: 800,    // Resize down
+      maxHeight: 800,
+    );
+    if (image == null) return null;
+    
+    final bytes = await image.readAsBytes();
+    // Check if image is too large for Firestore (max 1MB)
+    if (bytes.length > 800000) {
+      // If still too large, we can't save it as Base64 safely
+      debugPrint('Image too large even after compression: ${bytes.length} bytes');
+    }
+
+    final base64Image = base64Encode(bytes);
+    return 'data:image/jpeg;base64,$base64Image';
+  }
+
+  Future<void> deleteImage(String url) async {
+    // If it's a base64 string, nothing to delete from storage
+    if (url.startsWith('data:image')) return;
+    
+    try {
+      await _storage.refFromURL(url).delete();
+    } catch (e) {
+      debugPrint('Error deleting image: $e');
+    }
+  }
+
   // --- CATEGORIES MANAGEMENT ---
-  Future<void> addCategory(CategoryModel category) async {
-    final docRef = await _db.collection('categories').add(category.toMap());
+  Future<void> addCategory(CategoryModel category, {String? localImagePath}) async {
+    // localImagePath here is actually the base64 string if coming from pickImage
+    String? imageUrl = localImagePath ?? category.iconUrl;
+    
+    final docRef = await _db.collection('categories').add(category.copyWith(iconUrl: imageUrl).toMap());
     
     // Add subcategories if any
     for (var sub in category.subcategories) {
@@ -130,8 +171,13 @@ class AdminViewModel extends ChangeNotifier {
     await refreshCategories();
   }
 
-  Future<void> updateCategory(CategoryModel category) async {
-    await _db.collection('categories').doc(category.id).update(category.toMap());
+  Future<void> updateCategory(CategoryModel category, {String? localImagePath}) async {
+    // localImagePath is the base64 string
+    String? imageUrl = localImagePath ?? category.iconUrl;
+
+    await _db.collection('categories').doc(category.id).update(
+      category.copyWith(iconUrl: imageUrl).toMap()
+    );
     
     // Sync subcategories from the model if any
     for (var sub in category.subcategories) {
@@ -145,30 +191,44 @@ class AdminViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteCategory(String id) async {
-    // Also delete subcategories
+    // Also delete images
+    final doc = await _db.collection('categories').doc(id).get();
+    final data = doc.data();
+    if (data?['iconUrl'] != null) await deleteImage(data!['iconUrl']);
+
+    // Also delete subcategories and their images
     final subs = await _db.collection('categories').doc(id).collection('subcategories').get();
-    for (var doc in subs.docs) {
-      await doc.reference.delete();
+    for (var subDoc in subs.docs) {
+      final subData = subDoc.data();
+      if (subData['imageUrl'] != null) await deleteImage(subData['imageUrl']);
+      await subDoc.reference.delete();
     }
     await _db.collection('categories').doc(id).delete();
     await refreshCategories();
   }
 
-  Future<void> addSubcategory(String categoryId, SubcategoryModel sub) async {
+  Future<void> addSubcategory(String categoryId, SubcategoryModel sub, {String? localImagePath}) async {
+    String? imageUrl = localImagePath ?? sub.imageUrl;
     await _db.collection('categories').doc(categoryId).collection('subcategories').add(
-      sub.copyWith(categoryId: categoryId).toMap()
+      sub.copyWith(categoryId: categoryId, imageUrl: imageUrl).toMap()
     );
     await refreshCategories();
   }
 
-  Future<void> updateSubcategory(String categoryId, SubcategoryModel sub) async {
+  Future<void> updateSubcategory(String categoryId, SubcategoryModel sub, {String? localImagePath}) async {
+    String? imageUrl = localImagePath ?? sub.imageUrl;
+
     await _db.collection('categories').doc(categoryId).collection('subcategories').doc(sub.id).update(
-      sub.copyWith(categoryId: categoryId).toMap()
+      sub.copyWith(categoryId: categoryId, imageUrl: imageUrl).toMap()
     );
     await refreshCategories();
   }
 
   Future<void> deleteSubcategory(String categoryId, String subId) async {
+    final doc = await _db.collection('categories').doc(categoryId).collection('subcategories').doc(subId).get();
+    final data = doc.data();
+    if (data?['imageUrl'] != null) await deleteImage(data!['imageUrl']);
+
     await _db.collection('categories').doc(categoryId).collection('subcategories').doc(subId).delete();
     await refreshCategories();
   }

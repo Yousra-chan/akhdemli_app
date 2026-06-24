@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../ViewModel/admin_view_model.dart';
 import '../../../models/CategoryModel.dart';
 import '../../../providers/language_provider.dart';
+import '../../../utils/image_utils.dart';
 import '../admin_components.dart';
 
 class CategoriesTab extends StatefulWidget {
@@ -109,7 +112,8 @@ class _CategoriesTabState extends State<CategoriesTab> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -121,7 +125,22 @@ class _CategoriesTabState extends State<CategoriesTab> {
                       ),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(cat.icon, color: AdminColors.primary, size: 22),
+                    child: Center(
+                      child: cat.iconUrl != null && cat.iconUrl!.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: ImageUtils.isBase64Image(cat.iconUrl)
+                                  ? Image.memory(ImageUtils.decodeBase64Image(cat.iconUrl)!, fit: BoxFit.cover, width: 46, height: 46)
+                                  : CachedNetworkImage(
+                                      imageUrl: cat.iconUrl!,
+                                      width: 46,
+                                      height: 46,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (context, url, error) => Icon(cat.icon, color: AdminColors.primary, size: 22),
+                                    ),
+                            )
+                          : Icon(cat.icon, color: AdminColors.primary, size: 22),
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -224,16 +243,27 @@ class _CategoriesTabState extends State<CategoriesTab> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: cat.subcategories.map((sub) => Chip(
-                        label: Text(sub.getTranslatedName(lang), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        backgroundColor: isDark ? const Color(0xFF1C1F26) : Colors.white,
-                        labelStyle: TextStyle(color: isDark ? Colors.white : AdminColors.textMain),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                      children: cat.subcategories.map((sub) => GestureDetector(
+                        onTap: () => _showSubcategoryDialog(context, vm, cat.id, subcategory: sub),
+                        child: Chip(
+                          label: Text(sub.getTranslatedName(lang), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          backgroundColor: isDark ? const Color(0xFF1C1F26) : Colors.white,
+                          labelStyle: TextStyle(color: isDark ? Colors.white : AdminColors.textMain),
+                          avatar: sub.imageUrl != null 
+                              ? CircleAvatar(
+                                  backgroundImage: ImageUtils.isBase64Image(sub.imageUrl)
+                                      ? MemoryImage(ImageUtils.decodeBase64Image(sub.imageUrl)!)
+                                      : CachedNetworkImageProvider(sub.imageUrl!) as ImageProvider,
+                                  radius: 10,
+                                )
+                              : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                          ),
+                          deleteIcon: Icon(Icons.close_rounded, size: 14, color: isDark ? Colors.white54 : Colors.black45),
+                          onDeleted: () => _confirmDelete(context, () => vm.deleteSubcategory(cat.id, sub.id), 'Subcategory'),
                         ),
-                        deleteIcon: Icon(Icons.close_rounded, size: 14, color: isDark ? Colors.white54 : Colors.black45),
-                        onDeleted: () => _confirmDelete(context, () => vm.deleteSubcategory(cat.id, sub.id), 'Subcategory'),
                       )).toList(),
                     ),
                 ],
@@ -242,6 +272,87 @@ class _CategoriesTabState extends State<CategoriesTab> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImagePicker({
+    required BuildContext context,
+    required String? imageUrl,
+    required String? localPath,
+    required VoidCallback onPick,
+    required VoidCallback onRemove,
+    required String label,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const SizedBox(height: 12),
+        Center(
+          child: Stack(
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.05) : AdminColors.background,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: localPath != null
+                      ? (ImageUtils.isBase64Image(localPath)
+                          ? Image.memory(ImageUtils.decodeBase64Image(localPath)!, fit: BoxFit.cover)
+                          : Image.file(File(localPath), fit: BoxFit.cover))
+                      : (imageUrl != null && imageUrl.isNotEmpty
+                          ? (ImageUtils.isBase64Image(imageUrl)
+                              ? Image.memory(ImageUtils.decodeBase64Image(imageUrl)!, fit: BoxFit.cover)
+                              : CachedNetworkImage(
+                                  imageUrl: imageUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                  errorWidget: (context, url, error) => const Icon(Icons.image_not_supported_outlined),
+                                ))
+                          : Icon(Icons.image_outlined, size: 40, color: isDark ? Colors.white24 : Colors.black26)),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Row(
+                  children: [
+                    if (localPath != null || (imageUrl != null && imageUrl.isNotEmpty))
+                      GestureDetector(
+                        onTap: onRemove,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(color: AdminColors.danger, shape: BoxShape.circle),
+                          child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: onPick,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(color: AdminColors.primary, shape: BoxShape.circle),
+                        child: Icon(
+                          (localPath != null || (imageUrl != null && imageUrl.isNotEmpty)) ? Icons.edit_rounded : Icons.add_a_photo_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -315,6 +426,9 @@ class _CategoriesTabState extends State<CategoriesTab> {
     final subDescFrCtrl = TextEditingController();
     
     bool isActive = category?.isActive ?? true;
+    String? categoryLocalPath;
+    String? categoryImageUrl = category?.iconUrl;
+
     final List<SubcategoryModel> localSubs = List<SubcategoryModel>.from(category?.subcategories ?? []);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -335,6 +449,25 @@ class _CategoriesTabState extends State<CategoriesTab> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _buildImagePicker(
+                    context: context,
+                    imageUrl: categoryImageUrl,
+                    localPath: categoryLocalPath,
+                    label: lang.tr('category_image', category: 'admin'),
+                    onPick: () async {
+                      final path = await vm.pickImage();
+                      if (path != null) {
+                        setDialogState(() => categoryLocalPath = path);
+                      }
+                    },
+                    onRemove: () {
+                      setDialogState(() {
+                        categoryLocalPath = null;
+                        categoryImageUrl = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 24),
                   Text(lang.tr('general_info', category: 'admin'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 12),
                   AdminTextField(hintText: lang.tr('internal_name', category: 'admin'), controller: nameCtrl, prefixIcon: Icons.label_important_outline),
@@ -521,14 +654,15 @@ class _CategoriesTabState extends State<CategoriesTab> {
                   },
                   icon: category?.icon ?? Icons.category,
                   iconCode: category?.iconCode ?? 'circle_fill',
+                  iconUrl: categoryImageUrl,
                   isActive: isActive,
                   subcategories: localSubs,
                 );
 
                 if (category == null) {
-                  vm.addCategory(newCat);
+                  vm.addCategory(newCat, localImagePath: categoryLocalPath);
                 } else {
-                  vm.updateCategory(newCat);
+                  vm.updateCategory(newCat, localImagePath: categoryLocalPath);
                 }
                 Navigator.pop(ctx);
               },
@@ -539,84 +673,115 @@ class _CategoriesTabState extends State<CategoriesTab> {
     );
   }
 
-  void _showSubcategoryDialog(BuildContext context, AdminViewModel vm, String categoryId) {
+  void _showSubcategoryDialog(BuildContext context, AdminViewModel vm, String categoryId, {SubcategoryModel? subcategory}) {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
-    final nameEnCtrl = TextEditingController();
-    final nameArCtrl = TextEditingController();
-    final nameFrCtrl = TextEditingController();
-    final descEnCtrl = TextEditingController();
-    final descArCtrl = TextEditingController();
-    final descFrCtrl = TextEditingController();
+    final nameEnCtrl = TextEditingController(text: subcategory?.nameTranslations['en']);
+    final nameArCtrl = TextEditingController(text: subcategory?.nameTranslations['ar']);
+    final nameFrCtrl = TextEditingController(text: subcategory?.nameTranslations['fr']);
+    final descEnCtrl = TextEditingController(text: subcategory?.descriptionTranslations['en']);
+    final descArCtrl = TextEditingController(text: subcategory?.descriptionTranslations['ar']);
+    final descFrCtrl = TextEditingController(text: subcategory?.descriptionTranslations['fr']);
     
+    String? localImagePath;
+    String? currentImageUrl = subcategory?.imageUrl;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: Text(
-          lang.tr('new_subcategory', category: 'admin'),
-          style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AdminColors.textMain),
-        ),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Theme.of(ctx).cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: Text(
+            subcategory == null ? lang.tr('new_subcategory', category: 'admin') : lang.tr('edit_subcategory', category: 'admin'),
+            style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AdminColors.textMain),
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(child: AdminTextField(hintText: '${lang.tr('status_active', category: 'admin')} (EN)', controller: nameEnCtrl)),
-                  const SizedBox(width: 8),
-                  Expanded(child: AdminTextField(hintText: '${lang.tr('status_active', category: 'admin')} (AR)', controller: nameArCtrl)),
-                  const SizedBox(width: 8),
-                  Expanded(child: AdminTextField(hintText: '${lang.tr('status_active', category: 'admin')} (FR)', controller: nameFrCtrl)),
+                  _buildImagePicker(
+                    context: context,
+                    imageUrl: currentImageUrl,
+                    localPath: localImagePath,
+                    label: lang.tr('subcategory_image', category: 'admin'),
+                    onPick: () async {
+                      final path = await vm.pickImage();
+                      if (path != null) {
+                        setDialogState(() => localImagePath = path);
+                      }
+                    },
+                    onRemove: () {
+                      setDialogState(() {
+                        localImagePath = null;
+                        currentImageUrl = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(child: AdminTextField(hintText: '${lang.tr('status_active', category: 'admin')} (EN)', controller: nameEnCtrl)),
+                      const SizedBox(width: 8),
+                      Expanded(child: AdminTextField(hintText: '${lang.tr('status_active', category: 'admin')} (AR)', controller: nameArCtrl)),
+                      const SizedBox(width: 8),
+                      Expanded(child: AdminTextField(hintText: '${lang.tr('status_active', category: 'admin')} (FR)', controller: nameFrCtrl)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: AdminTextField(hintText: '${lang.tr('internal_desc', category: 'admin')} (EN)', controller: descEnCtrl)),
+                      const SizedBox(width: 8),
+                      Expanded(child: AdminTextField(hintText: '${lang.tr('internal_desc', category: 'admin')} (AR)', controller: descArCtrl)),
+                      const SizedBox(width: 8),
+                      Expanded(child: AdminTextField(hintText: '${lang.tr('internal_desc', category: 'admin')} (FR)', controller: descFrCtrl)),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: AdminTextField(hintText: '${lang.tr('internal_desc', category: 'admin')} (EN)', controller: descEnCtrl)),
-                  const SizedBox(width: 8),
-                  Expanded(child: AdminTextField(hintText: '${lang.tr('internal_desc', category: 'admin')} (AR)', controller: descArCtrl)),
-                  const SizedBox(width: 8),
-                  Expanded(child: AdminTextField(hintText: '${lang.tr('internal_desc', category: 'admin')} (FR)', controller: descFrCtrl)),
-                ],
-              ),
-            ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(lang.tr('cancel', category: 'common'), style: TextStyle(color: isDark ? Colors.white60 : AdminColors.textSecondary, fontWeight: FontWeight.w600)),
+            ),
+            AdminButton(
+              label: subcategory == null ? lang.tr('add_subcategory', category: 'admin') : lang.tr('save_category', category: 'admin'),
+              onPressed: () {
+                final sub = SubcategoryModel(
+                  id: subcategory?.id ?? '',
+                  categoryId: categoryId,
+                  name: nameEnCtrl.text.trim(),
+                  nameTranslations: {
+                    'en': nameEnCtrl.text.trim(),
+                    'ar': nameArCtrl.text.trim(),
+                    'fr': nameFrCtrl.text.trim(),
+                  },
+                  description: descEnCtrl.text.trim(),
+                  descriptionTranslations: {
+                    'en': descEnCtrl.text.trim(),
+                    'ar': descArCtrl.text.trim(),
+                    'fr': descFrCtrl.text.trim(),
+                  },
+                  icon: subcategory?.icon ?? Icons.subdirectory_arrow_right,
+                  iconCode: subcategory?.iconCode ?? 'circle_fill',
+                  imageUrl: currentImageUrl,
+                );
+                
+                if (subcategory == null) {
+                  vm.addSubcategory(categoryId, sub, localImagePath: localImagePath);
+                } else {
+                  vm.updateSubcategory(categoryId, sub, localImagePath: localImagePath);
+                }
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(lang.tr('cancel', category: 'common'), style: TextStyle(color: isDark ? Colors.white60 : AdminColors.textSecondary, fontWeight: FontWeight.w600)),
-          ),
-          AdminButton(
-            label: lang.tr('add_subcategory', category: 'admin'),
-            onPressed: () {
-              final sub = SubcategoryModel(
-                id: '',
-                categoryId: categoryId,
-                name: nameEnCtrl.text.trim(),
-                nameTranslations: {
-                  'en': nameEnCtrl.text.trim(),
-                  'ar': nameArCtrl.text.trim(),
-                  'fr': nameFrCtrl.text.trim(),
-                },
-                description: descEnCtrl.text.trim(),
-                descriptionTranslations: {
-                  'en': descEnCtrl.text.trim(),
-                  'ar': descArCtrl.text.trim(),
-                  'fr': descFrCtrl.text.trim(),
-                },
-                icon: Icons.subdirectory_arrow_right,
-                iconCode: 'circle_fill',
-              );
-              vm.addSubcategory(categoryId, sub);
-              Navigator.pop(ctx);
-            },
-          ),
-        ],
       ),
     );
   }

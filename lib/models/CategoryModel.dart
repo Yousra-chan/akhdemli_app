@@ -11,6 +11,7 @@ class SubcategoryModel {
   final Map<String, String> descriptionTranslations;
   final IconData icon;
   final String iconCode;
+  final String? imageUrl;
   final bool isActive;
 
   SubcategoryModel({
@@ -22,6 +23,7 @@ class SubcategoryModel {
     this.descriptionTranslations = const {},
     required this.icon,
     required this.iconCode,
+    this.imageUrl,
     this.isActive = true,
   });
 
@@ -52,6 +54,7 @@ class SubcategoryModel {
   }
 
   factory SubcategoryModel.fromMap(Map<String, dynamic> map, String id) {
+    String? imgUrl = map['imageUrl'] ?? map['iconUrl'] ?? map['image'] ?? map['pic'] ?? map['url'];
     return SubcategoryModel(
       id: id,
       categoryId: map['categoryId'] ?? '',
@@ -61,6 +64,7 @@ class SubcategoryModel {
       descriptionTranslations: Map<String, String>.from(map['descriptionTranslations'] ?? {}),
       icon: CategoryModel.getIconFromCode(map['iconCode'] ?? ''),
       iconCode: map['iconCode'] ?? '',
+      imageUrl: imgUrl,
       isActive: map['isActive'] ?? true,
     );
   }
@@ -83,6 +87,7 @@ class SubcategoryModel {
       'description': description,
       'descriptionTranslations': descriptionTranslations,
       'iconCode': iconCode,
+      'imageUrl': imageUrl,
       'isActive': isActive,
     };
   }
@@ -96,6 +101,7 @@ class SubcategoryModel {
     Map<String, String>? descriptionTranslations,
     IconData? icon,
     String? iconCode,
+    String? imageUrl,
     bool? isActive,
   }) {
     return SubcategoryModel(
@@ -107,6 +113,7 @@ class SubcategoryModel {
       descriptionTranslations: descriptionTranslations ?? this.descriptionTranslations,
       icon: icon ?? this.icon,
       iconCode: iconCode ?? this.iconCode,
+      imageUrl: imageUrl ?? this.imageUrl,
       isActive: isActive ?? this.isActive,
     );
   }
@@ -181,13 +188,14 @@ class CategoryModel {
   }
 
   factory CategoryModel.fromMap(Map<String, dynamic> map, String id) {
+    String? imgUrl = map['iconUrl'] ?? map['imageUrl'] ?? map['image'] ?? map['pic'] ?? map['url'];
     return CategoryModel(
       id: id,
       name: map['name'] ?? '',
       nameTranslations: Map<String, String>.from(map['nameTranslations'] ?? {}),
       description: map['description'] ?? '',
       descriptionTranslations: Map<String, String>.from(map['descriptionTranslations'] ?? {}),
-      iconUrl: map['iconUrl'],
+      iconUrl: imgUrl,
       createdAt: map['createdAt'],
       icon: getIconFromCode(map['iconCode'] ?? ''),
       iconCode: map['iconCode'] ?? '',
