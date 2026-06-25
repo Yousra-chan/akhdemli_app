@@ -6,33 +6,8 @@ import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/image_utils.dart';
+import 'home_constants.dart';
 import 'dart:ui' as ui;
-
-// ─────────────────────────────────────────────────────────────
-//  Soft Clarity – Category row palette
-//  Each entry: [iconColor, chipBackground]
-// ─────────────────────────────────────────────────────────────
-const List<List<Color>> _kCategoryPalette = [
-  [Color(0xFF2C5F8A), Color(0xFFE4EEF6)],
-  [Color(0xFF3A7C6E), Color(0xFFE2F2EE)],
-  [Color(0xFF6B4FA0), Color(0xFFEEEAF7)],
-  [Color(0xFF9A5D1E), Color(0xFFF7EDE0)],
-  [Color(0xFF963550), Color(0xFFF7E8ED)],
-  [Color(0xFF3D7030), Color(0xFFE6F2E2)],
-  [Color(0xFF2C6B8A), Color(0xFFE2EEF6)],
-  [Color(0xFF7A4A1E), Color(0xFFF5EBDF)],
-  [Color(0xFF1E6B6B), Color(0xFFDFF2F2)],
-  [Color(0xFF4A6B1E), Color(0xFFEAF2DF)],
-  [Color(0xFF8A2C2C), Color(0xFFF6E4E4)],
-  [Color(0xFF7A5A1E), Color(0xFFF5EDE0)],
-  [Color(0xFF2C4A8A), Color(0xFFE2E8F6)],
-  [Color(0xFF1E6B4A), Color(0xFFDFF2EA)],
-  [Color(0xFF8A5A1E), Color(0xFFF6EDE0)],
-  [Color(0xFF5A5A5A), Color(0xFFEDEDED)],
-];
-
-List<Color> _paletteFor(int index) =>
-    _kCategoryPalette[index % _kCategoryPalette.length];
 
 class CategoriesPage extends StatelessWidget {
   final List<CategoryModel> categories;
@@ -53,7 +28,7 @@ class CategoriesPage extends StatelessWidget {
               ? ui.TextDirection.rtl
               : ui.TextDirection.ltr,
           child: Scaffold(
-            backgroundColor: const Color(0xFFF5F4F0),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: _buildAppBar(context, languageProvider),
             body: _buildBody(context, languageProvider),
           ),
@@ -74,7 +49,7 @@ class CategoriesPage extends StatelessWidget {
           fontFamily: 'Exo2',
         ),
       ),
-      backgroundColor: const Color(0xFFFAFAF8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(0.5),
@@ -95,139 +70,31 @@ class CategoriesPage extends StatelessWidget {
 
   // ── Body ──────────────────────────────────────────────────
   Widget _buildBody(BuildContext context, LanguageProvider lang) {
-    if (categories.isEmpty) {
-      return _buildEmptyState(lang);
-    }
+    if (categories.isEmpty) return _buildEmptyState(context, lang);
 
-    // Two-column row grid — each column is a vertical list of rows
-    // We split the categories into two columns
-    final int half = (categories.length / 2).ceil();
-    final left = categories.sublist(0, half);
-    final right = categories.sublist(half);
-
-    return SingleChildScrollView(
+    return GridView.builder(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left column
-          Expanded(
-            child: Column(
-              children: List.generate(
-                left.length,
-                    (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildCategoryRow(
-                      context, left[i], i * 2, lang),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Right column
-          Expanded(
-            child: Column(
-              children: List.generate(
-                right.length,
-                    (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildCategoryRow(
-                      context, right[i], i * 2 + 1, lang),
-                ),
-              ),
-            ),
-          ),
-        ],
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.65,
       ),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        return _CategoryGridCard(
+          category: category,
+          index: index,
+          lang: lang,
+          onTap: () => _navigateToProviders(context, category, lang),
+        );
+      },
     );
-  }
-
-  // ── Single category row pill ──────────────────────────────
-  Widget _buildCategoryRow(
-      BuildContext context,
-      CategoryModel category,
-      int index,
-      LanguageProvider lang,
-      ) {
-    final palette = _paletteFor(index);
-    final iconColor = palette[0];
-    final chipBg = palette[1];
-
-    return GestureDetector(
-      onTap: () => _navigateToProviders(context, category, lang),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Icon chip
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: chipBg.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: category.iconUrl != null && category.iconUrl!.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: ImageUtils.isBase64Image(category.iconUrl)
-                          ? Image.memory(
-                              ImageUtils.decodeBase64Image(category.iconUrl)!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Icon(category.icon, color: iconColor, size: 28),
-                            )
-                          : CachedNetworkImage(
-                              imageUrl: category.iconUrl!,
-                              width: 54,
-                              height: 54,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
-                              errorWidget: (context, url, error) => Icon(category.icon, color: iconColor, size: 28),
-                            ),
-                    )
-                  : Icon(category.icon, color: iconColor, size: 28),
-            ),
-            const SizedBox(width: 14),
-            // Name
-            Expanded(
-              child: Text(
-                category.getTranslatedName(lang),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF2D2D2D),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-            ),
-            // Chevron
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: Color(0xFFC0C0C0),
-            ),
-          ],
-        ),
-      ),
-    );
-}
   }
 
   // ── Empty state ───────────────────────────────────────────
-  Widget _buildEmptyState(LanguageProvider lang) {
+  Widget _buildEmptyState(BuildContext context, LanguageProvider lang) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -267,6 +134,109 @@ class CategoriesPage extends StatelessWidget {
           lang.tr('all_services', category: 'home_categories'),
         ),
       ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Category Grid Card — matches reference image
+// ──────────────────────────────────────────────────────────────
+class _CategoryGridCard extends StatelessWidget {
+  final CategoryModel category;
+  final int index;
+  final LanguageProvider lang;
+  final VoidCallback onTap;
+
+  const _CategoryGridCard({
+    required this.category,
+    required this.index,
+    required this.lang,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final color = getColorForCategory(category.name, index);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Image area
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: _buildVisual(color, isDark),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Label
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              category.getTranslatedName(lang),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isDark ? Colors.white70 : const Color(0xFF2D2D2D),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Exo2',
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVisual(Color color, bool isDark) {
+    if (category.iconUrl != null && category.iconUrl!.isNotEmpty) {
+      if (ImageUtils.isBase64Image(category.iconUrl)) {
+        final bytes = ImageUtils.decodeBase64Image(category.iconUrl);
+        if (bytes != null) {
+          return Image.memory(bytes,
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (_, __, ___) => _fallbackIcon(color, isDark));
+        }
+      } else {
+        return CachedNetworkImage(
+          imageUrl: category.iconUrl!,
+          fit: BoxFit.contain,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (_, __) => _shimmer(),
+          errorWidget: (_, __, ___) => _fallbackIcon(color, isDark),
+        );
+      }
+    }
+    return _fallbackIcon(color, isDark);
+  }
+
+  Widget _fallbackIcon(Color color, bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDark ? 0.15 : 0.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(category.icon, color: color, size: 36),
+    );
+  }
+
+  Widget _shimmer() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xFFE8E8E8),
     );
   }
 }

@@ -8,32 +8,7 @@ import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/Services/firebase_service.dart';
-
-// ─────────────────────────────────────────────────────────────
-//  Soft Clarity – Subcategory row palette
-//  Each entry: [iconColor, chipBackground]
-// ─────────────────────────────────────────────────────────────
-const List<List<Color>> _kSubPalette = [
-  [Color(0xFF2C5F8A), Color(0xFFE4EEF6)],
-  [Color(0xFF3A7C6E), Color(0xFFE2F2EE)],
-  [Color(0xFF6B4FA0), Color(0xFFEEEAF7)],
-  [Color(0xFF9A5D1E), Color(0xFFF7EDE0)],
-  [Color(0xFF963550), Color(0xFFF7E8ED)],
-  [Color(0xFF3D7030), Color(0xFFE6F2E2)],
-  [Color(0xFF2C6B8A), Color(0xFFE2EEF6)],
-  [Color(0xFF7A4A1E), Color(0xFFF5EBDF)],
-  [Color(0xFF1E6B6B), Color(0xFFDFF2F2)],
-  [Color(0xFF4A6B1E), Color(0xFFEAF2DF)],
-  [Color(0xFF8A2C2C), Color(0xFFF6E4E4)],
-  [Color(0xFF7A5A1E), Color(0xFFF5EDE0)],
-  [Color(0xFF2C4A8A), Color(0xFFE2E8F6)],
-  [Color(0xFF1E6B4A), Color(0xFFDFF2EA)],
-  [Color(0xFF8A5A1E), Color(0xFFF6EDE0)],
-  [Color(0xFF5A5A5A), Color(0xFFEDEDED)],
-];
-
-List<Color> _subPaletteFor(int index) =>
-    _kSubPalette[index % _kSubPalette.length];
+import 'home_constants.dart';
 
 class SubcategoriesPage extends StatefulWidget {
   final CategoryModel selectedCategory;
@@ -71,8 +46,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
 
   void _loadSubCategories() async {
     setState(() => _isLoading = true);
-    
-    // Check if subcategories are already provided in the category object
+
     if (widget.selectedCategory.subcategories.isNotEmpty) {
       if (mounted) {
         setState(() {
@@ -84,10 +58,9 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
       return;
     }
 
-    // Otherwise fetch from Firestore
     try {
-      final subcategories = await FirebaseService.getSubcategoriesForCategory(widget.selectedCategory.id);
-      
+      final subcategories = await FirebaseService.getSubcategoriesForCategory(
+          widget.selectedCategory.id);
       if (mounted) {
         setState(() {
           _subCategories = subcategories;
@@ -113,7 +86,8 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
       _filteredSubCategories = query.isEmpty
           ? List.from(_subCategories)
           : _subCategories
-          .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
+          .where(
+              (e) => e.name.toLowerCase().contains(query.toLowerCase()))
           .toList();
     });
   }
@@ -138,23 +112,24 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
           textDirection:
           lang.isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
           child: Scaffold(
-            backgroundColor: const Color(0xFFF5F4F0),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: _buildAppBar(lang),
             body: _isLoading
                 ? const LoadingWidget()
                 : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Search ──────────────────────────
+                // Search bar
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  padding:
+                  const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: _buildSearchField(lang),
                 ),
-                // ── Count label ─────────────────────
+                // Count label
                 if (_filteredSubCategories.isNotEmpty)
                   Padding(
                     padding:
-                    const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    const EdgeInsets.fromLTRB(16, 10, 16, 4),
                     child: Text(
                       lang.trParams(
                         'services_count',
@@ -172,11 +147,11 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                       ),
                     ),
                   ),
-                // ── List or empty ───────────────────
+                // Grid or empty
                 Expanded(
                   child: _filteredSubCategories.isEmpty
                       ? _buildEmptyState(lang)
-                      : _buildTwoColumnList(lang),
+                      : _buildGrid(lang),
                 ),
               ],
             ),
@@ -189,7 +164,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   // ── AppBar ────────────────────────────────────────────────
   AppBar _buildAppBar(LanguageProvider lang) {
     return AppBar(
-      backgroundColor: const Color(0xFFFAFAF8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(0.5),
@@ -222,7 +197,9 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     return Container(
       height: 46,
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFAF8),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF252529)
+            : const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E0DA), width: 0.5),
       ),
@@ -235,7 +212,8 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
           fontFamily: 'Exo2',
         ),
         decoration: InputDecoration(
-          hintText: lang.tr('search_services', category: 'subcategories_page'),
+          hintText:
+          lang.tr('search_services', category: 'subcategories_page'),
           hintStyle: const TextStyle(
             color: Color(0xFF9B9B9B),
             fontSize: 14,
@@ -261,127 +239,27 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     );
   }
 
-  // ── Two-column row list ───────────────────────────────────
-  Widget _buildTwoColumnList(LanguageProvider lang) {
-    final int half = (_filteredSubCategories.length / 2).ceil();
-    final left = _filteredSubCategories.sublist(0, half);
-    final right = _filteredSubCategories.sublist(half);
-
-    return SingleChildScrollView(
+  // ── Grid ──────────────────────────────────────────────────
+  Widget _buildGrid(LanguageProvider lang) {
+    return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left column
-          Expanded(
-            child: Column(
-              children: List.generate(
-                left.length,
-                    (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildSubRow(i * 2, left[i], lang),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Right column
-          Expanded(
-            child: Column(
-              children: List.generate(
-                right.length,
-                    (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildSubRow(i * 2 + 1, right[i], lang),
-                ),
-              ),
-            ),
-          ),
-        ],
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.85,
       ),
+      itemCount: _filteredSubCategories.length,
+      itemBuilder: (context, index) {
+        final sub = _filteredSubCategories[index];
+        return _SubGridCard(
+          subCategory: sub,
+          index: index,
+          lang: lang,
+          onTap: () => _onSubCategorySelected(sub),
+        );
+      },
     );
-  }
-
-  // ── Single subcategory row pill ───────────────────────────
-  Widget _buildSubRow(
-      int index, SubcategoryModel subCategory, LanguageProvider lang) {
-    final palette = _subPaletteFor(index);
-    final iconColor = palette[0];
-    final chipBg = palette[1];
-
-    return GestureDetector(
-      onTap: () => _onSubCategorySelected(subCategory),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(color: const Color(0xFFE2E0DA).withOpacity(0.5), width: 0.5),
-        ),
-        child: Row(
-          children: [
-            // Icon chip
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: chipBg.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: subCategory.imageUrl != null && subCategory.imageUrl!.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: ImageUtils.isBase64Image(subCategory.imageUrl)
-                          ? Image.memory(
-                              ImageUtils.decodeBase64Image(subCategory.imageUrl)!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Icon(subCategory.icon, color: iconColor, size: 24),
-                            )
-                          : CachedNetworkImage(
-                              imageUrl: subCategory.imageUrl!,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5))),
-                              errorWidget: (context, url, error) => Icon(subCategory.icon, color: iconColor, size: 24),
-                            ),
-                    )
-                  : Icon(subCategory.icon, color: iconColor, size: 24),
-            ),
-            const SizedBox(width: 12),
-            // Name
-            Expanded(
-              child: Text(
-                subCategory.getTranslatedName(lang),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF2D2D2D),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Exo2',
-                  height: 1.2,
-                ),
-              ),
-            ),
-            // Chevron
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 12,
-              color: Color(0xFFB0B0B0),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
   }
 
   // ── Empty state ───────────────────────────────────────────
@@ -402,7 +280,8 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            lang.tr('no_services_found', category: 'subcategories_page'),
+            lang.tr('no_services_found',
+                category: 'subcategories_page'),
             style: const TextStyle(
               color: Color(0xFF9B9B9B),
               fontSize: 15,
@@ -417,14 +296,15 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                 _filterSubCategories('');
               },
               child: Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE4EEF6),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  lang.tr('clear_search', category: 'subcategories_page'),
+                  lang.tr('clear_search',
+                      category: 'subcategories_page'),
                   style: const TextStyle(
                     color: Color(0xFF2C5F8A),
                     fontSize: 13,
@@ -437,6 +317,119 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
           ],
         ],
       ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Sub-category grid card
+// ──────────────────────────────────────────────────────────────
+class _SubGridCard extends StatelessWidget {
+  final SubcategoryModel subCategory;
+  final int index;
+  final LanguageProvider lang;
+  final VoidCallback onTap;
+
+  const _SubGridCard({
+    required this.subCategory,
+    required this.index,
+    required this.lang,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final color = getColorForCategory(subCategory.name, index);
+    final cardBg = isDark ? const Color(0xFF252529) : Colors.white;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black26
+                  : Colors.black.withOpacity(0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: _buildVisual(color, isDark),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+              child: Text(
+                subCategory.getTranslatedName(lang),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isDark
+                      ? Colors.white70
+                      : const Color(0xFF2D2D2D),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Exo2',
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisual(Color color, bool isDark) {
+    if (subCategory.imageUrl != null && subCategory.imageUrl!.isNotEmpty) {
+      if (ImageUtils.isBase64Image(subCategory.imageUrl)) {
+        final bytes = ImageUtils.decodeBase64Image(subCategory.imageUrl);
+        if (bytes != null) {
+          return Image.memory(bytes,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (_, __, ___) => _fallbackIcon(color, isDark));
+        }
+      } else {
+        return CachedNetworkImage(
+          imageUrl: subCategory.imageUrl!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (_, __) => Container(color: const Color(0xFFE8E8E8)),
+          errorWidget: (_, __, ___) => _fallbackIcon(color, isDark),
+        );
+      }
+    }
+    return _fallbackIcon(color, isDark);
+  }
+
+  Widget _fallbackIcon(Color color, bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDark ? 0.15 : 0.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(subCategory.icon, color: color, size: 36),
     );
   }
 }
