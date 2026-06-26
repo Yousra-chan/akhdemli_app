@@ -32,5 +32,7 @@
   "book_now": "Réserver",
   "golden_user": "Utilisateur Golden",
   "chat_now": "Discuter",
-  "location_not_specified": "Emplacement non spécifié"
+  "location_not_specified": "Emplacement non spécifié",
+  "error_launch_call": "Impossible de lancer l'appel",
+  "error_launch_whatsapp": "WhatsApp n'est pas installé ou n'a pas pu être ouvert"
 }

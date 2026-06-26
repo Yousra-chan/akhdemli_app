@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:service_app/Services/wilaya_service.dart';
+import 'package:service_app/providers/language_provider.dart';
 
 class UserModel {
   final String uid;
@@ -17,6 +19,7 @@ class UserModel {
 
   // YOUR ACTUAL FIELDS (from Firestore)
   final String? profession;
+  final String? description;
   final bool subscriptionActive;
   final Timestamp? subscriptionExpiry;
   final Timestamp? subscriptionExpiresAt;
@@ -49,6 +52,7 @@ class UserModel {
 
     // YOUR ACTUAL FIELDS
     this.profession,
+    this.description,
     this.subscriptionActive = false,
     this.subscriptionExpiry,
     this.subscriptionExpiresAt,
@@ -83,6 +87,7 @@ class UserModel {
 
       // YOUR ACTUAL FIELDS
       'profession': profession,
+      'description': description,
       'subscriptionExpiry': subscriptionExpiry,
       'subscriptionActive': subscriptionActive,
       'fcmTokenUpdatedAt': fcmTokenUpdatedAt,
@@ -118,6 +123,7 @@ class UserModel {
 
       // YOUR ACTUAL FIELDS
       profession: data['profession'],
+      description: data['description'],
       subscriptionActive: data['subscriptionActive'] ?? false,
       subscriptionExpiry: data['subscriptionExpiry'],
       fcmTokenUpdatedAt: data['fcmTokenUpdatedAt'],
@@ -157,6 +163,7 @@ class UserModel {
     String? fcmToken,
     List<String>? serviceIds,
     String? profession,
+    String? description,
     bool? subscriptionActive,
     Timestamp? subscriptionExpiry,
     Timestamp? subscriptionExpiresAt,
@@ -183,6 +190,7 @@ class UserModel {
       fcmToken: fcmToken ?? this.fcmToken,
       serviceIds: serviceIds ?? this.serviceIds,
       profession: profession ?? this.profession,
+      description: description ?? this.description,
       subscriptionActive: subscriptionActive ?? this.subscriptionActive,
       subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,
       subscriptionExpiresAt:
@@ -206,5 +214,16 @@ class UserModel {
     return subscriptionActive &&
         expiry != null &&
         expiry.toDate().isAfter(DateTime.now());
+  }
+
+  /// NEW: Returns the localized location string for UI display.
+  String getLocalizedLocation(LanguageProvider lang) {
+    if (wilaya == null || wilaya!.isEmpty) return address;
+    
+    final locale = lang.locale.languageCode;
+    if (commune != null && commune!.isNotEmpty) {
+      return WilayaService.localizeLocationString('$commune, $wilaya', locale);
+    }
+    return WilayaService.localizeWilayaName(wilaya!, locale);
   }
 }

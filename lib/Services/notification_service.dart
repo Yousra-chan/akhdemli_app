@@ -144,20 +144,35 @@ class NotificationService {
     }
   }
 
+  StreamSubscription? _tokenRefreshSubscription;
+
   Future<void> registerUser({required String userId, required String userName}) async {
+    // If already registered for this user, don't re-register
+    if (_currentUserId == userId && _initialized) {
+      debugPrint('ℹ️ User $userId already registered for notifications');
+      return;
+    }
+
     _currentUserId = userId;
     _currentUserName = userName;
     
-    // Save current token
-    final token = await _firebaseMessaging.getToken();
-    if (token != null) {
-      await _updateTokenInFirestore(userId, token);
-    }
+    try {
+      // Save current token
+      final token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        await _updateTokenInFirestore(userId, token);
+      }
 
-    // Listen for token refreshes
-    _firebaseMessaging.onTokenRefresh.listen((newToken) {
-      _updateTokenInFirestore(userId, newToken);
-    });
+      // Cancel previous subscription if it exists
+      await _tokenRefreshSubscription?.cancel();
+
+      // Listen for token refreshes
+      _tokenRefreshSubscription = _firebaseMessaging.onTokenRefresh.listen((newToken) {
+        _updateTokenInFirestore(userId, newToken);
+      });
+    } catch (e) {
+      debugPrint('❌ Error registering user for notifications: $e');
+    }
   }
 
   Future<void> _updateTokenInFirestore(String userId, String token) async {

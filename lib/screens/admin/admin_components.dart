@@ -204,6 +204,8 @@ class AdminStatusBadge extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
       ),
     );
   }
@@ -249,16 +251,19 @@ class AdminSidebarItem extends StatelessWidget {
                 size: 20,
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? theme.primaryColor : theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  fontSize: 14,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? theme.primaryColor : theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isSelected) ...[
-                const Spacer(),
+                const SizedBox(width: 8),
                 Container(
                   width: 4,
                   height: 20,
@@ -311,7 +316,7 @@ class AdminButton extends StatelessWidget {
         children: [
           Icon(icon, size: 18),
           const SizedBox(width: 8),
-          content,
+          Flexible(child: content),
         ],
       );
     }

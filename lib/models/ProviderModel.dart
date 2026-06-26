@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:service_app/Services/wilaya_service.dart';
+import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/models/UserModel.dart';
 
 class ProviderModel {
@@ -225,6 +227,17 @@ class ProviderModel {
     final expiry = subscriptionExpiresAt ?? subscriptionExpiry;
     if (expiry == null) return false;
     return expiry.toDate().isAfter(DateTime.now());
+  }
+
+  /// NEW: Returns the localized location string for UI display.
+  String getLocalizedLocation(LanguageProvider lang) {
+    if (wilaya.isEmpty) return address;
+    
+    final locale = lang.locale.languageCode;
+    if (commune.isNotEmpty) {
+      return WilayaService.localizeLocationString('$commune, $wilaya', locale);
+    }
+    return WilayaService.localizeWilayaName(wilaya, locale);
   }
 
   @override

@@ -56,7 +56,7 @@ class _LocationSectionState extends State<LocationSection> {
       return false;
     }
 
-    setState(() => _isGettingLocation = true);
+    if (mounted) setState(() => _isGettingLocation = true);
 
     try {
       final position = await Geolocator.getCurrentPosition(
@@ -73,9 +73,9 @@ class _LocationSectionState extends State<LocationSection> {
         return true;
       }
     } catch (e) {
-      _showErrorSnackBar(lang.tr('location_error', category: 'service'));
+      if (mounted) _showErrorSnackBar(lang.tr('location_error', category: 'service'));
     } finally {
-      setState(() => _isGettingLocation = false);
+      if (mounted) setState(() => _isGettingLocation = false);
     }
     return false;
   }
@@ -121,12 +121,14 @@ class _LocationSectionState extends State<LocationSection> {
       Position position, Placemark placemark) async {
     final address = _buildAddress(placemark);
 
-    setState(() {
-      _currentPosition = position;
-      _latitudeController.text = position.latitude.toStringAsFixed(6);
-      _longitudeController.text = position.longitude.toStringAsFixed(6);
-      _locationController.text = address;
-    });
+    if (mounted) {
+      setState(() {
+        _currentPosition = position;
+        _latitudeController.text = position.latitude.toStringAsFixed(6);
+        _longitudeController.text = position.longitude.toStringAsFixed(6);
+        _locationController.text = address;
+      });
+    }
 
     widget.onLocationUpdated
         ?.call(address, position.latitude, position.longitude);

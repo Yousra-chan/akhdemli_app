@@ -47,9 +47,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   }
 
   Future<void> _updateBookingStatus(String bookingId, String status) async {
-    setState(() {
-      _loading = true;
-    });
+    if (mounted) setState(() => _loading = true);
 
     final languageProvider =
         Provider.of<LanguageProvider>(context, listen: false);
@@ -75,8 +73,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
       // 🔔 SEND NOTIFICATION FOR STATUS CHANGE
       try {
-        final notificationSent =
-            await BookingNotificationService.sendBookingStatusNotification(
+        await BookingNotificationService.sendBookingStatusNotification(
           bookingId: bookingId,
           newStatus: status,
           providerId: bookingData['providerId'] ?? '',
@@ -88,11 +85,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           serviceName: bookingData['serviceTitle'] ??
               languageProvider.tr('service', category: 'bookings'),
         );
-
-        print('${notificationSent ? '✅' : '⚠️'} Notification sent: $status');
       } catch (e) {
         print('⚠️ Error sending notification: $e');
-        // Don't fail the booking update if notification fails
       }
 
       // Show appropriate success message
@@ -136,9 +130,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _loading = false;
-        });
+        setState(() => _loading = false);
       }
     }
   }
@@ -171,9 +163,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
-                setState(() {
-                  _loading = true;
-                });
+                if (mounted) setState(() => _loading = true);
 
                 try {
                   // Get booking details before deleting
@@ -197,7 +187,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
                   // 🔔 SEND CANCELLATION NOTIFICATION
                   try {
-                    final notificationSent = await BookingNotificationService
+                    await BookingNotificationService
                         .sendBookingStatusNotification(
                       bookingId: bookingId,
                       newStatus: 'cancelled',
@@ -210,12 +200,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       serviceName: bookingData['serviceTitle'] ??
                           languageProvider.tr('service', category: 'bookings'),
                     );
-
-                    print(
-                        '${notificationSent ? '✅' : '⚠️'} Cancellation notification sent');
                   } catch (e) {
                     print('⚠️ Error sending cancellation notification: $e');
-                    // Don't fail the deletion if notification fails
                   }
 
                   if (mounted) {
@@ -239,9 +225,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   }
                 } finally {
                   if (mounted) {
-                    setState(() {
-                      _loading = false;
-                    });
+                    setState(() => _loading = false);
                   }
                 }
               },

@@ -31,12 +31,14 @@ InputDecoration buildInputDecoration(String label) {
 
 class RegisterButton extends StatelessWidget {
   final bool isLoading;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  
   const RegisterButton({
     required this.isLoading,
-    required this.onPressed,
+    this.onPressed,
     super.key,
   });
+
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
@@ -107,13 +109,13 @@ class OrDivider extends StatelessWidget {
 }
 
 class SocialSignInRow extends StatelessWidget {
-  final VoidCallback onGooglePressed;
-  final VoidCallback onApplePressed;
+  final VoidCallback? onGooglePressed;
+  final VoidCallback? onApplePressed;
   final bool isLoading;
 
   const SocialSignInRow({
-    required this.onGooglePressed,
-    required this.onApplePressed,
+    this.onGooglePressed,
+    this.onApplePressed,
     required this.isLoading,
     super.key,
   });
@@ -143,29 +145,32 @@ class SocialSignInRow extends StatelessWidget {
 
   Widget _buildSocialButton({
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     required Color color,
   }) {
-    return InkWell(
-      onTap: isLoading ? null : onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          border: Border.all(color: kBorderColor.withOpacity(0.7)),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: isLoading
-              ? SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                )
-              : Icon(icon, color: color, size: 24),
+    return Opacity(
+      opacity: onPressed == null ? 0.5 : 1.0,
+      child: InkWell(
+        onTap: isLoading ? null : onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            border: Border.all(color: kBorderColor.withOpacity(0.7)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: isLoading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(color),
+                    ),
+                  )
+                : Icon(icon, color: color, size: 24),
+          ),
         ),
       ),
     );

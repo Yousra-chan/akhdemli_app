@@ -179,11 +179,23 @@ Widget buildCategoryCard(CategoryModel category, int index, VoidCallback onTap,
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: ImageUtils.isBase64Image(category.iconUrl)
-                          ? Image.memory(
-                              ImageUtils.decodeBase64Image(category.iconUrl)!,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
+                          ? Builder(
+                              builder: (context) {
+                                final bytes = ImageUtils.decodeBase64Image(category.iconUrl);
+                                if (bytes == null) {
+                                  return Icon(
+                                    category.icon,
+                                    color: getColorForCategory(category.name, index),
+                                    size: 24,
+                                  );
+                                }
+                                return Image.memory(
+                                  bytes,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                );
+                              },
                             )
                           : CachedNetworkImage(
                               imageUrl: category.iconUrl!,

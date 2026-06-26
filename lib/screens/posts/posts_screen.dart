@@ -10,12 +10,13 @@ import 'package:service_app/utils/image_optimizer.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/providers/language_provider.dart';
-import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/utils/ui_widgets.dart' as ui;
 import 'posts_constants.dart';
 import 'package:service_app/screens/posts/posts_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/models/CategoryModel.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 enum PostFilterType { all, seeking, offering }
 
@@ -30,6 +31,9 @@ class _FeedScreenState extends State<FeedScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isRefreshing = false;
   PostFilterType _selectedFilter = PostFilterType.all;
+  String? _selectedCategoryName;
+  List<CategoryModel> _categories = [];
+  bool _isLoadingCategories = false;
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
 
@@ -37,6 +41,23 @@ class _FeedScreenState extends State<FeedScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    if (mounted) setState(() => _isLoadingCategories = true);
+    try {
+      final categories = await FirebaseService.getCategoriesList();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading categories for feed: $e');
+      if (mounted) setState(() => _isLoadingCategories = false);
+    }
   }
 
   @override
@@ -72,7 +93,7 @@ class _FeedScreenState extends State<FeedScreen> {
     try {
       await _firestoreService.addPost(post);
       if (mounted) {
-        AppSnackBar.showSuccess(
+        ui.AppSnackBar.showSuccess(
           context,
           post.type == PostType.seeking
               ? languageProvider.tr('request_published', category: 'posts')
@@ -81,7 +102,7 @@ class _FeedScreenState extends State<FeedScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppSnackBar.showError(
+        ui.AppSnackBar.showError(
           context,
           languageProvider.trParams(
             'error_creating_post',
@@ -100,7 +121,7 @@ class _FeedScreenState extends State<FeedScreen> {
     final currentUser = authViewModel.currentUser;
 
     if (currentUser == null) {
-      AppSnackBar.showError(
+      ui.AppSnackBar.showError(
         context,
         languageProvider.tr('please_sign_in', category: 'posts'),
       );
@@ -136,14 +157,26 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   List<Post> _filterPosts(List<Post> posts) {
+    List<Post> filtered = posts;
+
+    // 1. Filter by Post Type (Seeking/Offering)
     switch (_selectedFilter) {
       case PostFilterType.seeking:
-        return posts.where((post) => post.type == PostType.seeking).toList();
+        filtered = filtered.where((post) => post.type == PostType.seeking).toList();
+        break;
       case PostFilterType.offering:
-        return posts.where((post) => post.type == PostType.offering).toList();
+        filtered = filtered.where((post) => post.type == PostType.offering).toList();
+        break;
       default:
-        return posts;
+        break;
     }
+
+    // 2. Filter by Category
+    if (_selectedCategoryName != null) {
+      filtered = filtered.where((post) => post.serviceCategory == _selectedCategoryName).toList();
+    }
+
+    return filtered;
   }
 
   Widget _buildFilterChip(PostFilterType type, String labelKey) {
@@ -160,12 +193,12 @@ class _FeedScreenState extends State<FeedScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? Theme.of(context).primaryColor
-                : Colors.white.withOpacity(0.6),
+                ? Colors.white
+                : Colors.white.withOpacity(0.3),
             width: 1,
           ),
         ),
@@ -175,9 +208,153 @@ class _FeedScreenState extends State<FeedScreen> {
             color: isSelected
                 ? Theme.of(context).primaryColor
                 : Colors.white,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             fontSize: 13,
+            fontFamily: 'Exo2',
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryFilterModal() {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      lang.tr('all_categories', category: 'home_page'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Exo2',
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: _categories.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    final isAllSelected = _selectedCategoryName == null;
+                    return _CategoryModalCard(
+                      title: lang.tr('all_posts', category: 'posts'),
+                      icon: Icons.grid_view_rounded,
+                      isSelected: isAllSelected,
+                      onTap: () {
+                        setState(() => _selectedCategoryName = null);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }
+
+                  final category = _categories[index - 1];
+                  final isSelected = _selectedCategoryName == category.name;
+                  return _CategoryModalCard(
+                    title: category.getTranslatedName(lang),
+                    icon: category.icon,
+                    imageUrl: category.iconUrl,
+                    isSelected: isSelected,
+                    onTap: () {
+                      setState(() => _selectedCategoryName = category.name);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelectorChip() {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
+    final isSelected = _selectedCategoryName != null;
+
+    String label = lang.tr('all_categories', category: 'home_page');
+    if (isSelected) {
+      try {
+        final cat = _categories.firstWhere((c) => c.name == _selectedCategoryName);
+        label = cat.getTranslatedName(lang);
+      } catch (_) {
+        label = _selectedCategoryName!;
+      }
+    }
+
+    return GestureDetector(
+      onTap: _showCategoryFilterModal,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? theme.primaryColor : Colors.white,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
+                fontFamily: 'Exo2',
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: isSelected ? theme.primaryColor : Colors.white70,
+            ),
+          ],
         ),
       ),
     );
@@ -187,14 +364,14 @@ class _FeedScreenState extends State<FeedScreen> {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: 5,
-      itemBuilder: (context, index) => const PostSkeleton(),
+      itemBuilder: (context, index) => const ui.PostSkeleton(),
     );
   }
 
   Widget _buildErrorState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return ErrorStateWidget(
+    return ui.ErrorStateWidget(
       message: languageProvider.tr('unable_to_load_posts', category: 'posts'),
       onRetry: _refreshData,
     );
@@ -203,7 +380,7 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget _buildEmptyState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return EmptyStateWidget(
+    return ui.EmptyStateWidget(
       icon: Icons.description_outlined,
       message: languageProvider.tr('no_posts_yet', category: 'posts'),
       subtitle: languageProvider.tr('be_first_to_share', category: 'posts'),
@@ -251,7 +428,7 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget _buildFilteredEmptyState() {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
-    return EmptyStateWidget(
+    return ui.EmptyStateWidget(
       icon: _selectedFilter == PostFilterType.seeking
           ? Icons.search
           : Icons.work_outline,
@@ -358,6 +535,8 @@ class _FeedScreenState extends State<FeedScreen> {
                                 PostFilterType.seeking, 'requests'),
                             const SizedBox(width: 8),
                             _buildFilterChip(PostFilterType.offering, 'offers'),
+                            const SizedBox(width: 8),
+                            _buildCategorySelectorChip(),
                           ],
                         ),
                       ),
@@ -391,7 +570,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       final posts = snapshot.data ?? [];
 
                       if (posts.isEmpty) {
-                        return _selectedFilter == PostFilterType.all
+                        return _selectedFilter == PostFilterType.all && _selectedCategoryName == null
                             ? _buildEmptyState()
                             : _buildFilteredEmptyState();
                       }
@@ -402,26 +581,7 @@ class _FeedScreenState extends State<FeedScreen> {
                         return _buildFilteredEmptyState();
                       }
 
-                      return RefreshIndicator(
-                        onRefresh: _refreshData,
-                        color: theme.primaryColor,
-                        backgroundColor: theme.cardColor,
-                        displacement: 40,
-                        edgeOffset: 0,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          itemCount: filteredPosts.length,
-                          itemBuilder: (context, index) {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: PostCard(post: filteredPosts[index]),
-                            );
-                          },
-                        ),
-                      );
+                      return _buildPostsList(filteredPosts);
                     },
                   ),
                 ),
@@ -451,196 +611,105 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
-class ImageViewerDialog extends StatefulWidget {
-  final List<String> imageUrls;
-  final int initialIndex;
+class _CategoryModalCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String? imageUrl;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const ImageViewerDialog({
-    super.key,
-    required this.imageUrls,
-    this.initialIndex = 0,
+  const _CategoryModalCard({
+    required this.title,
+    required this.icon,
+    this.imageUrl,
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
-  State<ImageViewerDialog> createState() => _ImageViewerDialogState();
-}
-
-class _ImageViewerDialogState extends State<ImageViewerDialog> {
-  late PageController _pageController;
-  int _currentIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final languageProvider = Provider.of<LanguageProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(0),
-      child: Stack(
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
+          Expanded(
             child: Container(
               width: double.infinity,
-              height: double.infinity,
-              color: Colors.black.withOpacity(0.9),
-            ),
-          ),
-          Positioned.fill(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: widget.imageUrls.length,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              itemBuilder: (context, index) {
-                final imageProvider =
-                ImageUtils.getImageProvider(widget.imageUrls[index]);
-
-                if (imageProvider == null) {
-                  return Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.exclamationmark_circle,
-                            color: Colors.red,
-                            size: 50,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            languageProvider.tr('unable_to_load_image',
-                                category: 'posts'),
-                            style: TextStyle(
-                              color: Colors.grey.shade800,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                return InteractiveViewer(
-                  panEnabled: true,
-                  scaleEnabled: true,
-                  child: Center(
-                    child: Image(
-                      image: imageProvider,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          PositionedDirectional(
-            top: 40,
-            end: 20,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 30),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          if (widget.imageUrls.length > 1)
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_currentIndex + 1} / ${widget.imageUrls.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? theme.primaryColor
+                    : (isDark ? Colors.white12 : Colors.grey.shade100),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? theme.primaryColor : Colors.transparent,
+                  width: 2,
                 ),
               ),
-            ),
-          if (widget.imageUrls.length > 1)
-            PositionedDirectional(
-              start: 20,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(
-                    languageProvider.isRtl ? Icons.chevron_right : Icons.chevron_left,
-                    color: Colors.white,
-                    size: 40,
-                  ),
-                  onPressed: _currentIndex > 0
-                      ? () {
-                    _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                      : null,
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: _buildVisual(isDark, theme),
               ),
             ),
-          if (widget.imageUrls.length > 1)
-            PositionedDirectional(
-              end: 20,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(
-                    languageProvider.isRtl ? Icons.chevron_left : Icons.chevron_right,
-                    color: Colors.white,
-                    size: 40,
-                  ),
-                  onPressed: _currentIndex < widget.imageUrls.length - 1
-                      ? () {
-                    _pageController.nextPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                      : null,
-                ),
-              ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? theme.primaryColor : (isDark ? Colors.white70 : Colors.black87),
+              fontFamily: 'Exo2',
             ),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildVisual(bool isDark, ThemeData theme) {
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      if (ImageUtils.isBase64Image(imageUrl)) {
+        final bytes = ImageUtils.decodeBase64Image(imageUrl);
+        if (bytes != null) {
+          return Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            color: isSelected ? Colors.black.withOpacity(0.2) : null,
+            colorBlendMode: isSelected ? BlendMode.darken : null,
+          );
+        }
+      } else {
+        return CachedNetworkImage(
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => const ui.SkeletonLoader(),
+          color: isSelected ? Colors.black.withOpacity(0.2) : null,
+          colorBlendMode: isSelected ? BlendMode.darken : null,
+          errorWidget: (_, __, ___) => _fallbackIcon(theme),
+        );
+      }
+    }
+    return _fallbackIcon(theme);
+  }
+
+  Widget _fallbackIcon(ThemeData theme) {
+    return Center(
+      child: Icon(
+        icon,
+        size: 32,
+        color: isSelected ? Colors.white : theme.primaryColor,
+      ),
+    );
+  }
 }
+
+
 
 class CreatePostModal extends StatefulWidget {
   final Function(Post) onPostCreated;
@@ -831,11 +900,11 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
   void _showSnackBar(String message, Color color) {
     if (color == Colors.red) {
-      AppSnackBar.showError(context, message);
+      ui.AppSnackBar.showError(context, message);
     } else if (color == Colors.green) {
-      AppSnackBar.showSuccess(context, message);
+      ui.AppSnackBar.showSuccess(context, message);
     } else {
-      AppSnackBar.showWarning(context, message);
+      ui.AppSnackBar.showWarning(context, message);
     }
   }
 
@@ -1165,7 +1234,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
               else if (_categories.isEmpty)
                 Center(
                   child: Text(
-                    languageProvider.tr('no_categories_available', category: 'posts'),
+                    languageProvider.tr('no_categories', category: 'home_page'),
                     style: const TextStyle(color: Colors.red),
                   ),
                 )

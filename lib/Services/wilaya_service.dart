@@ -190,6 +190,83 @@ class WilayaService {
     }
   }
 
+  /// NEW: Localizes a wilaya name from any supported language to the target language.
+  static String localizeWilayaName(String storedName, String targetLocale) {
+    final language = _getDzairLanguage(targetLocale);
+    final wilaya = _findWilayaByName(storedName);
+    if (wilaya == null) return storedName;
+    return _getWilayaName(wilaya, language: language);
+  }
+
+  /// NEW: Localizes a commune name within a wilaya.
+  static String localizeCommuneName(String wilayaName, String storedCommuneName, String targetLocale) {
+    final language = _getDzairLanguage(targetLocale);
+    final wilaya = _findWilayaByName(wilayaName);
+    if (wilaya == null) return storedCommuneName;
+    
+    final commune = _findCommuneByName(wilaya, storedCommuneName);
+    if (commune == null) return storedCommuneName;
+    
+    return _getCommuneName(commune, language: language);
+  }
+
+  /// NEW: Localizes a "Wilaya, Commune" or "Commune, Wilaya" string if possible.
+  static String localizeLocationString(String locationString, String targetLocale) {
+    if (locationString.isEmpty) return locationString;
+    
+    // Check for "Commune, Wilaya" pattern
+    final parts = locationString.split(',').map((e) => e.trim()).toList();
+    if (parts.length == 2) {
+      // It's likely "Commune, Wilaya" (as seen in provider cards)
+      final communePart = parts[0];
+      final wilayaPart = parts[1];
+      
+      final localizedWilaya = localizeWilayaName(wilayaPart, targetLocale);
+      final localizedCommune = localizeCommuneName(wilayaPart, communePart, targetLocale);
+      
+      return '$localizedCommune, $localizedWilaya';
+    }
+    
+    // Try as just a Wilaya
+    return localizeWilayaName(locationString, targetLocale);
+  }
+
+  /// NEW: Returns a map of Canonical Name -> Localized Name for dropdowns.
+  static Map<String, String> getWilayasLocalizedMap(String targetLocale) {
+    final language = _getDzairLanguage(targetLocale);
+    final Map<String, String> map = {};
+    
+    for (final wilaya in getAllWilayas()) {
+      final canonical = _getWilayaName(wilaya, language: Language.FR);
+      final localized = _getWilayaName(wilaya, language: language);
+      map[canonical] = localized;
+    }
+    return map;
+  }
+
+  /// NEW: Returns a map of Canonical Name -> Localized Name for communes.
+  static Map<String, String> getCommunesLocalizedMap(String wilayaName, String targetLocale) {
+    final language = _getDzairLanguage(targetLocale);
+    final wilaya = _findWilayaByName(wilayaName);
+    if (wilaya == null) return {};
+
+    final Map<String, String> map = {};
+    final communes = wilaya.getCommunes();
+    if (communes == null) return {};
+
+    for (final commune in communes.whereType<Commune>()) {
+      final canonical = _getCommuneName(commune, language: Language.FR);
+      final localized = _getCommuneName(commune, language: language);
+      map[canonical] = localized;
+    }
+    return map;
+  }
+
+  static Language _getDzairLanguage(String localeCode) {
+    if (localeCode.toLowerCase() == 'ar') return Language.AR;
+    return Language.FR; // Default for FR and EN
+  }
+
   /// Clears the internal cache.
   static void clearCache() => refreshCache();
 
@@ -214,6 +291,25 @@ class WilayaService {
       return _sanitizeName(name);
     } catch (e) {
       return _unknownLabel;
+    }
+  }
+
+  static Commune? _findCommuneByName(Wilaya wilaya, String communeName) {
+    try {
+      final normalizedSearchName = communeName.trim().toLowerCase();
+      final communes = wilaya.getCommunes();
+      if (communes == null) return null;
+      
+      for (final commune in communes.whereType<Commune>()) {
+        // Try multiple languages to find the commune object
+        if (_getCommuneName(commune, language: Language.FR).toLowerCase() == normalizedSearchName ||
+            _getCommuneName(commune, language: Language.AR).toLowerCase() == normalizedSearchName) {
+          return commune;
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:service_app/screens/chat/disscussion/disscussion_constants.dart'
 import 'package:intl/intl.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:service_app/utils/image_utils.dart';
 
 Widget buildDiscussionAppBar(
   BuildContext context,
@@ -64,27 +65,16 @@ Widget buildDiscussionAppBar(
                   child: CircleAvatar(
                     radius: 20,
                     backgroundColor: kLightBackgroundColor,
-                    child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                        ? ClipOval(
-                            child: Image.network(
-                              profileImageUrl,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  CupertinoIcons.person_fill,
-                                  color: kPrimaryBlue,
-                                  size: 20,
-                                );
-                              },
-                            ),
-                          )
-                        : Icon(
+                    backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                        ? ImageUtils.getImageProvider(profileImageUrl)
+                        : null,
+                    child: profileImageUrl == null || profileImageUrl.isEmpty
+                        ? const Icon(
                             CupertinoIcons.person_fill,
                             color: kPrimaryBlue,
                             size: 20,
-                          ),
+                          )
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -149,27 +139,20 @@ Widget buildMessageBubble(
               shape: BoxShape.circle,
               color: _getColorFromName(message.senderId),
             ),
-            child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      profileImageUrl,
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          CupertinoIcons.person_fill,
-                          color: Colors.white,
-                          size: 14,
-                        );
-                      },
-                    ),
-                  )
-                : Icon(
-                    CupertinoIcons.person_fill,
-                    color: Colors.white,
-                    size: 14,
-                  ),
+            child: CircleAvatar(
+              radius: 14,
+              backgroundColor: Colors.transparent,
+              backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                  ? ImageUtils.getImageProvider(profileImageUrl)
+                  : null,
+              child: profileImageUrl == null || profileImageUrl.isEmpty
+                  ? const Icon(
+                      CupertinoIcons.person_fill,
+                      color: Colors.white,
+                      size: 14,
+                    )
+                  : null,
+            ),
           ),
         Flexible(
           child: Container(
@@ -197,7 +180,7 @@ Widget buildMessageBubble(
               boxShadow: isSent
                   ? [
                       BoxShadow(
-                        color: Color(0xFF667EEA).withOpacity(0.2),
+                        color: const Color(0xFF667EEA).withOpacity(0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -249,27 +232,20 @@ Widget buildMessageBubble(
               shape: BoxShape.circle,
               color: _getColorFromName(currentUserId),
             ),
-            child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      profileImageUrl,
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          CupertinoIcons.person_fill,
-                          color: Colors.white,
-                          size: 14,
-                        );
-                      },
-                    ),
-                  )
-                : Icon(
-                    CupertinoIcons.person_fill,
-                    color: Colors.white,
-                    size: 14,
-                  ),
+            child: CircleAvatar(
+              radius: 14,
+              backgroundColor: Colors.transparent,
+              backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                  ? ImageUtils.getImageProvider(profileImageUrl)
+                  : null,
+              child: profileImageUrl == null || profileImageUrl.isEmpty
+                  ? const Icon(
+                      CupertinoIcons.person_fill,
+                      color: Colors.white,
+                      size: 14,
+                    )
+                  : null,
+            ),
           ),
       ],
     ),

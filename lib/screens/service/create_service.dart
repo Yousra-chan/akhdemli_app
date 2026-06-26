@@ -461,13 +461,17 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
     final serviceViewModel =
         Provider.of<ServiceViewModel>(context, listen: false);
 
-    if (authViewModel.currentUser == null) {
+    final currentUser = authViewModel.currentUser;
+    if (currentUser == null) {
       print('❌ No user logged in');
       _showError(lang.tr('error_login_required', category: 'service'));
       return;
     }
 
-    if (!_validateAllSteps()) {
+    final selectedCategory = _selectedCategory;
+    final selectedSubcategory = _selectedSubcategory;
+
+    if (!_validateAllSteps() || selectedCategory == null || selectedSubcategory == null) {
       print('❌ Final validation failed:');
       print('  Title valid: $_titleValid');
       print('  Description valid: $_descriptionValid');
@@ -481,8 +485,8 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
     print('✅ All validations passed!');
     print('  Title: ${_titleController.text}');
-    print('  Category: ${_selectedCategory?.name}');
-    print('  Subcategory: ${_selectedSubcategory?.name}');
+    print('  Category: ${selectedCategory.name}');
+    print('  Subcategory: ${selectedSubcategory.name}');
     print('  Price: ${_priceController.text}');
     print('  Location: $_locationAddress');
 
@@ -499,11 +503,11 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
       print('=== Calling createServiceFromData ===');
       final success = await serviceViewModel.createServiceFromData(
-        providerId: authViewModel.currentUser!.uid,
+        providerId: currentUser.uid,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        category: _selectedCategory!.name,
-        subcategory: _selectedSubcategory!.name,
+        category: selectedCategory.name,
+        subcategory: selectedSubcategory.name,
         price: price,
         priceUnit: _selectedPriceUnit,
         location: _locationAddress,

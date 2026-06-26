@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../ViewModel/admin_view_model.dart';
 import '../../../providers/language_provider.dart';
+import '../../../utils/ui_widgets.dart';
 import '../admin_components.dart';
 
 class DashboardOverview extends StatelessWidget {
@@ -15,26 +16,27 @@ class DashboardOverview extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (vm.isLoading) {
-      return Center(
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(
-                color: AdminColors.primary,
-                strokeWidth: 3,
-              ),
-            ),
+            SkeletonLoader(width: 200, height: 30),
+            const SizedBox(height: 8),
+            SkeletonLoader(width: 150, height: 16),
+            const SizedBox(height: 36),
+            SkeletonLoader(width: 300, height: 100, borderRadius: 22),
+            const SizedBox(height: 44),
+            SkeletonLoader(width: 180, height: 20),
             const SizedBox(height: 20),
-            Text(
-              lang.tr('loading_dashboard', category: 'admin'),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              childAspectRatio: 2.9,
+              children: List.generate(4, (index) => SkeletonLoader(borderRadius: 18)),
             ),
           ],
         ),
@@ -67,28 +69,32 @@ class DashboardOverview extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lang.tr('dashboard_overview', category: 'admin'),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: isDark ? Colors.white : AdminColors.textMain,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lang.tr('dashboard_overview', category: 'admin'),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: isDark ? Colors.white : AdminColors.textMain,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      lang.tr('dashboard_welcome', category: 'admin'),
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w400,
-                        color: isDark ? Colors.white70 : Colors.black87,
+                      const SizedBox(height: 2),
+                      Text(
+                        lang.tr('dashboard_welcome', category: 'admin'),
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w400,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -117,13 +123,16 @@ class DashboardOverview extends StatelessWidget {
             // ---------- Quick Actions ----------
             Row(
               children: [
-                Text(
-                  lang.tr('quick_management_actions', category: 'admin'),
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                    color: isDark ? Colors.white : AdminColors.textMain,
+                Flexible(
+                  child: Text(
+                    lang.tr('quick_management_actions', category: 'admin'),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: isDark ? Colors.white : AdminColors.textMain,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 10),

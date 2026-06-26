@@ -11,6 +11,7 @@ import 'package:service_app/screens/auth/constants.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/Services/wilaya_service.dart';
 import 'package:dzair_data_usage/langs.dart';
+import 'package:service_app/screens/profile/terms_conditions_page.dart';
 import 'package:service_app/screens/auth/register/registration_widget.dart'
     hide
         kAppFont,
@@ -38,11 +39,12 @@ class _RegisterPageState extends State<RegisterPage> {
   String _password = '';
   String _role = 'client';
   String _phone = '';
+  bool _termsAccepted = false;
   
   String? _selectedWilaya;
   String? _selectedCommune;
-  List<String> _wilayas = [];
-  List<String> _communes = [];
+  Map<String, String> _wilayasMap = {};
+  Map<String, String> _communesMap = {};
 
   // Geolocation state variables
   Position? _currentPosition;
@@ -78,8 +80,8 @@ class _RegisterPageState extends State<RegisterPage> {
   void _loadWilayas() {
     final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     setState(() {
-      _wilayas = WilayaService.getAllWilayaNamesSafe(
-        language: _getDzairLanguage(languageProvider.locale.languageCode),
+      _wilayasMap = WilayaService.getWilayasLocalizedMap(
+        languageProvider.locale.languageCode,
       );
     });
   }
@@ -90,12 +92,12 @@ class _RegisterPageState extends State<RegisterPage> {
       _selectedWilaya = newValue;
       _selectedCommune = null;
       if (newValue != null) {
-        _communes = WilayaService.getCommunesForWilayaSafe(
+        _communesMap = WilayaService.getCommunesLocalizedMap(
           newValue,
-          language: _getDzairLanguage(languageProvider.locale.languageCode),
+          languageProvider.locale.languageCode,
         );
       } else {
-        _communes = [];
+        _communesMap = {};
       }
     });
   }
@@ -190,10 +192,12 @@ class _RegisterPageState extends State<RegisterPage> {
     // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() {
-        _currentPosition = null;
-        _locationMessage = lang.tr('gps_disabled', category: 'auth');
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _locationMessage = lang.tr('gps_disabled', category: 'auth');
+        });
+      }
       return;
     }
 
@@ -203,19 +207,23 @@ class _RegisterPageState extends State<RegisterPage> {
       // Request permission if denied once.
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() {
-          _currentPosition = null;
-          _locationMessage = lang.tr('gps_denied', category: 'auth');
-        });
+        if (mounted) {
+          setState(() {
+            _currentPosition = null;
+            _locationMessage = lang.tr('gps_denied', category: 'auth');
+          });
+        }
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _currentPosition = null;
-        _locationMessage = lang.tr('gps_denied_forever', category: 'auth');
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _locationMessage = lang.tr('gps_denied_forever', category: 'auth');
+        });
+      }
       return;
     }
 
@@ -227,22 +235,26 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       // Update state upon success
-      setState(() {
-        _currentPosition = position;
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-        _locationMessage = lang.tr('gps_success', category: 'auth');
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+          _locationMessage = lang.tr('gps_success', category: 'auth');
+        });
+      }
     } catch (e) {
       // Update state upon error
-      setState(() {
-        _currentPosition = null;
-        _latitude = null;
-        _longitude = null;
-        _locationMessage = lang.trParams('gps_error',
-            category: 'auth',
-            params: {'error': e.toString().split('\n').first});
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _latitude = null;
+          _longitude = null;
+          _locationMessage = lang.trParams('gps_error',
+              category: 'auth',
+              params: {'error': e.toString().split('\n').first});
+        });
+      }
     }
   }
 
@@ -315,6 +327,50 @@ class _RegisterPageState extends State<RegisterPage> {
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
       ),
+    );
+  }
+
+  Widget _buildTermsCheckbox(LanguageProvider lang) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        SizedBox(
+          height: 24,
+          width: 24,
+          child: Checkbox(
+            value: _termsAccepted,
+            activeColor: kPrimaryBlue,
+            onChanged: (val) => setState(() => _termsAccepted = val ?? false),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TermsConditionsPage()),
+              );
+            },
+            child: Text.rich(
+              TextSpan(
+                text: lang.tr('accept_terms', category: 'terms'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontFamily: kAppFont,
+                  color: kDarkTextColor,
+                ),
+                children: const [
+                  TextSpan(
+                    text: ' *',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -626,10 +682,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                     lang.tr('wilaya_label', category: 'auth'),
                                     lang,
                                   ),
-                                  items: _wilayas.map((String value) {
+                                  items: _wilayasMap.entries.map((entry) {
                                     return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(value, style: const TextStyle(fontFamily: kAppFont)),
+                                      value: entry.key,
+                                      child: Text(entry.value, style: const TextStyle(fontFamily: kAppFont)),
                                     );
                                   }).toList(),
                                   onChanged: _onWilayaChanged,
@@ -646,10 +702,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                     lang.tr('commune_label', category: 'auth'),
                                     lang,
                                   ),
-                                  items: _communes.map((String value) {
+                                  items: _communesMap.entries.map((entry) {
                                     return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(value, style: const TextStyle(fontFamily: kAppFont)),
+                                      value: entry.key,
+                                      child: Text(entry.value, style: const TextStyle(fontFamily: kAppFont)),
                                     );
                                   }).toList(),
                                   onChanged: (value) => setState(() => _selectedCommune = value),
@@ -729,12 +785,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                   },
                                 ),
 
+                                const SizedBox(height: 16),
+                                _buildTermsCheckbox(lang),
+
                                 const SizedBox(height: 24),
 
                                 // Register Button
                                 RegisterButton(
                                   isLoading: authViewModel.isLoading,
-                                  onPressed: _submitRegistration,
+                                  onPressed: _termsAccepted ? () => _submitRegistration() : null,
                                 ),
                               ],
                             ),
@@ -745,8 +804,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           const SizedBox(height: 20),
                           SocialSignInRow(
-                            onGooglePressed: _signInWithGoogle,
-                            onApplePressed: _signInWithApple,
+                            onGooglePressed: _termsAccepted ? () => _signInWithGoogle() : null,
+                            onApplePressed: _termsAccepted ? () => _signInWithApple() : null,
                             isLoading: authViewModel.isLoading,
                           ),
                         ],

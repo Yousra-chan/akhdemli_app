@@ -99,6 +99,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
   void _navigateToContactProfile() async {
     if (_contactUserId == null || _contactUserId!.isEmpty) return;
     
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
     try {
       final userData = await widget.chatViewModel.getUserData(_contactUserId!);
       if (userData != null && mounted) {
@@ -114,7 +115,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
             ),
           );
         } else {
-          AppSnackBar.showInfo(context, "Public profile not available for this user");
+          AppSnackBar.showInfo(context, lang.tr('profile_not_available', category: 'chat'));
         }
       }
     } catch (e) {
@@ -226,7 +227,11 @@ class _DiscussionPageState extends State<DiscussionPage> {
             children: [
               Expanded(
                 child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator())
+                  ? ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 8,
+                      itemBuilder: (context, index) => MessageSkeleton(isMe: index % 2 == 0),
+                    )
                   : _hasError 
                     ? ErrorStateWidget(onRetry: _setupMessageListener)
                     : _buildMessagesList(languageProvider, isDark),

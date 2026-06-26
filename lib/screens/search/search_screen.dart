@@ -15,6 +15,7 @@ import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/Services/location_service.dart';
 import 'package:service_app/Services/geocoding_service.dart';
+import 'package:service_app/Services/wilaya_service.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/screens/home/home_screen/home_constants.dart';
 import 'package:latlong2/latlong.dart';
@@ -39,7 +40,8 @@ const LinearGradient kPrimaryGradient = LinearGradient(
 );
 
 class MapSearchPage extends StatefulWidget {
-  const MapSearchPage({super.key});
+  final String? initialQuery;
+  const MapSearchPage({super.key, this.initialQuery});
 
   @override
   State<MapSearchPage> createState() => _MapSearchPageState();
@@ -56,6 +58,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
   final LocationService _locationService = LocationService();
 
   Map<String, dynamic> _currentFilters = {};
+  String? _searchTextQuery;
   LatLng? _userLocation;
   bool _isLoadingLocation = false;
 
@@ -69,7 +72,32 @@ class _MapSearchPageState extends State<MapSearchPage> {
     _mapController = MapController();
     _searchViewModel = SearchViewModel();
     _initializeMap();
-    _loadInitialData();
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _searchTextQuery = widget.initialQuery;
+      _executeInitialTextSearch(widget.initialQuery!);
+    } else {
+      _loadInitialData();
+    }
+  }
+
+  Future<void> _executeInitialTextSearch(String query) async {
+    try {
+      setState(() => _isLoadingLocation = true); // Use this to show a loading state
+      await _searchViewModel.executeSearch(query);
+      if (mounted) {
+        if (_searchViewModel.providerResults.isNotEmpty) {
+          await _createMarkersFromProviders(_searchViewModel.providerResults);
+          // Small delay to ensure markers are laid out
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _centerMapOnMarkers();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error executing initial text search: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingLocation = false);
+    }
   }
 
   @override
@@ -134,6 +162,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
       });
 
       await _searchViewModel.searchWithFilters(_currentFilters);
+      
+      if (!mounted) return;
 
       // Always center map according to selected location/wilaya or user location
       // This ensures map moves when filters are applied even if results are found
@@ -321,6 +351,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
     setState(() {
       _currentFilters = updatedFilters;
+      _searchTextQuery = null; // Reset text search when applying structured filters
       _markers.clear();
     });
 
@@ -330,6 +361,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
   void _clearFilters() {
     setState(() {
       _currentFilters = {};
+      _searchTextQuery = null;
       _markers.clear();
     });
     _searchProvidersWithCurrentFilters();
@@ -638,8 +670,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
                           iconColor: profColor,
                           label: languageProvider.tr('location',
                               category: 'search'),
-                          value:
-                          '${provider.commune.isNotEmpty ? "${provider.commune}, " : ""}${provider.wilaya}',
+                          value: provider.getLocalizedLocation(languageProvider),
                           theme: theme,
                         ),
                       if (provider.description.isNotEmpty) ...[
@@ -812,45 +843,27 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
       final theme = Theme.of(context);
 
+      // Show a smaller, non-blocking toast or a subtle overlay instead of a dialog if possible,
+      // but since we need to wait for chatId, we'll keep the dialog but make it more responsive.
+      
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => Center(
           child: Container(
-            width: 80,
-            height: 80,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 15,
-                ),
-              ],
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: 30,
-                  height: 30,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(theme.primaryColor),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
                 Text(
-                  languageProvider.tr('creating_discussion',
-                      category: 'search'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'Exo2',
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.white70
-                        : kMediumText,
-                  ),
+                  languageProvider.tr('creating_discussion', category: 'search'),
+                  style: const TextStyle(fontFamily: 'Exo2'),
                 ),
               ],
             ),
@@ -941,6 +954,11 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   String _buildSearchHint() {
     final lp = Provider.of<LanguageProvider>(context, listen: false);
+    
+    if (_searchTextQuery != null && _searchTextQuery!.isNotEmpty) {
+      return _searchTextQuery!;
+    }
+
     if (_currentFilters.isEmpty) return lp.tr('filter_hint', category: 'search');
 
     final wilaya = _currentFilters['wilaya'] ?? '';
@@ -1368,7 +1386,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
                           ),
                         ),
                       ),
-                      if (_currentFilters.isNotEmpty)
+                      if (_currentFilters.isNotEmpty || (_searchTextQuery != null && _searchTextQuery!.isNotEmpty))
                         Container(
                           margin: const EdgeInsets.only(left: 6),
                           padding: const EdgeInsets.all(5),
@@ -1390,7 +1408,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
               icon: Icons.filter_alt_rounded,
               onTap: _showFilterDialog,
             ),
-            if (_currentFilters.isNotEmpty) ...[
+            if (_currentFilters.isNotEmpty || (_searchTextQuery != null && _searchTextQuery!.isNotEmpty)) ...[
               const SizedBox(width: 8),
               _searchBarIconButton(
                 color: kAccentColor.withOpacity(0.15),

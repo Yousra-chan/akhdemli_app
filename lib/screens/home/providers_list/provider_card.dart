@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/models/ProviderModel.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/Services/wilaya_service.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/screens/profile/provider_profile/provider_profile_page.dart';
@@ -64,140 +65,141 @@ class _ProviderCardState extends State<ProviderCard>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return MouseRegion(
-      onEnter: (_) => _onHoverEnter(),
-      onExit:  (_) => _onHoverExit(),
-      child: AnimatedBuilder(
-        animation: _hoverAnimation,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(0, -4 * _hoverAnimation.value),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProviderProfileScreen(
-                      provider: widget.provider,
-                      serviceCategory: widget.provider.profession,
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) => _onHoverEnter(),
+        onExit:  (_) => _onHoverExit(),
+        child: AnimatedBuilder(
+          animation: _hoverAnimation,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, -4 * _hoverAnimation.value),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProviderProfileScreen(
+                        provider: widget.provider,
+                        serviceCategory: widget.provider.profession,
+                      ),
                     ),
+                  );
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black
+                            .withOpacity(isDark ? 0.2 : 0.08 + 0.04 * _hoverAnimation.value),
+                        blurRadius: 20 + 12 * _hoverAnimation.value,
+                        offset: Offset(0, 6 + 4 * _hoverAnimation.value),
+                        spreadRadius: 0,
+                      ),
+                    ],
                   ),
-                );
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black
-                          .withOpacity(isDark ? 0.2 : 0.08 + 0.04 * _hoverAnimation.value),
-                      blurRadius: 20 + 12 * _hoverAnimation.value,
-                      offset: Offset(0, 6 + 4 * _hoverAnimation.value),
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Stack(
-                    children: [
-                      // Gradient Background
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: isDark
-                                ? [
-                                    theme.cardColor,
-                                    theme.cardColor.withOpacity(0.8),
-                                    theme.cardColor.withOpacity(0.6),
-                                  ]
-                                : [
-                                    Colors.blue.shade100,
-                                    Colors.orange.shade200,
-                                    Colors.pink.shade200,
-                                  ],
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
+                      children: [
+                        // Gradient Background
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: isDark
+                                  ? [
+                                      theme.cardColor,
+                                      theme.cardColor.withOpacity(0.8),
+                                      theme.cardColor.withOpacity(0.6),
+                                    ]
+                                  : [
+                                      Colors.blue.shade100,
+                                      Colors.orange.shade200,
+                                      Colors.pink.shade200,
+                                    ],
+                            ),
                           ),
                         ),
-                      ),
-
-                      // Main Content
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Avatar and Info Section
-                          Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                // Avatar with profile picture
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                                        blurRadius: 15,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: _buildProviderImage(),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-
-                                // Name and Rating/Location
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Name
-                                      Text(
-                                        widget.provider.name,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          color: theme.textTheme.titleLarge?.color,
-                                          fontFamily: 'Exo2',
-                                          height: 1.2,
+    
+                        // Main Content
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Avatar and Info Section
+                            Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Avatar with profile picture
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 6),
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      
-                                      // Rating and Location compact
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.star_rounded,
-                                            size: 14,
-                                            color: Colors.amber.shade600,
+                                      ],
+                                    ),
+                                    child: ClipOval(
+                                      child: _buildProviderImage(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+    
+                                  // Name and Rating/Location
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Name
+                                        Text(
+                                          widget.provider.name,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: theme.textTheme.titleLarge?.color,
+                                            fontFamily: 'Exo2',
+                                            height: 1.2,
                                           ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            widget.provider.rating.toStringAsFixed(1),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: theme.textTheme.bodyLarge?.color,
-                                              fontFamily: 'Exo2',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        
+                                        // Rating and Location compact
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.star_rounded,
+                                              size: 14,
+                                              color: Colors.amber.shade600,
                                             ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Icon(
-                                            Icons.location_on_rounded,
-                                            size: 14,
-                                            color: Colors.blue.shade600,
-                                          ),
-                                          const SizedBox(width: 4),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              widget.provider.rating.toStringAsFixed(1),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: theme.textTheme.bodyLarge?.color,
+                                                fontFamily: 'Exo2',
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Icon(
+                                              Icons.location_on_rounded,
+                                              size: 14,
+                                              color: Colors.blue.shade600,
+                                            ),
+                                            const SizedBox(width: 4),
                                           Expanded(
                                             child: Text(
                                               _getLocationText(languageProvider),
@@ -250,6 +252,7 @@ class _ProviderCardState extends State<ProviderCard>
           );
         },
       ),
+    ),
     );
   }
 
@@ -425,12 +428,11 @@ class _ProviderCardState extends State<ProviderCard>
   }
 
   String _getLocationText(LanguageProvider lang) {
-    final wilaya = widget.provider.wilaya;
-    final commune = widget.provider.commune;
     final address = widget.provider.address;
+    final locText = widget.provider.getLocalizedLocation(lang);
 
-    if (wilaya.isNotEmpty && commune.isNotEmpty) {
-      return '$commune, $wilaya';
+    if (locText.isNotEmpty) {
+      return locText;
     }
 
     if (address.isNotEmpty) {
@@ -441,85 +443,4 @@ class _ProviderCardState extends State<ProviderCard>
   }
 }
 
-class ProviderSkeleton extends StatelessWidget {
-  const ProviderSkeleton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? theme.cardColor : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Shimmer.fromColors(
-        baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-        highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(width: 120, height: 16, color: isDark ? Colors.white10 : Colors.white),
-                      const SizedBox(height: 10),
-                      Container(width: 80, height: 12, color: isDark ? Colors.white10 : Colors.white),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// ProviderSkeleton moved to ui_widgets.dart

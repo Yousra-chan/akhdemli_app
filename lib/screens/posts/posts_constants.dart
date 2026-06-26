@@ -138,6 +138,11 @@ class Post {
   }
 
   factory Post.fromMap(Map<String, dynamic> map, String docId) {
+    final timestampData = map['timestamp'];
+    final DateTime timestamp = timestampData is Timestamp 
+        ? timestampData.toDate() 
+        : DateTime.now();
+
     return Post(
       id: docId,
       title: map['title'] ?? '',
@@ -149,7 +154,7 @@ class Post {
       serviceCategoryKey: map['serviceCategoryKey'] ?? '',
       serviceSubcategory: map['serviceSubcategory'] ?? '',
       serviceSubcategoryKey: map['serviceSubcategoryKey'] ?? '',
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      timestamp: timestamp,
       imageUrls: List<String>.from(map['imageUrls'] ?? []),
     );
   }

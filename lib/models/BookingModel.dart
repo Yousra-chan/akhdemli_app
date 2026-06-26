@@ -44,6 +44,13 @@ class BookingModel {
   });
 
   factory BookingModel.fromMap(Map<String, dynamic> map, String id) {
+    DateTime parseDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return BookingModel(
       id: id,
       clientId: map['clientId'] ?? '',
@@ -51,12 +58,12 @@ class BookingModel {
       serviceId: map['serviceId'] ?? '',
       serviceTitle: map['serviceTitle'] ?? '',
       servicePrice: (map['servicePrice'] ?? 0).toDouble(),
-      appointmentDate: (map['appointmentDate'] as Timestamp).toDate(),
+      appointmentDate: parseDateTime(map['appointmentDate']),
       status: map['status'] ?? 'pending',
       notes: map['notes'] ?? '',
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      createdAt: parseDateTime(map['createdAt']),
       updatedAt: map['updatedAt'] != null
-          ? (map['updatedAt'] as Timestamp).toDate()
+          ? parseDateTime(map['updatedAt'])
           : null,
       clientName: map['clientName'] ?? '',
       providerName: map['providerName'] ?? '',
@@ -65,7 +72,7 @@ class BookingModel {
       review: map['review'],
       rating: map['rating'] != null ? (map['rating'] as num).toDouble() : null,
       reviewedAt: map['reviewedAt'] != null
-          ? (map['reviewedAt'] as Timestamp).toDate()
+          ? parseDateTime(map['reviewedAt'])
           : null,
     );
   }

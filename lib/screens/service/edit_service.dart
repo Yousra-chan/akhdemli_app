@@ -475,7 +475,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     final serviceViewModel =
         Provider.of<ServiceViewModel>(context, listen: false);
 
-    if (authViewModel.currentUser == null) {
+    final currentUser = authViewModel.currentUser;
+    if (currentUser == null) {
       _showError(lang.tr('error_login_required', category: 'edit_service'));
       return;
     }
@@ -486,12 +487,15 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     }
 
     // Check for null values before proceeding
-    if (_selectedCategory == null) {
+    final selectedCategory = _selectedCategory;
+    final selectedSubcategory = _selectedSubcategory;
+
+    if (selectedCategory == null) {
       _showError(lang.tr('error_select_category', category: 'edit_service'));
       return;
     }
 
-    if (_selectedSubcategory == null) {
+    if (selectedSubcategory == null) {
       _showError(lang.tr('error_select_subcategory', category: 'edit_service'));
       return;
     }
@@ -507,11 +511,11 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
 
       final success = await serviceViewModel.updateService(
         serviceId: widget.serviceData['id'] ?? '',
-        providerId: authViewModel.currentUser!.uid,
+        providerId: currentUser.uid,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        category: _selectedCategory!.name,
-        subcategory: _selectedSubcategory!.name,
+        category: selectedCategory.name,
+        subcategory: selectedSubcategory.name,
         price: price,
         priceUnit: _selectedPriceUnit,
         location: _locationAddress,

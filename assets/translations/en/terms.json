@@ -1,0 +1,17 @@
+{
+  "terms_title": "Terms & Conditions",
+  "accept_terms": "I have read and agree to the Terms & Conditions",
+  "must_accept_terms": "You must accept the Terms & Conditions to continue.",
+  "terms_intro": "Welcome to Akhdem Li. By using our platform and subscribing to our services, you agree to follow these terms.",
+  "section_1_title": "1. Subscription Policy",
+  "section_1_content": "Subscriptions are non-refundable once activated. Each subscription is tied to a single user account and cannot be transferred.",
+  "section_2_title": "2. Payments",
+  "section_2_content": "Payments are handled manually through our administrative team. Activation codes are provided only after successful payment verification.",
+  "section_3_title": "3. User Responsibilities",
+  "section_3_content": "Providers must provide accurate information about their services. Clients must respect the appointment times and provider policies.",
+  "section_4_title": "4. Service Activation",
+  "section_4_content": "Codes received from the admin are valid for the duration specified at the time of purchase. Expired codes cannot be used.",
+  "section_5_title": "5. Termination",
+  "section_5_content": "We reserve the right to suspend or terminate accounts that violate our community standards or fraudulent activities.",
+  "last_updated": "Last updated: November 2024"
+}

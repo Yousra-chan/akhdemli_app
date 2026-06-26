@@ -16,6 +16,7 @@ class EmailVerificationScreen extends StatefulWidget {
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   bool _isResending = false;
   Timer? _timer;
+  Timer? _cooldownTimer;
   int _secondsRemaining = 60;
   bool _canResend = false;
 
@@ -33,15 +34,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 
   void _startResendTimer() {
+    _cooldownTimer?.cancel();
     setState(() {
       _secondsRemaining = 60;
       _canResend = false;
     });
-    Timer.periodic(const Duration(seconds: 1), (timer) {
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_secondsRemaining == 0) {
         setState(() {
           _canResend = true;

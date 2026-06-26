@@ -287,15 +287,18 @@ class SearchViewModel extends ChangeNotifier {
   }
 
   /// Format distance for display
-  String formatDistance(double? meters, BuildContext context) {
+  String formatDistance(double? distanceKm, BuildContext context) {
     final lp = Provider.of<LanguageProvider>(context, listen: false);
-    if (meters == null) return lp.tr('distance_unavailable', category: 'search');
+    if (distanceKm == null) return lp.tr('distance_unavailable', category: 'search');
 
     try {
-      if (meters < 1000) {
-        return '${meters.toStringAsFixed(0)} m';
+      if (distanceKm < 1.0) {
+        final meters = distanceKm * 1000;
+        final unitM = lp.locale.languageCode == 'ar' ? 'م' : 'm';
+        return '${meters.toStringAsFixed(0)} $unitM';
       } else {
-        return '${(meters / 1000).toStringAsFixed(1)} km';
+        final unitKm = lp.tr('unit_km', category: 'search');
+        return '${distanceKm.toStringAsFixed(1)} $unitKm';
       }
     } catch (e) {
       return lp.tr('distance_unavailable', category: 'search');

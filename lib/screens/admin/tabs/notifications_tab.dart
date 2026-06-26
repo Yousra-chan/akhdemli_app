@@ -58,6 +58,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
                         letterSpacing: -0.4,
                         color: isDark ? Colors.white : AdminColors.textMain,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -66,6 +67,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
                         fontSize: 13.5,
                         color: isDark ? Colors.white70 : AdminColors.textSecondary,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

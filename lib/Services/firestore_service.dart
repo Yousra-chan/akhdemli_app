@@ -41,6 +41,43 @@ class FirestoreService {
     });
   }
 
+  // Get a Stream of Posts for a specific user
+  Stream<List<Post>> getUserPostsStream(String userId) {
+    return _postsCollection
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>? ?? {};
+        return Post.fromMap(data, doc.id);
+      }).toList();
+    });
+  }
+
+  // Update a post
+  Future<void> updatePost(String postId, Map<String, dynamic> data) async {
+    try {
+      await _postsCollection.doc(postId).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint("Error updating post: $e");
+      rethrow;
+    }
+  }
+
+  // Delete a post
+  Future<void> deletePost(String postId) async {
+    try {
+      await _postsCollection.doc(postId).delete();
+    } catch (e) {
+      debugPrint("Error deleting post: $e");
+      rethrow;
+    }
+  }
+
   // Update user address
   Future<void> updateUserAddress(String userId, String address) async {
     try {

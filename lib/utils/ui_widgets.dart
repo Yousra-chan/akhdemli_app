@@ -35,30 +35,207 @@ class LoadingWidget extends StatelessWidget {
 }
 
 class SkeletonLoader extends StatelessWidget {
-  final double width;
-  final double height;
+  final double? width;
+  final double? height;
   final double borderRadius;
+  final BoxShape shape;
 
   const SkeletonLoader({
     super.key,
-    this.width = double.infinity,
-    this.height = 20,
+    this.width,
+    this.height,
     this.borderRadius = 8,
+    this.shape = BoxShape.rectangle,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Shimmer.fromColors(
-      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+      baseColor: isDark ? Colors.grey[850]! : Colors.grey[300]!,
+      highlightColor: isDark ? Colors.grey[800]! : Colors.grey[100]!,
       child: Container(
-        width: width,
-        height: height,
+        width: width ?? double.infinity,
+        height: height ?? 20,
         decoration: BoxDecoration(
-          color: isDark ? Colors.grey[800] : Colors.white,
-          borderRadius: BorderRadius.circular(borderRadius),
+          color: isDark ? Colors.grey[850] : Colors.white,
+          borderRadius: shape == BoxShape.circle ? null : BorderRadius.circular(borderRadius),
+          shape: shape,
         ),
+      ),
+    );
+  }
+}
+
+class CategorySkeleton extends StatelessWidget {
+  const CategorySkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Expanded(
+          child: SkeletonLoader(
+            borderRadius: 16,
+            height: double.infinity,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const SkeletonLoader(height: 12, width: 60),
+      ],
+    );
+  }
+}
+
+class PostSkeleton extends StatelessWidget {
+  const PostSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SkeletonLoader(width: 40, height: 40, shape: BoxShape.circle),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  SkeletonLoader(width: 100, height: 14),
+                  SizedBox(height: 4),
+                  SkeletonLoader(width: 60, height: 10),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const SkeletonLoader(height: 150),
+          const SizedBox(height: 12),
+          const SkeletonLoader(width: double.infinity, height: 12),
+          const SizedBox(height: 6),
+          const SkeletonLoader(width: 150, height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class MessageSkeleton extends StatelessWidget {
+  final bool isMe;
+  const MessageSkeleton({super.key, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: SkeletonLoader(
+          width: MediaQuery.of(context).size.width * 0.6,
+          height: 50,
+          borderRadius: 16,
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileSkeleton extends StatelessWidget {
+  const ProfileSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          const SkeletonLoader(width: 100, height: 100, shape: BoxShape.circle),
+          const SizedBox(height: 16),
+          const SkeletonLoader(width: 150, height: 24),
+          const SizedBox(height: 8),
+          const SkeletonLoader(width: 100, height: 16),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SkeletonLoader(height: 200, borderRadius: 15),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Expanded(child: SkeletonLoader(height: 80, borderRadius: 15)),
+                const SizedBox(width: 10),
+                Expanded(child: SkeletonLoader(height: 80, borderRadius: 15)),
+                const SizedBox(width: 10),
+                Expanded(child: SkeletonLoader(height: 80, borderRadius: 15)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SkeletonLoader(height: 60, borderRadius: 15),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProviderSkeleton extends StatelessWidget {
+  const ProviderSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SkeletonLoader(width: 60, height: 60, shape: BoxShape.circle),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    SkeletonLoader(width: 120, height: 16),
+                    SizedBox(height: 10),
+                    SkeletonLoader(width: 80, height: 12),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: SkeletonLoader(height: 48, borderRadius: 24)),
+              const SizedBox(width: 12),
+              Expanded(child: SkeletonLoader(height: 48, borderRadius: 24)),
+            ],
+          ),
+        ],
       ),
     );
   }

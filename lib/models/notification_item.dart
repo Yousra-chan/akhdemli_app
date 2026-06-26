@@ -44,6 +44,10 @@ class HomeNotificationItem {
   });
   factory HomeNotificationItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final time = data['time'] is Timestamp 
+        ? (data['time'] as Timestamp).toDate() 
+        : DateTime.now();
+    
     return HomeNotificationItem(
       id: doc.id,
       title: data['title'] ?? '',
@@ -54,11 +58,11 @@ class HomeNotificationItem {
       senderName: data['senderName'],
       actionText: data['actionText'] ?? '',
       isRead: data['isRead'] ?? false,
-      time: (data['time'] as Timestamp).toDate(),
+      time: time,
       messageCount: (data['messageCount'] as num?)?.toInt() ?? 1,
-      lastMessageTime: data['lastMessageTime'] != null
+      lastMessageTime: data['lastMessageTime'] is Timestamp
           ? (data['lastMessageTime'] as Timestamp).toDate()
-          : (data['time'] as Timestamp).toDate(),
+          : time,
       // ADDED: Parse booking fields
       bookingId: data['bookingId'],
       bookingStatus: data['bookingStatus'],

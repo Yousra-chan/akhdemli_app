@@ -66,10 +66,12 @@ class _CategoriesTabState extends State<CategoriesTab> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  AdminButton(
-                    onPressed: () => _showCategoryDialog(context, vm),
-                    icon: Icons.add_rounded,
-                    label: lang.tr('add_category', category: 'admin'),
+                  Flexible(
+                    child: AdminButton(
+                      onPressed: () => _showCategoryDialog(context, vm),
+                      icon: Icons.add_rounded,
+                      label: lang.tr('add_category', category: 'admin'),
+                    ),
                   ),
                 ],
               ),
@@ -130,7 +132,15 @@ class _CategoriesTabState extends State<CategoriesTab> {
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: ImageUtils.isBase64Image(cat.iconUrl)
-                                  ? Image.memory(ImageUtils.decodeBase64Image(cat.iconUrl)!, fit: BoxFit.cover, width: 46, height: 46)
+                                  ? Builder(
+                                      builder: (context) {
+                                        final bytes = ImageUtils.decodeBase64Image(cat.iconUrl);
+                                        if (bytes == null) {
+                                          return Icon(cat.icon, color: AdminColors.primary, size: 22);
+                                        }
+                                        return Image.memory(bytes, fit: BoxFit.cover, width: 46, height: 46);
+                                      },
+                                    )
                                   : CachedNetworkImage(
                                       imageUrl: cat.iconUrl!,
                                       width: 46,
@@ -171,21 +181,29 @@ class _CategoriesTabState extends State<CategoriesTab> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  AdminStatusBadge(
-                    label: cat.isActive ? 'ACTIVE' : 'DISABLED',
-                    color: cat.isActive ? AdminColors.success : AdminColors.textSecondary,
+                  Flexible(
+                    child: AdminStatusBadge(
+                      label: cat.isActive ? 'ACTIVE' : 'DISABLED',
+                      color: cat.isActive ? AdminColors.success : AdminColors.textSecondary,
+                    ),
                   ),
+                  const SizedBox(width: 4),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: Icon(Icons.edit_outlined, color: isDark ? Colors.white54 : AdminColors.textSecondary, size: 20),
                         onPressed: () => _showCategoryDialog(context, vm, category: cat),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         splashRadius: 18,
                       ),
+                      const SizedBox(width: 4),
                       IconButton(
                         icon: const Icon(Icons.delete_outline_rounded, color: AdminColors.danger, size: 20),
                         onPressed: () => _confirmDelete(context, () => vm.deleteCategory(cat.id), 'Category'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         splashRadius: 18,
                       ),
                     ],
@@ -204,21 +222,24 @@ class _CategoriesTabState extends State<CategoriesTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        lang.tr('subcategories', category: 'admin').toUpperCase(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11.5,
-                          letterSpacing: 0.8,
-                          color: isDark ? Colors.white60 : AdminColors.textSecondary,
+                      Expanded(
+                        child: Text(
+                          lang.tr('subcategories', category: 'admin').toUpperCase(),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.5,
+                            letterSpacing: 0.8,
+                            color: isDark ? Colors.white60 : AdminColors.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: () => _showSubcategoryDialog(context, vm, cat.id),
                         icon: const Icon(Icons.add_rounded, size: 16),
-                        label: Text(lang.tr('add_sub', category: 'admin')),
+                        label: Flexible(child: Text(lang.tr('add_sub', category: 'admin'), overflow: TextOverflow.ellipsis)),
                         style: TextButton.styleFrom(
                           foregroundColor: AdminColors.primary,
                           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
@@ -252,7 +273,9 @@ class _CategoriesTabState extends State<CategoriesTab> {
                           avatar: sub.imageUrl != null 
                               ? CircleAvatar(
                                   backgroundImage: ImageUtils.isBase64Image(sub.imageUrl)
-                                      ? MemoryImage(ImageUtils.decodeBase64Image(sub.imageUrl)!)
+                                      ? (ImageUtils.decodeBase64Image(sub.imageUrl) != null 
+                                          ? MemoryImage(ImageUtils.decodeBase64Image(sub.imageUrl)!) 
+                                          : null)
                                       : CachedNetworkImageProvider(sub.imageUrl!) as ImageProvider,
                                   radius: 10,
                                 )
@@ -305,11 +328,23 @@ class _CategoriesTabState extends State<CategoriesTab> {
                   borderRadius: BorderRadius.circular(20),
                   child: localPath != null
                       ? (ImageUtils.isBase64Image(localPath)
-                          ? Image.memory(ImageUtils.decodeBase64Image(localPath)!, fit: BoxFit.cover)
+                          ? Builder(
+                              builder: (context) {
+                                final bytes = ImageUtils.decodeBase64Image(localPath);
+                                if (bytes == null) return const Icon(Icons.broken_image_outlined);
+                                return Image.memory(bytes, fit: BoxFit.cover);
+                              },
+                            )
                           : Image.file(File(localPath), fit: BoxFit.cover))
                       : (imageUrl != null && imageUrl.isNotEmpty
                           ? (ImageUtils.isBase64Image(imageUrl)
-                              ? Image.memory(ImageUtils.decodeBase64Image(imageUrl)!, fit: BoxFit.cover)
+                              ? Builder(
+                                  builder: (context) {
+                                    final bytes = ImageUtils.decodeBase64Image(imageUrl);
+                                    if (bytes == null) return const Icon(Icons.broken_image_outlined);
+                                    return Image.memory(bytes, fit: BoxFit.cover);
+                                  },
+                                )
                               : CachedNetworkImage(
                                   imageUrl: imageUrl,
                                   fit: BoxFit.cover,
@@ -443,7 +478,7 @@ class _CategoriesTabState extends State<CategoriesTab> {
             style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AdminColors.textMain),
           ),
           content: SizedBox(
-            width: 550,
+            width: MediaQuery.of(ctx).size.width * 0.9,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -697,7 +732,7 @@ class _CategoriesTabState extends State<CategoriesTab> {
             style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AdminColors.textMain),
           ),
           content: SizedBox(
-            width: 500,
+            width: MediaQuery.of(ctx).size.width * 0.9,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

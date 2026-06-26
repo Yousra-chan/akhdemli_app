@@ -261,8 +261,32 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
 
     final String userId = user.uid;
 
-    return Consumer<ChatViewModel>(
+    return Consumer<ChatViewModel?>(
       builder: (context, chatViewModel, child) {
+        if (chatViewModel == null) {
+          return Directionality(
+            textDirection: languageProvider.isRtl
+                ? ui.TextDirection.rtl
+                : ui.TextDirection.ltr,
+            child: Scaffold(
+              backgroundColor: backgroundColor,
+              body: IndexedStack(
+                index: selectorIndex,
+                children: _buildNavigationChildren(
+                  userId: userId,
+                ),
+              ),
+              bottomNavigationBar: _buildBottomNav(
+                navBackgroundColor,
+                selectedColor,
+                unselectedColor,
+                0,
+                languageProvider,
+              ),
+            ),
+          );
+        }
+
         return StreamBuilder<int>(
           stream: chatViewModel.getTotalUnreadCount(),
           builder: (context, snapshot) {
@@ -281,59 +305,75 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
                     userId: userId,
                   ),
                 ),
-                bottomNavigationBar: Container(
-                  margin: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: navBackgroundColor,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: selectedColor.withValues(alpha: theme.brightness == Brightness.dark ? 0.05 : 0.1),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BottomNavigationBar(
-                      backgroundColor: navBackgroundColor,
-                      selectedItemColor: selectedColor,
-                      unselectedItemColor: unselectedColor,
-                      selectedLabelStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                        fontFamily: 'Exo2',
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        height: 1.2,
-                        fontFamily: 'Exo2',
-                      ),
-                      currentIndex: selectorIndex,
-                      type: BottomNavigationBarType.fixed,
-                      elevation: 0,
-                      items: _buildNavigationItems(
-                        languageProvider: languageProvider,
-                        selectedColor: selectedColor,
-                        unselectedColor: unselectedColor,
-                        unreadCount: messageUnreadCount,
-                      ),
-                      onTap: (val) {
-                        setState(() {
-                          selectorIndex = val;
-                        });
-                      },
-                    ),
-                  ),
+                bottomNavigationBar: _buildBottomNav(
+                  navBackgroundColor,
+                  selectedColor,
+                  unselectedColor,
+                  messageUnreadCount,
+                  languageProvider,
                 ),
               ),
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildBottomNav(
+    Color navBackgroundColor,
+    Color selectedColor,
+    Color unselectedColor,
+    int unreadCount,
+    LanguageProvider languageProvider,
+  ) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: navBackgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: selectedColor.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BottomNavigationBar(
+          backgroundColor: navBackgroundColor,
+          selectedItemColor: selectedColor,
+          unselectedItemColor: unselectedColor,
+          selectedLabelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+            fontFamily: 'Exo2',
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            fontFamily: 'Exo2',
+          ),
+          currentIndex: selectorIndex,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          items: _buildNavigationItems(
+            languageProvider: languageProvider,
+            selectedColor: selectedColor,
+            unselectedColor: unselectedColor,
+            unreadCount: unreadCount,
+          ),
+          onTap: (val) {
+            setState(() {
+              selectorIndex = val;
+            });
+          },
+        ),
+      ),
     );
   }
 }

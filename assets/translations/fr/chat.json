@@ -50,5 +50,6 @@
   "delete_chat_title": "Supprimer la discussion",
   "delete_chat_confirm": "Voulez-vous vraiment supprimer la discussion avec {{name}} ?",
   "chat_deleted": "Discussion supprimée",
-  "delete_failed": "Échec de la suppression de la discussion"
+  "delete_failed": "Échec de la suppression de la discussion",
+  "profile_not_available": "Profil public non disponible pour cet utilisateur"
 }

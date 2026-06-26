@@ -89,8 +89,17 @@
   "invalid_or_expired_code": "Code invalide ou expiré",
   "code_not_available_for_you": "Ce code n'est pas disponible pour votre compte",
   "subscription_activated": "Abonnement activé avec succès !",
-  "my_work_portfolio": "Mon Portfolio de Travaux",
+  "my_work_portfolio": "Portfolio de Travail",
+  "service_gallery": "Galerie de Services",
+  "about_me": "À Propos de Moi",
+  "professional_overview": "Aperçu Professionnel",
+  "no_description_provided": "Aucune description fournie par ce prestataire.",
+  "no_service_photos_yet": "Aucune photo de service téléchargée pour le moment.",
+  "select_date": "Choisir la Date",
+  "select_time": "Choisir l'Heure",
+  "sign_in_to_message": "Veuillez vous connecter pour envoyer un message",
   "sign_in_to_report": "Veuillez vous connecter pour signaler cet utilisateur",
   "sign_in_to_block": "Veuillez vous connecter pour bloquer cet utilisateur",
-  "describe_issue": "Décrivez le problème..."
+  "describe_issue": "Décrivez le problème...",
+  "golden_user": "Prestataire Doré"
 }

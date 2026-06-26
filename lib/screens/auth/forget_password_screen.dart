@@ -76,12 +76,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           params: {'email': _email},
         );
 
-        setState(() {
-          _isLoading = false;
-          _successMessage = successMessage;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _successMessage = successMessage;
+          });
 
-        AppSnackBar.showSuccess(context, successMessage);
+          AppSnackBar.showSuccess(context, successMessage);
+        }
 
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
@@ -89,14 +91,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           }
         });
       } catch (e) {
-        String errorMessage = _getErrorMessage(e.toString(), lang);
+        if (mounted) {
+          String errorMessage = _getErrorMessage(e.toString(), lang);
 
-        setState(() {
-          _isLoading = false;
-          _errorMessage = errorMessage;
-        });
+          setState(() {
+            _isLoading = false;
+            _errorMessage = errorMessage;
+          });
 
-        AppSnackBar.showError(context, errorMessage);
+          AppSnackBar.showError(context, errorMessage);
+        }
       }
     }
   }

@@ -73,7 +73,12 @@ class ChatModel {
   }
 
   String getOtherParticipantId(String currentUserId) {
-    return participants.firstWhere((id) => id != currentUserId);
+    if (participants.isEmpty) return '';
+    try {
+      return participants.firstWhere((id) => id != currentUserId);
+    } catch (e) {
+      return participants.first;
+    }
   }
 
   String getOtherParticipantName(String currentUserId) {

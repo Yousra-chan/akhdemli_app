@@ -106,17 +106,21 @@ class _ServicesTabState extends State<ServicesTab>
                       color: _T.primary, size: 22),
                 ),
                 const SizedBox(width: 16),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(lang.tr('services', category: 'admin'),
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: context.txtP,
-                          letterSpacing: -0.6)),
-                  const SizedBox(height: 2),
-                  Text(lang.tr('manage_services_desc', category: 'admin'),
-                      style: TextStyle(fontSize: 13, color: context.txtS)),
-                ]),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(lang.tr('services', category: 'admin'),
+                        style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: context.txtP,
+                            letterSpacing: -0.6),
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text(lang.tr('manage_services_desc', category: 'admin'),
+                        style: TextStyle(fontSize: 13, color: context.txtS),
+                        overflow: TextOverflow.ellipsis),
+                  ]),
+                ),
               ],
             ),
 
@@ -155,8 +159,8 @@ class _ServicesTabState extends State<ServicesTab>
                             )),
                             const SizedBox(width: 10),
                             Expanded(child: Builder(builder: (ctx) {
-                              final subs = _cat == null ? [] :
-                              vm.categories.firstWhere((c) => c.name == _cat).subcategories;
+                              final category = vm.categories.where((c) => c.name == _cat).firstOrNull;
+                              final subs = category?.subcategories ?? [];
                               return _Dropdown<String?>(
                                 value: _sub,
                                 hint: lang.tr('all_subcategories', category: 'admin'),
@@ -209,8 +213,8 @@ class _ServicesTabState extends State<ServicesTab>
                     )),
                     const SizedBox(width: 10),
                     Expanded(flex: 2, child: Builder(builder: (ctx) {
-                      final subs = _cat == null ? [] :
-                      vm.categories.firstWhere((c) => c.name == _cat).subcategories;
+                      final category = vm.categories.where((c) => c.name == _cat).firstOrNull;
+                      final subs = category?.subcategories ?? [];
                       return _Dropdown<String?>(
                         value: _sub,
                         hint: lang.tr('all_subcategories', category: 'admin'),
@@ -565,12 +569,12 @@ class _ServiceRowState extends State<_ServiceRow> {
               const SizedBox(width: 16),
 
               // Status
-              _statusBadge(s.isActive, dark),
+              Flexible(child: _statusBadge(s.isActive, dark)),
               if (s.isFeatured) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                const SizedBox(width: 4),
+                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
               ],
-              const SizedBox(width: 14),
+              const SizedBox(width: 8),
 
               // Delete
               _DeleteBtn(onPressed: widget.onDelete),

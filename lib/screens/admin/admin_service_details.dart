@@ -7,6 +7,7 @@ import '../../models/ServicesModel.dart';
 import '../../models/UserModel.dart';
 import '../../providers/language_provider.dart';
 import '../../utils/image_utils.dart';
+import '../../utils/ui_widgets.dart';
 import '../service/edit_service.dart';
 import 'admin_components.dart';
 
@@ -166,20 +167,30 @@ class _AdminServiceDetailsScreenState extends State<AdminServiceDetailsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      AdminStatusBadge(
-                        label: _currentService.isActive 
-                            ? lang.tr('status_active', category: 'admin') 
-                            : lang.tr('status_inactive', category: 'admin'),
-                        color: _currentService.isActive ? AdminColors.success : AdminColors.danger,
-                      ),
-                      if (_currentService.isFeatured) ...[
-                        const SizedBox(width: 8),
-                        AdminStatusBadge(label: lang.tr('featured', category: 'admin').toUpperCase(), color: AdminColors.warning),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: AdminStatusBadge(
+                            label: _currentService.isActive 
+                                ? lang.tr('status_active', category: 'admin') 
+                                : lang.tr('status_inactive', category: 'admin'),
+                            color: _currentService.isActive ? AdminColors.success : AdminColors.danger,
+                          ),
+                        ),
+                        if (_currentService.isFeatured) ...[
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: AdminStatusBadge(
+                              label: lang.tr('featured', category: 'admin').toUpperCase(),
+                              color: AdminColors.warning,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     _currentService.displayPrice,
                     style: TextStyle(
@@ -255,10 +266,16 @@ class _AdminServiceDetailsScreenState extends State<AdminServiceDetailsScreen> {
           return ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: ImageUtils.isBase64Image(imageUrl)
-                ? Image.memory(
-                    ImageUtils.decodeBase64Image(imageUrl)!,
-                    width: 300,
-                    fit: BoxFit.cover,
+                ? Builder(
+                    builder: (context) {
+                      final bytes = ImageUtils.decodeBase64Image(imageUrl);
+                      if (bytes == null) return const Icon(Icons.broken_image, color: Colors.grey);
+                      return Image.memory(
+                        bytes,
+                        width: 300,
+                        fit: BoxFit.cover,
+                      );
+                    },
                   )
                 : Image.network(
                     imageUrl,
@@ -431,15 +448,33 @@ class _AdminServiceDetailsScreenState extends State<AdminServiceDetailsScreen> {
   }
 
   void _handleToggleActive(AdminViewModel vm) async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
     final newStatus = !_currentService.isActive;
-    await vm.updateServiceStatus(_currentService.id, isActive: newStatus);
-    setState(() => _currentService = _currentService.copyWith(isActive: newStatus));
+    try {
+      await vm.updateServiceStatus(_currentService.id, isActive: newStatus);
+      if (mounted) {
+        setState(() => _currentService = _currentService.copyWith(isActive: newStatus));
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.showError(context, '${lang.tr('error_occurred', category: 'common')}: $e');
+      }
+    }
   }
 
   void _handleToggleFeatured(AdminViewModel vm) async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
     final newFeatured = !_currentService.isFeatured;
-    await vm.toggleFeaturedService(_currentService.id, newFeatured);
-    setState(() => _currentService = _currentService.copyWith(isFeatured: newFeatured));
+    try {
+      await vm.toggleFeaturedService(_currentService.id, newFeatured);
+      if (mounted) {
+        setState(() => _currentService = _currentService.copyWith(isFeatured: newFeatured));
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.showError(context, '${lang.tr('error_occurred', category: 'common')}: $e');
+      }
+    }
   }
 
   void _handleDelete(BuildContext context, AdminViewModel vm, LanguageProvider lang) {

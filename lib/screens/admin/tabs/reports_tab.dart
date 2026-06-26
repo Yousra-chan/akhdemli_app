@@ -206,11 +206,14 @@ class _ReportsTabState extends State<ReportsTab> {
                   children: [
                     Icon(Icons.schedule_rounded, size: 13, color: isDark ? Colors.white60 : Colors.black54),
                     const SizedBox(width: 4),
-                    Text(
-                      dateStr,
-                      style: TextStyle(
-                        color: isDark ? Colors.white60 : AdminColors.textSecondary,
-                        fontSize: 12,
+                    Flexible(
+                      child: Text(
+                        dateStr,
+                        style: TextStyle(
+                          color: isDark ? Colors.white60 : AdminColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

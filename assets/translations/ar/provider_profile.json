@@ -88,9 +88,18 @@
   "invalid_or_expired_code": "الرمز غير صحيح أو منتهي الصلاحية",
   "code_not_available_for_you": "هذا الرمز غير متاح لحسابك",
   "subscription_activated": "تم تفعيل الاشتراك بنجاح!",
-  "my_work_portfolio": "معرض أعمالي",
+  "my_work_portfolio": "معرض الأعمال",
+  "service_gallery": "صور الخدمات",
+  "about_me": "عني",
+  "professional_overview": "نظرة عامة مهنية",
+  "no_description_provided": "لا يوجد وصف مقدم من هذا المزود.",
+  "no_service_photos_yet": "لا توجد صور للخدمات مرفوعة بعد.",
+  "select_date": "اختر التاريخ",
+  "select_time": "اختر الوقت",
+  "sign_in_to_message": "يرجى تسجيل الدخول لإرسال رسالة",
   "sign_in_to_report": "يرجى تسجيل الدخول للتبليغ عن هذا المستخدم",
   "sign_in_to_block": "يرجى تسجيل الدخول لحظر هذا المستخدم",
   "describe_issue": "صف المشكلة...",
-  "report_user": "تبليغ عن مستخدم"
+  "report_user": "تبليغ عن مستخدم",
+  "golden_user": "مزود ذهبي"
 }

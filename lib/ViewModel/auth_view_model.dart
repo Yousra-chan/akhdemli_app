@@ -237,13 +237,7 @@ class AuthViewModel with ChangeNotifier {
 
       print('🔄 Updating user role from ${_currentUser!.role} to $newRole');
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUser!.uid)
-          .update({
-        'role': newRole,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _userService.updateUserRole(_currentUser!.uid, newRole);
 
       debugPrint('✅ Firestore role update completed');
 
@@ -291,6 +285,21 @@ class AuthViewModel with ChangeNotifier {
       await _userService.updateUser(updatedUser);
       _setUser(updatedUser);
     }, 'Complete profile');
+  }
+
+  /// Deletes the current user account
+  Future<void> deleteAccount() async {
+    return _executeOperation(() async {
+      if (_currentUser == null) {
+        throw AuthViewModelException(
+          'No user logged in',
+          code: 'no-current-user',
+        );
+      }
+
+      await _authService.deleteUserAccount(_currentUser!.uid);
+      _clearUser();
+    }, 'Account deletion');
   }
 
   // ============================================================================

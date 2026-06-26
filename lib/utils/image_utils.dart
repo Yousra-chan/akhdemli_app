@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ImageUtils {
   /// Decodes base64 image string to bytes
@@ -52,7 +53,7 @@ class ImageUtils {
     if (imageString == null || imageString.isEmpty) return null;
 
     if (isNetworkImage(imageString)) {
-      return NetworkImage(imageString);
+      return CachedNetworkImageProvider(imageString);
     }
 
     if (isBase64Image(imageString)) {
@@ -62,7 +63,7 @@ class ImageUtils {
 
     // If it's neither network nor base64, try to use it as a network image
     // or return a placeholder
-    return NetworkImage(imageString);
+    return CachedNetworkImageProvider(imageString);
   }
 
   /// Enhanced method to get image URL with fallback

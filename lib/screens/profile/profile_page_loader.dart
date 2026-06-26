@@ -18,10 +18,8 @@ class ProfilePageLoader extends StatelessWidget {
 
     // 1. Initial Loading State (from ViewModel)
     if (authViewModel.isLoading) {
-      return Scaffold(
-        body: LoadingWidget(
-          message: languageProvider.tr('loadingProfile', category: 'profile'),
-        ),
+      return const Scaffold(
+        body: SafeArea(child: ProfileSkeleton()),
       );
     }
 

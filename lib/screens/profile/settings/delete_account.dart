@@ -128,24 +128,12 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     LanguageProvider languageProvider,
   ) async {
     try {
-      final authService = context.read<AuthViewModel>(); // We use ViewModel which uses AuthService
-      // Actually AuthService is private in AuthViewModel, but let's see if we can use it.
-      // Alternatively, just instantiate AuthService here since it's a data service.
+      final authVM = Provider.of<AuthViewModel>(context, listen: false);
       
-      // Let's use the thorough logic I just added to AuthService but adapted for this UI flow
-      await _thoroughCleanup(userId);
-
-      // Delete Firebase Auth user
-      final user = FirebaseAuth.instance.currentUser;
-      await user?.delete();
-
-      // Sign out
-      if (!context.mounted) return;
-      final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-      await authViewModel.logout();
+      // Use the centralized logic in ViewModel/AuthService
+      await authVM.deleteAccount();
 
       if (mounted) {
-        if (!context.mounted) return;
         AppSnackBar.showSuccess(
           context,
           languageProvider.tr('accountDeletedSuccess', category: 'profile'),
@@ -155,64 +143,16 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     } catch (e) {
-      if (!context.mounted) return;
-      AppSnackBar.showError(
-        context,
-        '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
-      );
+      if (mounted) {
+        AppSnackBar.showError(
+          context,
+          '${languageProvider.tr('errorAccountDeletion', category: 'profile')} $e',
+        );
+      }
     }
   }
 
-  Future<void> _thoroughCleanup(String userId) async {
-    final firestore = FirebaseFirestore.instance;
-
-    // 1. Delete services
-    final services = await firestore
-        .collection('services')
-        .where('providerId', isEqualTo: userId)
-        .get();
-    for (var doc in services.docs) {
-      await doc.reference.delete();
-    }
-
-    // 2. Delete bookings
-    final clientBookings = await firestore
-        .collection('bookings')
-        .where('userId', isEqualTo: userId)
-        .get();
-    for (var doc in clientBookings.docs) {
-      await doc.reference.delete();
-    }
-    
-    final providerBookings = await firestore
-        .collection('bookings')
-        .where('providerId', isEqualTo: userId)
-        .get();
-    for (var doc in providerBookings.docs) {
-      await doc.reference.delete();
-    }
-
-    // 3. Delete ratings
-    final ratings = await firestore
-        .collection('ratings')
-        .where('userId', isEqualTo: userId)
-        .get();
-    for (var doc in ratings.docs) {
-      await doc.reference.delete();
-    }
-
-    // 4. Delete notifications
-    final notifications = await firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .get();
-    for (var doc in notifications.docs) {
-      await doc.reference.delete();
-    }
-
-    // 5. Delete user document
-    await firestore.collection('users').doc(userId).delete();
-  }
+  // _thoroughCleanup removed as it's now handled by AuthService.deleteUserAccount
 
   @override
   Widget build(BuildContext context) {

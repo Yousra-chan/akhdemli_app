@@ -21,8 +21,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   
   String? _selectedWilaya;
   String? _selectedCommune;
-  List<String> _wilayas = [];
-  List<String> _communes = [];
+  Map<String, String> _wilayasMap = {};
+  Map<String, String> _communesMap = {};
 
   // Geolocation state
   Position? _currentPosition;
@@ -63,8 +63,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   void _loadWilayas() {
     final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     setState(() {
-      _wilayas = WilayaService.getAllWilayaNamesSafe(
-        language: _getDzairLanguage(languageProvider.locale.languageCode),
+      _wilayasMap = WilayaService.getWilayasLocalizedMap(
+        languageProvider.locale.languageCode,
       );
     });
   }
@@ -75,12 +75,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _selectedWilaya = newValue;
       _selectedCommune = null;
       if (newValue != null) {
-        _communes = WilayaService.getCommunesForWilayaSafe(
+        _communesMap = WilayaService.getCommunesLocalizedMap(
           newValue,
-          language: _getDzairLanguage(languageProvider.locale.languageCode),
+          languageProvider.locale.languageCode,
         );
       } else {
-        _communes = [];
+        _communesMap = {};
       }
     });
   }
@@ -97,10 +97,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() {
-        _currentPosition = null;
-        _locationMessage = lang.tr('gps_disabled', category: 'auth');
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _locationMessage = lang.tr('gps_disabled', category: 'auth');
+        });
+      }
       return;
     }
 
@@ -108,19 +110,23 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() {
-          _currentPosition = null;
-          _locationMessage = lang.tr('gps_denied', category: 'auth');
-        });
+        if (mounted) {
+          setState(() {
+            _currentPosition = null;
+            _locationMessage = lang.tr('gps_denied', category: 'auth');
+          });
+        }
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _currentPosition = null;
-        _locationMessage = lang.tr('gps_denied_forever', category: 'auth');
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _locationMessage = lang.tr('gps_denied_forever', category: 'auth');
+        });
+      }
       return;
     }
 
@@ -130,21 +136,25 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         timeLimit: const Duration(seconds: 15),
       );
 
-      setState(() {
-        _currentPosition = position;
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-        _locationMessage = lang.tr('gps_success', category: 'auth');
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+          _locationMessage = lang.tr('gps_success', category: 'auth');
+        });
+      }
     } catch (e) {
-      setState(() {
-        _currentPosition = null;
-        _latitude = null;
-        _longitude = null;
-        _locationMessage = lang.trParams('gps_error',
-            category: 'auth',
-            params: {'error': e.toString().split('\n').first});
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _latitude = null;
+          _longitude = null;
+          _locationMessage = lang.trParams('gps_error',
+              category: 'auth',
+              params: {'error': e.toString().split('\n').first});
+        });
+      }
     }
   }
 
@@ -292,10 +302,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 DropdownButtonFormField<String>(
                   value: _selectedWilaya,
                   decoration: buildInputDecoration(lang.tr('wilaya_label', category: 'auth')),
-                  items: _wilayas.map((String value) {
+                  items: _wilayasMap.entries.map((entry) {
                     return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value, style: const TextStyle(fontFamily: kAppFont)),
+                      value: entry.key,
+                      child: Text(entry.value, style: const TextStyle(fontFamily: kAppFont)),
                     );
                   }).toList(),
                   onChanged: _onWilayaChanged,
@@ -309,10 +319,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 DropdownButtonFormField<String>(
                   value: _selectedCommune,
                   decoration: buildInputDecoration(lang.tr('commune_label', category: 'auth')),
-                  items: _communes.map((String value) {
+                  items: _communesMap.entries.map((entry) {
                     return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value, style: const TextStyle(fontFamily: kAppFont)),
+                      value: entry.key,
+                      child: Text(entry.value, style: const TextStyle(fontFamily: kAppFont)),
                     );
                   }).toList(),
                   onChanged: (value) => setState(() => _selectedCommune = value),

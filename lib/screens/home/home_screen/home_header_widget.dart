@@ -4,12 +4,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui' as ui;
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/utils/image_utils.dart';
 import 'home_constants.dart';
 
 class HomeHeader extends StatelessWidget {
   final UserModel? currentUser;
   final TextEditingController searchController;
   final Function(String) onSearchChanged;
+  final Function(String)? onSearchSubmitted;
   final int notificationCount;
   final VoidCallback onNotificationPressed;
 
@@ -18,6 +20,7 @@ class HomeHeader extends StatelessWidget {
     required this.currentUser,
     required this.searchController,
     required this.onSearchChanged,
+    this.onSearchSubmitted,
     required this.notificationCount,
     required this.onNotificationPressed,
   });
@@ -110,6 +113,7 @@ class HomeHeader extends StatelessWidget {
                   child: TextField(
                     controller: searchController,
                     onChanged: onSearchChanged,
+                    onSubmitted: onSearchSubmitted,
                     decoration: InputDecoration(
                       hintText: _getSearchHint(languageProvider),
                       hintStyle: const TextStyle(
@@ -117,8 +121,20 @@ class HomeHeader extends StatelessWidget {
                         fontSize: 14,
                         fontFamily: 'Exo2',
                       ),
-                      prefixIcon: const Icon(Icons.search_rounded,
-                          color: kPrimaryBlue, size: 20),
+                      prefixIcon: IconButton(
+                        icon: const Icon(Icons.search_rounded,
+                            color: kPrimaryBlue, size: 20),
+                        onPressed: () => onSearchSubmitted?.call(searchController.text),
+                      ),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: kMutedTextColor, size: 18),
+                              onPressed: () {
+                                searchController.clear();
+                                onSearchChanged('');
+                              },
+                            )
+                          : null,
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
@@ -146,11 +162,19 @@ class HomeHeader extends StatelessWidget {
       ),
       child: ClipOval(
         child: photoUrl != null && photoUrl.isNotEmpty
-            ? CachedNetworkImage(
-          imageUrl: photoUrl,
-          fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => _defaultAvatarIcon(),
-        )
+            ? (ImageUtils.isBase64Image(photoUrl)
+                ? Builder(
+                    builder: (context) {
+                      final bytes = ImageUtils.decodeBase64Image(photoUrl);
+                      if (bytes == null) return _defaultAvatarIcon();
+                      return Image.memory(bytes, fit: BoxFit.cover);
+                    },
+                  )
+                : CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _defaultAvatarIcon(),
+                  ))
             : _defaultAvatarIcon(),
       ),
     );

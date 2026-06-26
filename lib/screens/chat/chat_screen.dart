@@ -25,7 +25,7 @@ final Map<String, bool> _imageValidityCache = {};
 Future<bool> _checkImageValidity(String imageUrl) async {
   if (imageUrl.isEmpty) return false;
   if (_imageValidityCache.containsKey(imageUrl)) {
-    return _imageValidityCache[imageUrl]!;
+    return _imageValidityCache[imageUrl] ?? false;
   }
 
   try {
@@ -91,14 +91,14 @@ Widget buildAvatar(String imageUrl, String name, {bool isSearch = false, double 
 Widget _buildAvatarImage(String imageUrl, String name, double size) {
   if (imageUrl.isEmpty) return _buildAvatarPlaceholder(name, size * 0.5);
   
-  if (imageUrl.startsWith('http')) {
+  if (ImageUtils.isNetworkImage(imageUrl)) {
     return ClipOval(
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        placeholder: (context, url) => Center(child: SizedBox(width: size*0.3, height: size*0.3, child: CircularProgressIndicator(strokeWidth: 2))),
+        placeholder: (context, url) => Center(child: SizedBox(width: size*0.3, height: size*0.3, child: const CircularProgressIndicator(strokeWidth: 2))),
         errorWidget: (context, url, error) => _buildAvatarPlaceholder(name, size * 0.5),
       ),
     );
@@ -359,6 +359,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     _initialize();
   }
 
+  @override
+  void didUpdateWidget(ChatPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _initialize();
+    }
+  }
+
   void _initialize() {
     _chatViewModel = Provider.of<ChatViewModel>(context, listen: false);
     _setupChatStream();
@@ -393,6 +401,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   Future<void> _preloadProfileImages(List<ChatModel> chats) async {
     for (final chat in chats) {
+      if (!mounted) return;
       try {
         final otherUserId = chat.getOtherParticipantId(widget.userId);
         if (!_contactNames.containsKey(otherUserId)) {
@@ -424,17 +433,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Future<void> _silentRefresh() async {
     if (_isRefreshing) return;
     try {
-      _chatViewModel.updateUser(widget.userId);
+      if (mounted) _chatViewModel.updateUser(widget.userId);
     } catch (e) {}
   }
 
   Future<void> _refreshData() async {
     if (_isRefreshing) return;
-    setState(() => _isRefreshing = true);
+    if (mounted) setState(() => _isRefreshing = true);
     try {
       _imageValidityCache.clear();
       _setupChatStream();
-      _chatViewModel.updateUser(widget.userId);
+      if (mounted) _chatViewModel.updateUser(widget.userId);
     } catch (e) {
       debugPrint('❌ Refresh error: $e');
       if (mounted) {
@@ -444,6 +453,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } finally {
       if (mounted) {
         _refreshController.refreshCompleted();
+        setState(() => _isRefreshing = false);
       }
     }
   }
@@ -525,6 +535,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _navigateToUserProfile(String userId) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     try {
       final userData = await _chatViewModel.getUserData(userId);
       if (userData != null && mounted) {
@@ -540,7 +551,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             ),
           );
         } else {
-          AppSnackBar.showInfo(context, "Public profile not available for this user");
+          AppSnackBar.showInfo(context, languageProvider.tr('profile_not_available', category: 'chat'));
         }
       }
     } catch (e) {
@@ -1110,13 +1121,12 @@ class _SearchModalState extends State<_SearchModal> {
 
     try {
       final providers = await widget.chatViewModel.getAvailableProviders();
-      if (mounted) {
-        setState(() {
-          _allProviders.clear();
-          _allProviders.addAll(providers);
-          _filterLists();
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _allProviders.clear();
+        _allProviders.addAll(providers);
+        _filterLists();
+      });
     } catch (e) {
       debugPrint('Error loading providers for search: $e');
     } finally {

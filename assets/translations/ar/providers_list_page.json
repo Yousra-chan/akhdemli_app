@@ -32,5 +32,7 @@
   "book_now": "احجز الآن",
   "golden_user": "مستخدم ذهبي",
   "chat_now": "محادثة الآن",
-  "location_not_specified": "الموقع غير محدد"
+  "location_not_specified": "الموقع غير محدد",
+  "error_launch_call": "تعذر إجراء المكالمة",
+  "error_launch_whatsapp": "واتساب غير مثبت أو تعذر فتحه"
 }

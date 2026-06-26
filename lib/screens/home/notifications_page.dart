@@ -320,6 +320,8 @@ class _NotificationsWindowState extends State<NotificationsWindow> {
       }
     }
 
+    if (!mounted) return;
+
     if (notification.type == HomeNotificationType.message) {
       if (notification.chatId != null) {
         Navigator.of(context).pop();

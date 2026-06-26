@@ -14,10 +14,12 @@ import 'package:service_app/screens/auth/login/login_screen.dart'
     hide AuthService;
 import 'package:service_app/screens/profile/settings/settings_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
+import 'package:service_app/Services/wilaya_service.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/profile/subscription_page.dart';
 import 'package:service_app/screens/admin/admin_codes_page.dart';
+import 'package:service_app/screens/profile/my_posts_screen.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 
 import 'package:service_app/screens/profile/about_us_page.dart';
@@ -143,14 +145,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     if (isProvider)
                       _buildMyServicesTile(context, languageProvider),
 
+                    // My Posts Tile - Shows for all users
+                    _buildMyPostsTile(context, languageProvider),
+
                     // My Bookings Tile - Shows for all users
                     _buildMyBookingsTile(context, isProvider, languageProvider),
 
                     const SizedBox(height: 15),
 
-                    // Create Service Button (only for providers)
-                    if (isProvider)
-                      _buildCreateServiceButton(context, languageProvider),
+
 
                     // Logout Button with translations
                     _buildLogoutButton(context, languageProvider),
@@ -356,8 +359,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildInfoItem(
               icon: Icons.location_on_outlined,
               label: languageProvider.tr('location', category: 'common'),
-              value:
-                  '${user.commune ?? ''}${user.commune != null && user.wilaya != null ? ', ' : ''}${user.wilaya ?? ''}',
+              value: user.getLocalizedLocation(languageProvider),
             ),
           ],
         ],
@@ -659,7 +661,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<bool> _checkImageValidity(String photoUrl) async {
     try {
       if (ImageUtils.isNetworkImage(photoUrl)) {
-        final response = await http.head(Uri.parse(photoUrl));
+        final response = await http.head(Uri.parse(photoUrl)).timeout(const Duration(seconds: 5));
         return response.statusCode == 200;
       } else if (ImageUtils.isBase64Image(photoUrl)) {
         final bytes = ImageUtils.decodeBase64Image(photoUrl);
@@ -1095,9 +1097,11 @@ class _ProfilePageState extends State<ProfilePage> {
       AuthViewModel authViewModel,
       LanguageProvider languageProvider) async {
     try {
-      setState(() {
-        _isSwitchingRole = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isSwitchingRole = true;
+        });
+      }
 
       print('🔄 Starting role switch from ${user.role} to $newRole');
 
@@ -1132,6 +1136,97 @@ class _ProfilePageState extends State<ProfilePage> {
         AppSnackBar.showError(context, '$errorMsg: $e');
       }
     }
+  }
+
+  // My Posts Tile
+  Widget _buildMyPostsTile(
+      BuildContext context, LanguageProvider languageProvider) {
+    final String title = languageProvider.tr('myPosts', category: 'common');
+    final String subtitle =
+        languageProvider.tr('viewManagePosts', category: 'common');
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(15),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyPostsScreen(),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.doc_text_fill,
+                      color: Colors.orange,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color ??
+                                Colors.grey.shade800,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Exo2',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.chevron_right,
+                    color: isDark ? Colors.white24 : Colors.grey.shade500,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // Statistics Row - Updated for real-time language

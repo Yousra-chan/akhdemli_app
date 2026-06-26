@@ -444,12 +444,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class _LoginButton extends StatelessWidget {
   final bool isLoading;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final LanguageProvider lang;
 
   const _LoginButton({
     required this.isLoading,
-    required this.onPressed,
+    this.onPressed,
     required this.lang,
   });
 
@@ -529,14 +529,14 @@ class _OrDivider extends StatelessWidget {
 }
 
 class _SocialSignInRow extends StatelessWidget {
-  final VoidCallback onGooglePressed;
-  final VoidCallback onApplePressed;
+  final VoidCallback? onGooglePressed;
+  final VoidCallback? onApplePressed;
   final bool isLoading;
   final LanguageProvider lang;
 
   const _SocialSignInRow({
-    required this.onGooglePressed,
-    required this.onApplePressed,
+    this.onGooglePressed,
+    this.onApplePressed,
     required this.isLoading,
     required this.lang,
   });
@@ -545,32 +545,35 @@ class _SocialSignInRow extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required Color color,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Expanded(
-      child: InkWell(
-        onTap: isLoading ? null : onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.dividerColor),
-          ),
-          child: Center(
-            child: isLoading
-                ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(color),
-                    ),
-                  )
-                : Icon(icon, color: isDark && icon == FontAwesomeIcons.apple ? Colors.white : color, size: 24),
+      child: Opacity(
+        opacity: onPressed == null ? 0.5 : 1.0,
+        child: InkWell(
+          onTap: isLoading ? null : onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Center(
+              child: isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(color),
+                      ),
+                    )
+                  : Icon(icon, color: isDark && icon == FontAwesomeIcons.apple ? Colors.white : color, size: 24),
+            ),
           ),
         ),
       ),

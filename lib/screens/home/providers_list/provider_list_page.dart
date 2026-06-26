@@ -111,9 +111,10 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
         providerId: provider.uid!,
       );
 
-      Navigator.of(context).pop(); // Dismiss loading
+      if (mounted) Navigator.of(context).pop(); // Dismiss loading
 
       if (chatId != null) {
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -129,6 +130,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
           ),
         );
       } else {
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -137,8 +139,9 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
         );
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Dismiss loading
+      if (mounted) Navigator.of(context).pop(); // Dismiss loading
 
+      if (!mounted) return;
       AppSnackBar.showError(
         context,
         languageProvider.trParams(
@@ -217,6 +220,7 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
           .toSet()
           .toList();
 
+      if (!mounted) return;
       print('👤 Found ${providerIds.length} unique provider IDs');
 
       // Step 3: Fetch provider documents from users collection
@@ -430,7 +434,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
       await launchUrl(launchUri);
     } else {
       if (mounted) {
-        AppSnackBar.showError(context, 'Could not launch call');
+        final lang = Provider.of<LanguageProvider>(context, listen: false);
+        AppSnackBar.showError(context, lang.tr('error_launch_call', category: 'providers_list_page'));
       }
     }
   }
@@ -444,7 +449,8 @@ class _ProvidersListPageState extends State<ProvidersListPage> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        AppSnackBar.showError(context, 'Could not launch WhatsApp');
+        final lang = Provider.of<LanguageProvider>(context, listen: false);
+        AppSnackBar.showError(context, lang.tr('error_launch_whatsapp', category: 'providers_list_page'));
       }
     }
   }

@@ -48,6 +48,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         password: _currentPasswordController.text,
       );
 
+      // Re-authenticate user before sensitive operation
+      await user.reauthenticateWithCredential(credential);
+
       // Update password
       await user.updatePassword(_newPasswordController.text);
 

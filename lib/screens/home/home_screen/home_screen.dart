@@ -11,12 +11,14 @@ import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/screens/home/home_screen/create_service_button.dart';
 import 'package:service_app/Services/firebase_service.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
+import 'package:service_app/screens/search/search_screen.dart';
 import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/screens/service/create_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'home_constants.dart';
+import 'home_header_widget.dart';
 import 'categories_section.dart';
 
 class HomePage extends StatefulWidget {
@@ -90,7 +92,7 @@ class _HomePageState extends State<HomePage>
   }
 
   void _loadCategories() {
-    setState(() => _isLoadingCategories = true);
+    if (mounted) setState(() => _isLoadingCategories = true);
     _categoriesSubscription?.cancel();
     _categoriesSubscription = FirebaseService.getCategories()
         .listen(_handleCategoriesLoaded, onError: _handleCategoriesError);
@@ -142,7 +144,7 @@ class _HomePageState extends State<HomePage>
   void _onCategorySelected(CategoryModel category,
       {bool isAutoSelect = false}) async {
     if (_isLoadingSubcategories) return;
-    setState(() => _selectedCategory = category);
+    if (mounted) setState(() => _selectedCategory = category);
 
     if (isAutoSelect) {
       _loadSubcategoriesInBackground(category.id);
@@ -150,7 +152,7 @@ class _HomePageState extends State<HomePage>
     }
 
     HapticFeedback.selectionClick();
-    setState(() => _isLoadingSubcategories = true);
+    if (mounted) setState(() => _isLoadingSubcategories = true);
 
     try {
       final subs =
@@ -346,7 +348,23 @@ class _HomePageState extends State<HomePage>
             body: SafeArea(
               child: Column(
                 children: [
-                  _buildHeader(languageProvider),
+                  HomeHeader(
+                    currentUser: _currentUser,
+                    searchController: _searchController,
+                    onSearchChanged: (v) => setState(() => _searchQuery = v),
+                    onSearchSubmitted: (query) {
+                      if (query.trim().isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MapSearchPage(initialQuery: query),
+                          ),
+                        );
+                      }
+                    },
+                    notificationCount: _notificationCount,
+                    onNotificationPressed: _showNotifications,
+                  ),
                   Expanded(
                     child: FadeTransition(
                       opacity: _fadeAnimation,
@@ -376,203 +394,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // ── Header ─────────────────────────────────────────────────
-  Widget _buildHeader(LanguageProvider lang) {
-    final userName = _currentUser?.name.split(' ').first;
-    final greeting = userName != null && userName.isNotEmpty
-        ? lang.trParams('hello_user',
-        category: 'home_page', params: {'name': userName})
-        : lang.tr('hello_guest', category: 'home_page');
-
-    final subtitle = (_currentUser?.isProvider ?? false)
-        ? lang.tr('manage_services', category: 'home_page')
-        : lang.tr('find_service_providers', category: 'home_page');
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.fromARGB(255, 12, 94, 153),
-            Color(0xFF4A6FDC),
-            Color(0xFF667EEA),
-            Color(0xFF764BA2),
-          ],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: avatar + greeting + notification
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Avatar
-              _buildAvatar(),
-              const SizedBox(width: 12),
-              // Greeting text
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 12,
-                        fontFamily: 'Exo2',
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      greeting,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        fontFamily: 'Exo2',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Notification icon
-              _buildNotificationIcon(),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Search bar
-          _buildSearchBar(lang),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatar() {
-    final photoUrl = _currentUser?.photoUrl;
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-        color: Colors.white.withOpacity(0.2),
-      ),
-      child: ClipOval(
-        child: photoUrl != null && photoUrl.isNotEmpty
-            ? CachedNetworkImage(
-          imageUrl: photoUrl,
-          fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => _defaultAvatarIcon(),
-        )
-            : _defaultAvatarIcon(),
-      ),
-    );
-  }
-
-  Widget _defaultAvatarIcon() {
-    return Container(
-      color: Colors.white.withOpacity(0.2),
-      child: const Icon(Icons.person, color: Colors.white, size: 26),
-    );
-  }
-
-  Widget _buildNotificationIcon() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            onPressed: _showNotifications,
-            icon: const Icon(Icons.notifications_outlined,
-                color: Colors.white, size: 22),
-            padding: EdgeInsets.zero,
-          ),
-        ),
-        if (_notificationCount > 0)
-          PositionedDirectional(
-            end: 0,
-            top: 0,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              constraints:
-              const BoxConstraints(minWidth: 18, minHeight: 18),
-              child: Text(
-                _notificationCount > 9 ? '9+' : _notificationCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSearchBar(LanguageProvider lang) {
-    final isProvider = _currentUser?.isProvider ?? false;
-    final hint = isProvider
-        ? lang.tr('search_services_listings', category: 'home_page')
-        : lang.tr('search_services_providers', category: 'home_page');
-
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (v) => setState(() => _searchQuery = v),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: kMutedTextColor,
-            fontSize: 14,
-            fontFamily: 'Exo2',
-          ),
-          prefixIcon:
-          const Icon(Icons.search_rounded, color: kPrimaryBlue, size: 20),
-          border: InputBorder.none,
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-      ),
-    );
-  }
-
   // ── Categories section header ──────────────────────────────
   Widget _buildCategoriesSectionHeader(LanguageProvider lang) {
     return Padding(
@@ -581,7 +402,9 @@ class _HomePageState extends State<HomePage>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            lang.tr('categories', category: 'home_page'),
+            _searchQuery.isEmpty
+                ? lang.tr('categories', category: 'home_page')
+                : lang.tr('search_results', category: 'home_page'),
             style: TextStyle(
               color: Theme.of(context).textTheme.titleLarge?.color ??
                   kDarkTextColor,
@@ -591,7 +414,7 @@ class _HomePageState extends State<HomePage>
               letterSpacing: -0.3,
             ),
           ),
-          if (_categories.isNotEmpty)
+          if (_categories.isNotEmpty && _searchQuery.isEmpty)
             GestureDetector(
               onTap: () => _navigateToAllCategories(lang),
               child: Row(
@@ -631,11 +454,20 @@ class _HomePageState extends State<HomePage>
   // ── Categories Grid ────────────────────────────────────────
   Widget _buildCategoriesGrid(LanguageProvider lang) {
     if (_isLoadingCategories) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: kPrimaryBlue)),
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.65,
+          ),
+          itemCount: 6,
+          itemBuilder: (context, index) => const CategorySkeleton(),
+        ),
       );
     }
 
@@ -650,9 +482,53 @@ class _HomePageState extends State<HomePage>
       );
     }
 
-    // Show at most 9 categories on home (3 rows of 3), rest visible via "See all"
-    final displayCategories =
-    _categories.length > 9 ? _categories.sublist(0, 9) : _categories;
+    final filteredCategories = _categories.where((cat) {
+      final name = cat.getTranslatedName(lang).toLowerCase();
+      final engName = cat.name.toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || engName.contains(query);
+    }).toList();
+
+    if (filteredCategories.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 64, color: Colors.grey.withOpacity(0.3)),
+              const SizedBox(height: 16),
+              Text(
+                lang.tr('no_results_found', category: 'search'),
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Exo2',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                lang.tr('adjust_filters', category: 'admin'),
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
+                  fontFamily: 'Exo2',
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show at most 9 categories on home (3 rows of 3) when NOT searching
+    final displayCategories = _searchQuery.isEmpty
+        ? (filteredCategories.length > 9
+            ? filteredCategories.sublist(0, 9)
+            : filteredCategories)
+        : filteredCategories;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -788,13 +664,10 @@ class _CategoryGridCard extends StatelessWidget {
   }
 
   Widget _shimmer() {
-    return Container(
+    return const SkeletonLoader(
       width: double.infinity,
       height: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8E8E8),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      borderRadius: 14,
     );
   }
 }

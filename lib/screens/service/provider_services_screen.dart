@@ -42,10 +42,12 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
   Future<void> _loadServices() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
 
       final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
       final UserModel? currentUser = authViewModel.currentUser;
@@ -53,22 +55,30 @@ class _MyServicesPageState extends State<MyServicesPage> {
       if (currentUser != null) {
         final services =
         await _firestoreService.getProviderServices(currentUser.uid);
-        setState(() {
-          _services = services;
-        });
+        if (mounted) {
+          setState(() {
+            _services = services;
+          });
+        }
       } else {
-        setState(() {
-          _error = 'please_sign_in';
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'please_sign_in';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _error = 'unable_to_load';
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'unable_to_load';
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

@@ -50,5 +50,6 @@
   "delete_chat_title": "حذف المحادثة",
   "delete_chat_confirm": "هل تريد حقاً حذف المحادثة مع {{name}}؟",
   "chat_deleted": "تم حذف المحادثة",
-  "delete_failed": "فشل حذف المحادثة"
+  "delete_failed": "فشل حذف المحادثة",
+  "profile_not_available": "الملف الشخصي العام غير متاح لهذا المستخدم"
 }

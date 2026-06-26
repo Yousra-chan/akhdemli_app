@@ -90,8 +90,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return CompleteProfileScreen();
       }
 
-      // 3.2 Check Subscription Activation (Exclude Admins and Guests)
-      if (!user.isAdmin && !user.isGuest && !user.subscriptionActive) {
+      // 3.2 Check Subscription Activation (Only for Providers)
+      if (user.isProvider && !user.hasValidSubscription) {
         return const AccountActivationRequiredPage();
       }
       

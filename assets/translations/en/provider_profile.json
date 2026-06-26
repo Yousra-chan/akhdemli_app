@@ -89,8 +89,17 @@
   "invalid_or_expired_code": "Invalid or expired code",
   "code_not_available_for_you": "This code is not available for your account",
   "subscription_activated": "Subscription successfully activated!",
-  "my_work_portfolio": "My Work Portfolio",
+  "my_work_portfolio": "Work Portfolio",
+  "service_gallery": "Service Gallery",
+  "about_me": "About Me",
+  "professional_overview": "Professional Overview",
+  "no_description_provided": "No description provided by this provider.",
+  "no_service_photos_yet": "No service photos uploaded yet.",
+  "select_date": "Select Date",
+  "select_time": "Select Time",
+  "sign_in_to_message": "Please sign in to send a message",
   "sign_in_to_report": "Please sign in to report this user",
   "sign_in_to_block": "Please sign in to block this user",
-  "describe_issue": "Describe the issue..."
+  "describe_issue": "Describe the issue...",
+  "golden_user": "Golden Provider"
 }

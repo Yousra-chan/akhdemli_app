@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../ViewModel/admin_view_model.dart';
 import '../../../models/UserModel.dart';
 import '../../../providers/language_provider.dart';
+import '../../../utils/image_utils.dart';
 import '../admin_components.dart';
 
 class UsersTab extends StatefulWidget {
@@ -249,7 +250,11 @@ class _UsersTabState extends State<UsersTab> {
             CircleAvatar(
               radius: 20,
               backgroundColor: AdminColors.primary.withOpacity(0.1),
-              backgroundImage: user.photoUrl.isNotEmpty ? NetworkImage(user.photoUrl) : null,
+              backgroundImage: user.photoUrl.isNotEmpty && ImageUtils.isNetworkImage(user.photoUrl) 
+                  ? NetworkImage(user.photoUrl) 
+                  : (user.photoUrl.isNotEmpty && ImageUtils.isBase64Image(user.photoUrl) 
+                      ? MemoryImage(ImageUtils.decodeBase64Image(user.photoUrl)!) as ImageProvider
+                      : null),
               child: (user.photoUrl.isEmpty && user.name.isNotEmpty)
                   ? Text(user.name[0].toUpperCase(), style: const TextStyle(color: AdminColors.primary, fontWeight: FontWeight.bold))
                   : (user.name.isEmpty ? const Icon(Icons.person, color: AdminColors.primary) : null),

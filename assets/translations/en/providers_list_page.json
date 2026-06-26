@@ -32,5 +32,7 @@
   "book_now": "Book Now",
   "golden_user": "Golden User",
   "chat_now": "Chat Now",
-  "location_not_specified": "Location not specified"
+  "location_not_specified": "Location not specified",
+  "error_launch_call": "Could not launch call",
+  "error_launch_whatsapp": "WhatsApp not installed or could not be opened"
 }

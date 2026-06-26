@@ -39,21 +39,27 @@ class NotificationItem {
 
   factory NotificationItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final time = data['time'] is Timestamp 
+        ? (data['time'] as Timestamp).toDate() 
+        : (data['timestamp'] is Timestamp 
+            ? (data['timestamp'] as Timestamp).toDate() 
+            : DateTime.now());
+
     return NotificationItem(
       id: doc.id,
       title: data['title'] ?? '',
-      message: data['message'] ?? '',
+      message: data['message'] ?? (data['body'] ?? ''),
       type: _parseNotificationType(data['type']),
       chatId: data['chatId'],
       senderId: data['senderId'],
       senderName: data['senderName'],
       actionText: data['actionText'] ?? '',
-      isRead: data['isRead'] ?? false,
-      time: (data['time'] as Timestamp).toDate(),
+      isRead: data['read'] ?? (data['isRead'] ?? false),
+      time: time,
       messageCount: (data['messageCount'] as num?)?.toInt() ?? 1,
-      lastMessageTime: data['lastMessageTime'] != null
+      lastMessageTime: data['lastMessageTime'] is Timestamp
           ? (data['lastMessageTime'] as Timestamp).toDate()
-          : (data['time'] as Timestamp).toDate(),
+          : time,
     );
   }
 

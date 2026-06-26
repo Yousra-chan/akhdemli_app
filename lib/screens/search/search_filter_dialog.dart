@@ -39,8 +39,8 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   final CategoriesService _categoriesService = CategoriesService();
 
   // Data
-  List<String> _wilayas = [];
-  List<String> _communes = [];
+  Map<String, String> _wilayasMap = {};
+  Map<String, String> _communesMap = {};
   List<CategoryModel> _categoryModels = [];
   List<SubcategoryModel> _availableSubcategories = [];
   bool _isLoading = true;
@@ -52,38 +52,50 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
   }
 
   Future<void> _loadData() async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
 
-      // Load wilayas
-      _wilayas = WilayaService.getAllWilayaNames();
+      // Load wilayas localized map
+      final wilayasMap = WilayaService.getWilayasLocalizedMap(languageProvider.locale.languageCode);
 
       // Load categories from service
-      _categoryModels = await _categoriesService.getAllCategories();
-      _categoryModels.sort((a, b) => a.name.compareTo(b.name));
+      final categoryModels = await _categoriesService.getAllCategories();
+      categoryModels.sort((a, b) => a.name.compareTo(b.name));
 
-      // Set initial values
-      _selectedWilaya = widget.initialWilaya;
-      _selectedCategory = widget.initialCategory;
-      _selectedSubcategory = widget.initialSubcategory;
+      if (!mounted) return;
 
-      // Load communes if wilaya is selected
-      if (_selectedWilaya != null) {
-        _communes = WilayaService.getCommunesForWilaya(_selectedWilaya!);
-      }
+      setState(() {
+        _wilayasMap = wilayasMap;
+        _categoryModels = categoryModels;
+        
+        // Set initial values
+        _selectedWilaya = widget.initialWilaya;
+        _selectedCategory = widget.initialCategory;
+        _selectedSubcategory = widget.initialSubcategory;
 
-      // Update subcategories if category is selected
-      if (_selectedCategory != null) {
-        _updateAvailableSubcategories();
-      }
+        // Load communes if wilaya is selected
+        if (_selectedWilaya != null) {
+          _communesMap = WilayaService.getCommunesLocalizedMap(_selectedWilaya!, languageProvider.locale.languageCode);
+        }
+
+        // Update subcategories if category is selected
+        if (_selectedCategory != null) {
+          _updateAvailableSubcategories();
+        }
+      });
     } catch (e) {
       print('Error loading filter data: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -511,11 +523,11 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                             lang.tr('choose_wilaya', category: 'search'),
                             style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontFamily: 'Exo2'),
                           ),
-                          items: _wilayas.map((wilaya) {
+                          items: _wilayasMap.entries.map((entry) {
                             return DropdownMenuItem<String>(
-                              value: wilaya,
+                              value: entry.key,
                               child: Text(
-                                wilaya,
+                                entry.value,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontFamily: 'Exo2',
@@ -526,9 +538,9 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                           onChanged: (value) {
                             setState(() {
                               _selectedWilaya = value;
-                              _communes = value != null
-                                  ? WilayaService.getCommunesForWilaya(value)
-                                  : [];
+                              _communesMap = value != null
+                                  ? WilayaService.getCommunesLocalizedMap(value, lang.locale.languageCode)
+                                  : {};
                               _selectedCommune = null;
                             });
                           },
@@ -559,7 +571,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                       border:
                           Border.all(color: theme.dividerColor),
                     ),
-                    child: _communes.isEmpty
+                    child: _communesMap.isEmpty
                         ? Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Text(
@@ -579,11 +591,11 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                               lang.tr('choose_commune', category: 'search'),
                               style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.white38 : kMutedTextColor, fontFamily: 'Exo2'),
                             ),
-                            items: _communes.map((commune) {
+                            items: _communesMap.entries.map((entry) {
                               return DropdownMenuItem<String>(
-                                value: commune,
+                                value: entry.key,
                                 child: Text(
-                                  commune,
+                                  entry.value,
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontFamily: 'Exo2',
@@ -748,7 +760,12 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
       }
     }
 
-    if (_selectedWilaya != null) activeFilters.add(_selectedWilaya!);
+    if (_selectedWilaya != null) {
+      activeFilters.add(_wilayasMap[_selectedWilaya] ?? _selectedWilaya!);
+    }
+    if (_selectedCommune != null) {
+      activeFilters.add(_communesMap[_selectedCommune] ?? _selectedCommune!);
+    }
     if (_useDistanceFilter) {
       activeFilters.add(lang.trParams('distance_km',
           category: 'search',
@@ -824,7 +841,7 @@ class _SearchFilterDialogState extends State<SearchFilterDialog> {
                   _selectedSubcategory = null;
                   _selectedDistance = 20.0;
                   _useDistanceFilter = false;
-                  _communes = [];
+                  _communesMap = {};
                   _availableSubcategories = [];
                 });
               },
