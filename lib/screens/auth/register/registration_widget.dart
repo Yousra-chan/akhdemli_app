@@ -42,18 +42,21 @@ class RegisterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+
     return SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: kPrimaryBlue,
+          backgroundColor: primaryColor,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 5,
-          shadowColor: kPrimaryBlue.withOpacity(0.5),
+          shadowColor: primaryColor.withOpacity(0.5),
         ),
         child: isLoading
             ? const SizedBox(
@@ -83,25 +86,27 @@ class OrDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
+    
     return Row(
       children: <Widget>[
-        const Expanded(
-          child: Divider(color: kBorderColor, height: 1, thickness: 1),
+        Expanded(
+          child: Divider(color: theme.dividerColor, height: 1, thickness: 1),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
             lang.tr('or', category: 'auth'),
             style: TextStyle(
-              color: kMutedTextColor.withOpacity(0.8),
+              color: theme.textTheme.bodySmall?.color ?? kMutedTextColor,
               fontSize: 14,
               fontFamily: kAppFont,
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
-        const Expanded(
-          child: Divider(color: kBorderColor, height: 1, thickness: 1),
+        Expanded(
+          child: Divider(color: theme.dividerColor, height: 1, thickness: 1),
         ),
       ],
     );
@@ -122,10 +127,12 @@ class SocialSignInRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Expanded(
           child: _buildSocialButton(
+            context,
             icon: FontAwesomeIcons.google,
             onPressed: onGooglePressed,
             color: Colors.red,
@@ -134,20 +141,23 @@ class SocialSignInRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _buildSocialButton(
+            context,
             icon: FontAwesomeIcons.apple,
             onPressed: onApplePressed,
-            color: kDarkTextColor,
+            color: theme.brightness == Brightness.dark ? Colors.white : Colors.black,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSocialButton({
+  Widget _buildSocialButton(
+    BuildContext context, {
     required IconData icon,
     required VoidCallback? onPressed,
     required Color color,
   }) {
+    final theme = Theme.of(context);
     return Opacity(
       opacity: onPressed == null ? 0.5 : 1.0,
       child: InkWell(
@@ -156,7 +166,8 @@ class SocialSignInRow extends StatelessWidget {
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            border: Border.all(color: kBorderColor.withOpacity(0.7)),
+            color: theme.cardColor,
+            border: Border.all(color: theme.dividerColor),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Center(
@@ -184,13 +195,15 @@ class SignInLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final theme = Theme.of(context);
+    
     return GestureDetector(
       onTap: onTap,
       child: Center(
         child: RichText(
           text: TextSpan(
-            style: const TextStyle(
-              color: kMutedTextColor,
+            style: TextStyle(
+              color: theme.textTheme.bodyMedium?.color ?? kMutedTextColor,
               fontFamily: kAppFont,
               fontSize: 15,
             ),
@@ -199,9 +212,9 @@ class SignInLink extends StatelessWidget {
                 text: lang.tr('already_have_account', category: 'auth'),
               ),
               TextSpan(
-                text: lang.tr('sign_in_now', category: 'auth'),
-                style: const TextStyle(
-                  color: kPrimaryBlue,
+                text: " " + lang.tr('sign_in_now', category: 'auth'),
+                style: TextStyle(
+                  color: theme.primaryColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -231,15 +244,20 @@ class RoleOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? kPrimaryBlue.withOpacity(0.1) : Colors.white,
+          color: isSelected 
+            ? primaryColor.withOpacity(0.1) 
+            : theme.cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? kPrimaryBlue : kBorderColor,
+            color: isSelected ? primaryColor : theme.dividerColor,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -248,7 +266,7 @@ class RoleOption extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? kPrimaryBlue : kMutedTextColor,
+              color: isSelected ? primaryColor : (theme.textTheme.bodySmall?.color ?? kMutedTextColor),
               size: 24,
             ),
             const SizedBox(height: 12),
@@ -258,7 +276,7 @@ class RoleOption extends StatelessWidget {
                 fontFamily: kAppFont,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? kPrimaryBlue : kDarkTextColor,
+                color: isSelected ? primaryColor : (theme.textTheme.titleMedium?.color ?? kDarkTextColor),
               ),
             ),
             const SizedBox(height: 4),
@@ -267,7 +285,7 @@ class RoleOption extends StatelessWidget {
               style: TextStyle(
                 fontFamily: kAppFont,
                 fontSize: 12,
-                color: kMutedTextColor,
+                color: theme.textTheme.bodySmall?.color ?? kMutedTextColor,
               ),
             ),
           ],
@@ -276,3 +294,4 @@ class RoleOption extends StatelessWidget {
     );
   }
 }
+

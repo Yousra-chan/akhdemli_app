@@ -315,13 +315,14 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildTopBar(BuildContext context, LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: IconButton(
         onPressed: () => Navigator.maybePop(context),
-        icon: const Icon(
+        icon: Icon(
           CupertinoIcons.arrow_left,
-          color: kMutedTextColor,
+          color: theme.textTheme.bodySmall?.color ?? kMutedTextColor,
           size: 24,
         ),
         padding: EdgeInsets.zero,
@@ -339,7 +340,7 @@ class _RegisterPageState extends State<RegisterPage> {
           width: 24,
           child: Checkbox(
             value: _termsAccepted,
-            activeColor: kPrimaryBlue,
+            activeColor: theme.primaryColor,
             onChanged: (val) => setState(() => _termsAccepted = val ?? false),
           ),
         ),
@@ -355,10 +356,10 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Text.rich(
               TextSpan(
                 text: lang.tr('accept_terms', category: 'terms'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontFamily: kAppFont,
-                  color: kDarkTextColor,
+                  color: theme.textTheme.bodyMedium?.color ?? kDarkTextColor,
                 ),
                 children: const [
                   TextSpan(
@@ -375,7 +376,8 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildGeolocationSection(LanguageProvider lang) {
-    Color statusColor = Colors.grey;
+    final theme = Theme.of(context);
+    Color statusColor = theme.brightness == Brightness.dark ? Colors.grey[400]! : Colors.grey;
     IconData statusIcon = Icons.location_off;
 
     if (_currentPosition != null) {
@@ -389,7 +391,7 @@ class _RegisterPageState extends State<RegisterPage> {
     } else if (_locationMessage.contains('Requesting') ||
         _locationMessage
             .contains(lang.tr('gps_requesting', category: 'auth'))) {
-      statusColor = kPrimaryBlue;
+      statusColor = theme.primaryColor;
       statusIcon = Icons.info_outline;
     }
 
@@ -414,7 +416,7 @@ class _RegisterPageState extends State<RegisterPage> {
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryBlue,
+              backgroundColor: theme.primaryColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -445,14 +447,15 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildRoleSelection(LanguageProvider lang) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           lang.tr('role_title', category: 'auth'),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: kAppFont,
-            color: kDarkTextColor,
+            color: theme.textTheme.titleMedium?.color ?? kDarkTextColor,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -495,11 +498,17 @@ class _RegisterPageState extends State<RegisterPage> {
 
   InputDecoration _buildAestheticInputDecoration(
       String hint, LanguageProvider lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: kMutedTextColor, fontFamily: kAppFont),
+      hintStyle: TextStyle(
+        color: theme.textTheme.bodySmall?.color ?? kMutedTextColor, 
+        fontFamily: kAppFont
+      ),
       filled: true,
-      fillColor: kInputFillColor.withOpacity(0.5),
+      fillColor: isDark ? Colors.white.withOpacity(0.05) : kInputFillColor.withOpacity(0.5),
       contentPadding:
           const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
       border: OutlineInputBorder(
@@ -512,7 +521,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kPrimaryBlue, width: 2),
+        borderSide: BorderSide(color: theme.primaryColor, width: 2),
       ),
     );
   }
@@ -521,11 +530,12 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     // Get the real AuthViewModel to access isLoading state
     final authViewModel = Provider.of<AuthViewModel>(context);
+    final theme = Theme.of(context);
 
     return Consumer<LanguageProvider>(
       builder: (context, lang, child) {
         return Scaffold(
-          backgroundColor: kLightBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: SafeArea(
             child: SingleChildScrollView(
               child: Padding(
@@ -554,11 +564,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: theme.cardColor,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.black.withOpacity(0.05),
                             spreadRadius: 5,
                             blurRadius: 15,
                             offset: const Offset(0, 5),
@@ -571,8 +581,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           Text(
                             lang.tr('register_title', category: 'auth'),
                             textAlign: TextAlign.left,
-                            style: const TextStyle(
-                              color: kDarkTextColor,
+                            style: TextStyle(
+                              color: theme.textTheme.titleLarge?.color ?? kDarkTextColor,
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               fontFamily: kAppFont,
@@ -582,8 +592,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           Text(
                             lang.tr('register_subtitle', category: 'auth'),
                             textAlign: TextAlign.left,
-                            style: const TextStyle(
-                              color: kMutedTextColor,
+                            style: TextStyle(
+                              color: theme.textTheme.bodySmall?.color ?? kMutedTextColor,
                               fontSize: 16,
                               fontWeight: FontWeight.w400,
                               fontFamily: kAppFont,
@@ -604,9 +614,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                   keyboardType: TextInputType.name,
                                   textCapitalization: TextCapitalization.words,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: kAppFont,
-                                    color: kDarkTextColor,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
                                   ),
                                   validator: (value) => value!.isEmpty
                                       ? lang.tr('validation_name_required',
@@ -624,9 +634,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     lang,
                                   ),
                                   keyboardType: TextInputType.emailAddress,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: kAppFont,
-                                    color: kDarkTextColor,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
                                   ),
                                   validator: (value) {
                                     if (value!.isEmpty) {
@@ -653,9 +663,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     lang,
                                   ),
                                   keyboardType: TextInputType.phone,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: kAppFont,
-                                    color: kDarkTextColor,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
@@ -690,8 +700,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                   }).toList(),
                                   onChanged: _onWilayaChanged,
                                   validator: (value) => value == null ? lang.tr('validation_wilaya_required', category: 'auth') : null,
-                                  icon: const Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
-                                  dropdownColor: Colors.white,
+                                  icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
+                                  dropdownColor: theme.cardColor,
                                 ),
                                 const SizedBox(height: 16),
 
@@ -710,8 +720,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                   }).toList(),
                                   onChanged: (value) => setState(() => _selectedCommune = value),
                                   validator: (value) => value == null ? lang.tr('validation_commune_required', category: 'auth') : null,
-                                  icon: const Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
-                                  dropdownColor: Colors.white,
+                                  icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
+                                  dropdownColor: theme.cardColor,
                                 ),
                                 const SizedBox(height: 16),
 
@@ -731,9 +741,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     lang,
                                   ),
                                   obscureText: true,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: kAppFont,
-                                    color: kDarkTextColor,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
@@ -766,9 +776,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     lang,
                                   ),
                                   obscureText: true,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: kAppFont,
-                                    color: kDarkTextColor,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
                                   ),
                                   validator: (value) {
                                     if (value!.isEmpty) {
