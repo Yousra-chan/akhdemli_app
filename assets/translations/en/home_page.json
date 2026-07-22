@@ -17,5 +17,19 @@
   "all_categories": "All Categories",
   "all_services": "All Services",
   "search_results": "Search Results",
-  "see_all": "See All"
+  "see_all": "See All",
+  "popular_searches": "Popular Categories",
+  "my_location": "My Location",
+  "clear_cloud": "Clear Cloud",
+  "search_hint": "Where can we take you?",
+  "browse_activity": "Browse by activity",
+  "popular_destination": "Popular Destination",
+  "all": "All",
+  "popular": "Popular",
+  "recommended": "Recommended",
+  "most_viewed": "Most Viewed",
+  "good_morning": "Good Morning",
+  "good_afternoon": "Good Afternoon",
+  "good_evening": "Good Evening",
+  "ready_to_work": "Ready to work today?"
 }

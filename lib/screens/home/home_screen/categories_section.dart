@@ -78,7 +78,7 @@ class CategoriesPage extends StatelessWidget {
         crossAxisCount: 3,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.65,
+        childAspectRatio: 0.72,
       ),
       itemCount: categories.length,
       itemBuilder: (context, index) {
@@ -159,38 +159,54 @@ class _CategoryGridCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final color = getColorForCategory(category.name, index);
+    final cardBg = isDark ? const Color(0xFF252529) : Colors.white;
 
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Image area
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: _buildVisual(color, isDark),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black26 : Colors.black.withOpacity(0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Label
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              category.getTranslatedName(lang),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isDark ? Colors.white70 : const Color(0xFF2D2D2D),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Exo2',
-                height: 1.2,
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Image area
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: _buildVisual(color, isDark),
+                ),
               ),
             ),
-          ),
-        ],
+            // Label
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+              child: Text(
+                category.getTranslatedName(lang),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : const Color(0xFF2D2D2D),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Exo2',
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -201,7 +217,7 @@ class _CategoryGridCard extends StatelessWidget {
         final bytes = ImageUtils.decodeBase64Image(category.iconUrl);
         if (bytes != null) {
           return Image.memory(bytes,
-              fit: BoxFit.contain,
+              fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
               errorBuilder: (_, __, ___) => _fallbackIcon(color, isDark));
@@ -209,7 +225,7 @@ class _CategoryGridCard extends StatelessWidget {
       } else {
         return CachedNetworkImage(
           imageUrl: category.iconUrl!,
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
           placeholder: (_, __) => _shimmer(),

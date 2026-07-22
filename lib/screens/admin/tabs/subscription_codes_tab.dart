@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../models/UserModel.dart';
 import '../../../ViewModel/admin_view_model.dart';
 import '../../../utils/ui_widgets.dart';
 import '../../../providers/language_provider.dart';
@@ -523,80 +524,184 @@ class _SubscriptionCodesTabState extends State<SubscriptionCodesTab> {
   }
 
   void _showGenerateDialog(BuildContext context, AdminViewModel vm, LanguageProvider lang) {
-    final emailCtrl = TextEditingController();
+    final searchCtrl = TextEditingController();
     int selectedMonths = 1;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    UserModel? selectedUser;
+    bool isSearching = false;
+    String? searchError;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Text(
-            lang.tr('generate_new_code', category: 'admin'),
-            style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AdminColors.textMain),
-          ),
-          content: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lang.tr('assign_to_email', category: 'admin'),
-                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : AdminColors.textSecondary),
+        builder: (context, setState) {
+          Future<void> performSearch() async {
+            final query = searchCtrl.text.trim();
+            if (query.isEmpty) return;
+
+            setState(() {
+              isSearching = true;
+              searchError = null;
+              selectedUser = null;
+            });
+
+            try {
+              final user = await vm.findUser(query);
+              if (user != null) {
+                setState(() => selectedUser = user);
+              } else {
+                setState(() => searchError = lang.tr('no_user_found_search', category: 'admin'));
+              }
+            } catch (e) {
+              setState(() => searchError = e.toString());
+            } finally {
+              setState(() => isSearching = false);
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: Text(
+              lang.tr('generate_new_code', category: 'admin'),
+              style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AdminColors.textMain),
+            ),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      lang.tr('search_user_by_id_email', category: 'admin'),
+                      style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : AdminColors.textSecondary),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AdminTextField(
+                            controller: searchCtrl,
+                            hintText: lang.tr('enter_uid_or_email', category: 'admin'),
+                            prefixIcon: Icons.search_rounded,
+                            onSubmitted: (_) => performSearch(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: isSearching ? null : performSearch,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AdminColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: isSearching
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (searchError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(searchError!, style: const TextStyle(color: AdminColors.danger, fontSize: 12)),
+                      ),
+                    const SizedBox(height: 20),
+                    if (selectedUser != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AdminColors.primary.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AdminColors.primary.withOpacity(0.1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(lang.tr('target_user', category: 'admin'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminColors.primary)),
+                            const SizedBox(height: 8),
+                            _buildUserDetailItem(Icons.person_outline, lang.tr('name', category: 'common'), selectedUser!.name),
+                            _buildUserDetailItem(Icons.email_outlined, lang.tr('email', category: 'common'), selectedUser!.email),
+                            _buildUserDetailItem(Icons.fingerprint, 'UID', selectedUser!.uid),
+                            _buildUserDetailItem(
+                              Icons.verified_user_outlined,
+                              lang.tr('status', category: 'common'),
+                              selectedUser!.hasValidSubscription ? lang.tr('active', category: 'admin') : lang.tr('inactive', category: 'admin'),
+                              color: selectedUser!.hasValidSubscription ? AdminColors.success : AdminColors.danger,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        lang.tr('duration', category: 'admin'),
+                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : AdminColors.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        value: selectedMonths,
+                        dropdownColor: Theme.of(context).cardColor,
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white : AdminColors.textMain),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withOpacity(0.04) : AdminColors.background,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        items: [1, 3, 6, 12].map((m) => DropdownMenuItem(
+                          value: m,
+                          child: Text(lang.trParams('months_count', category: 'admin', params: {'count': m.toString()})),
+                        )).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => selectedMonths = val);
+                        },
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 8),
-                AdminTextField(
-                  controller: emailCtrl,
-                  hintText: lang.tr('user_email_placeholder', category: 'admin'),
-                  prefixIcon: Icons.email_outlined,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  lang.tr('duration', category: 'admin'),
-                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : AdminColors.textSecondary),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  value: selectedMonths,
-                  dropdownColor: Theme.of(context).cardColor,
-                  style: TextStyle(fontSize: 14, color: isDark ? Colors.white : AdminColors.textMain),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: isDark ? Colors.white.withOpacity(0.04) : AdminColors.background,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  items: [1, 3, 6, 12].map((m) => DropdownMenuItem(
-                    value: m,
-                    child: Text(lang.trParams('months_count', category: 'admin', params: {'count': m.toString()})),
-                  )).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => selectedMonths = val);
-                  },
-                ),
-              ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(lang.tr('cancel', category: 'common')),
+              ),
+              AdminButton(
+                label: lang.tr('generate', category: 'admin'),
+                onPressed: selectedUser == null
+                    ? null
+                    : () async {
+                        final code = await vm.generateNewCode(email: selectedUser!.email, months: selectedMonths);
+                        Navigator.pop(ctx);
+                        if (context.mounted) _showSuccessDialog(context, code, lang, selectedUser!.email);
+                      },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildUserDetailItem(IconData icon, String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: AdminColors.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label: $value',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(lang.tr('cancel', category: 'common')),
-            ),
-            AdminButton(
-              label: lang.tr('generate', category: 'admin'),
-              onPressed: () async {
-                if (emailCtrl.text.isEmpty) return;
-                final email = emailCtrl.text.trim();
-                final code = await vm.generateNewCode(email: email, months: selectedMonths);
-                Navigator.pop(ctx);
-                if (context.mounted) _showSuccessDialog(context, code, lang, email);
-              },
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

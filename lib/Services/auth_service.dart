@@ -439,7 +439,7 @@ class AuthService {
   ///
   /// Returns: UserModel of authenticated user
   /// Throws: AuthException on Google sign-in failure
-  Future<UserModel> signInWithGoogle() async {
+  Future<UserModel> signInWithGoogle({String? password}) async {
     try {
       debugPrint('🚀 [AuthService] Starting Google Sign-In...');
       
@@ -486,6 +486,21 @@ class AuthService {
 
       debugPrint('✅ [AuthService] Firebase sign-in successful: ${user.uid}');
 
+      // Link password if provided and user is new
+      if (userCredential.additionalUserInfo?.isNewUser == true && password != null && user.email != null) {
+        try {
+          debugPrint('🔗 [AuthService] Linking password to new Google account...');
+          final passwordCredential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: password,
+          );
+          await user.linkWithCredential(passwordCredential);
+          debugPrint('✅ [AuthService] Password linked successfully');
+        } catch (e) {
+          debugPrint('⚠️ [AuthService] Error linking password: $e');
+        }
+      }
+
       final userModel = await _saveUserToFirestore(
         user,
         name: user.displayName ?? 'User',
@@ -519,7 +534,7 @@ class AuthService {
   ///
   /// Returns: UserModel of authenticated user
   /// Throws: AuthException on Apple sign-in failure
-  Future<UserModel> signInWithApple() async {
+  Future<UserModel> signInWithApple({String? password}) async {
     try {
       debugPrint('🚀 [AuthService] Starting Apple Sign-In...');
       
@@ -558,6 +573,21 @@ class AuthService {
       }
 
       debugPrint('✅ [AuthService] Firebase sign-in successful: ${user.uid}');
+
+      // Link password if provided and user is new
+      if (userCredential.additionalUserInfo?.isNewUser == true && password != null && user.email != null) {
+        try {
+          debugPrint('🔗 [AuthService] Linking password to new Apple account...');
+          final passwordCredential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: password,
+          );
+          await user.linkWithCredential(passwordCredential);
+          debugPrint('✅ [AuthService] Password linked successfully');
+        } catch (e) {
+          debugPrint('⚠️ [AuthService] Error linking password: $e');
+        }
+      }
 
       // Apple only provides name on the FIRST sign-in
       String displayName = 'User';
@@ -790,7 +820,33 @@ class AuthService {
         await doc.reference.delete();
       }
 
-      // 2. Delete user's bookings (as client or provider)
+      // 2. Delete user's posts
+      final posts = await _firestore
+          .collection('posts')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in posts.docs) {
+        await doc.reference.delete();
+      }
+
+      // 3. Delete user's jobs
+      final jobsAsClient = await _firestore
+          .collection('jobs')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in jobsAsClient.docs) {
+        await doc.reference.delete();
+      }
+
+      final jobsAsProvider = await _firestore
+          .collection('jobs')
+          .where('providerId', isEqualTo: uid)
+          .get();
+      for (var doc in jobsAsProvider.docs) {
+        await doc.reference.delete();
+      }
+
+      // 4. Delete user's bookings (as client or provider)
       final clientBookings = await _firestore
           .collection('bookings')
           .where('userId', isEqualTo: uid)
@@ -807,7 +863,7 @@ class AuthService {
         await doc.reference.delete();
       }
 
-      // 3. Delete user's ratings
+      // 5. Delete user's ratings and reviews
       final ratings = await _firestore
           .collection('ratings')
           .where('userId', isEqualTo: uid)
@@ -816,7 +872,23 @@ class AuthService {
         await doc.reference.delete();
       }
 
-      // 4. Delete user's notifications
+      final reviewsAsReviewer = await _firestore
+          .collection('reviews')
+          .where('reviewerId', isEqualTo: uid)
+          .get();
+      for (var doc in reviewsAsReviewer.docs) {
+        await doc.reference.delete();
+      }
+
+      final reviewsAsReviewed = await _firestore
+          .collection('reviews')
+          .where('reviewedId', isEqualTo: uid)
+          .get();
+      for (var doc in reviewsAsReviewed.docs) {
+        await doc.reference.delete();
+      }
+
+      // 6. Delete user's notifications
       final notifications = await _firestore
           .collection('notifications')
           .where('userId', isEqualTo: uid)
@@ -825,10 +897,46 @@ class AuthService {
         await doc.reference.delete();
       }
 
-      // 5. Delete Firestore profile
+      // 7. Delete user's chats and messages
+      final userChats = await _firestore
+          .collection('chats')
+          .where('participants', arrayContains: uid)
+          .get();
+      
+      for (var chatDoc in userChats.docs) {
+        // Delete all messages in the chat subcollection
+        final messages = await chatDoc.reference.collection('messages').get();
+        for (var msgDoc in messages.docs) {
+          await msgDoc.reference.delete();
+        }
+        // Delete the chat document itself
+        await chatDoc.reference.delete();
+      }
+
+      // 8. Delete provider gallery
+      await _firestore.collection('provider_galleries').doc(uid).delete();
+
+      // 9. Delete user's reports (as reporter or target)
+      final reportsAsReporter = await _firestore
+          .collection('reports')
+          .where('reporterId', isEqualTo: uid)
+          .get();
+      for (var doc in reportsAsReporter.docs) {
+        await doc.reference.delete();
+      }
+
+      final reportsAsTarget = await _firestore
+          .collection('reports')
+          .where('targetId', isEqualTo: uid)
+          .get();
+      for (var doc in reportsAsTarget.docs) {
+        await doc.reference.delete();
+      }
+
+      // 10. Delete Firestore profile
       await _firestore.collection(_usersCollection).doc(uid).delete();
 
-      // 6. Delete Firebase Auth user
+      // 11. Delete Firebase Auth user
       if (currentUser != null && currentUser.uid == uid) {
         await currentUser.delete();
       }
@@ -850,8 +958,17 @@ class AuthService {
   /// Sends email verification to the current user
   Future<void> sendEmailVerification() async {
     final user = _auth.currentUser;
+    debugPrint('📧 [AuthService] sendEmailVerification called for: ${user?.email}');
     if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
+      try {
+        await user.sendEmailVerification();
+        debugPrint('✅ [AuthService] sendEmailVerification successful');
+      } catch (e) {
+        debugPrint('❌ [AuthService] sendEmailVerification failed: $e');
+        rethrow;
+      }
+    } else {
+      debugPrint('⚠️ [AuthService] sendEmailVerification skipped: User null or already verified');
     }
   }
 

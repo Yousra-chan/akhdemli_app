@@ -75,14 +75,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
     try {
+      debugPrint('📧 [EmailVerification] Requesting resend for: ${authVM.currentUser?.email}');
       await authVM.resendVerificationEmail();
       if (mounted) {
         AppSnackBar.showSuccess(context, lang.tr('verification_email_sent', category: 'auth'));
         _startResendTimer();
       }
     } catch (e) {
+      debugPrint('❌ [EmailVerification] Resend failed with error: $e');
       if (mounted) {
-        AppSnackBar.showError(context, e.toString());
+        AppSnackBar.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isResending = false);

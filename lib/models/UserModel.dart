@@ -111,7 +111,7 @@ class UserModel {
       name: data['name'] ?? data['displayName'] ?? data['fullName'] ?? '',
       email: data['email'] ?? data['emailAddress'] ?? '',
       phone: data['phone'] ?? '',
-      role: data['role'] ?? 'client',
+      role: data['role']?.toString() ?? 'client',
       photoUrl: data['photoUrl'] ?? '',
       createdAt: data['createdAt'] ?? Timestamp.now(),
       location: data['location'],
@@ -144,7 +144,7 @@ class UserModel {
       commune: data['commune'],
       subscriptionExpiresAt:
           data['subscriptionExpiresAt'] ?? data['subscriptionExpiry'],
-      isAdmin: data['role'] == 'admin' || (data['isAdmin'] ?? false),
+      isAdmin: data['role']?.toString().toLowerCase() == 'admin' || (data['isAdmin'] ?? false),
     );
   }
 
@@ -205,9 +205,19 @@ class UserModel {
     );
   }
 
-  bool get isProvider => role == 'provider';
-  bool get isClient => role == 'client';
-  bool get isGuest => role == 'guest';
+  /// Returns true if the user is identified as a provider.
+  bool get isProvider {
+    final normalizedRole = role.toLowerCase().trim();
+    // A user is a provider if their role is provider, OR they have a profession,
+    // OR they have services, OR they have a portfolio.
+    return normalizedRole == 'provider' || 
+           (profession != null && profession!.trim().isNotEmpty) ||
+           (serviceIds != null && serviceIds!.isNotEmpty) ||
+           (portfolio != null && portfolio!.isNotEmpty);
+  }
+
+  bool get isClient => role.toLowerCase() == 'client';
+  bool get isGuest => role.toLowerCase() == 'guest';
 
   bool get hasValidSubscription {
     final expiry = subscriptionExpiresAt ?? subscriptionExpiry;

@@ -17,5 +17,19 @@
   "all_categories": "جميع الفئات",
   "all_services": "جميع الخدمات",
   "search_results": "نتائج البحث",
-  "see_all": "عرض الكل"
+  "see_all": "عرض الكل",
+  "popular_searches": "الفئات الشائعة",
+  "my_location": "موقعي",
+  "clear_cloud": "سماء صافية",
+  "search_hint": "إلى أين يمكننا أن نأخذك؟",
+  "browse_activity": "تصفح حسب النشاط",
+  "popular_destination": "أبرز الخبراء",
+  "all": "الكل",
+  "popular": "شائع",
+  "recommended": "موصى به",
+  "most_viewed": "الأكثر مشاهدة",
+  "good_morning": "صباح الخير",
+  "good_afternoon": "مساء الخير",
+  "good_evening": "مساء الخير",
+  "ready_to_work": "هل أنت مستعد للعمل اليوم؟"
 }

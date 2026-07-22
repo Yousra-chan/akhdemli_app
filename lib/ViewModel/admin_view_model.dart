@@ -10,6 +10,8 @@ import 'package:image_picker/image_picker.dart';
 import '../Services/subscription_service.dart';
 import '../Services/notification_service.dart';
 import '../models/CategoryModel.dart';
+import '../models/UserModel.dart';
+import '../models/ServicesModel.dart';
 
 class AdminViewModel extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -50,6 +52,37 @@ class AdminViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> analyticsRedemptions = [];
   List<Map<String, dynamic>> expiringSoonCodes = [];
 
+  // Services
+  List<Service> paginatedServices = [];
+  DocumentSnapshot? _lastServiceDoc;
+  bool _hasMoreServices = true;
+  bool _isLoadingMoreServices = false;
+  String _serviceSearchQuery = '';
+  String? _serviceStatusFilter;
+  String? _serviceCategoryFilter;
+  String? _serviceSubcategoryFilter;
+  String _serviceSortField = 'createdAt';
+  bool _serviceSortDescending = true;
+  Set<String> selectedServiceIds = {};
+
+  bool get hasMoreServices => _hasMoreServices;
+  bool get isLoadingMoreServices => _isLoadingMoreServices;
+
+  bool get serviceFiltersAreActive => 
+    _serviceSearchQuery.isNotEmpty || 
+    (_serviceStatusFilter != null && _serviceStatusFilter != 'all') || 
+    (_serviceCategoryFilter != null && _serviceCategoryFilter != 'all');
+
+  void clearAllServiceFilters() {
+    _serviceSearchQuery = '';
+    _serviceStatusFilter = 'all';
+    _serviceCategoryFilter = 'all';
+    _serviceSubcategoryFilter = 'all';
+    _serviceSortField = 'createdAt';
+    _serviceSortDescending = true;
+    fetchServices(isRefresh: true);
+  }
+
   List<CategoryModel> categories = [];
   
   StreamSubscription? _usersSubscription;
@@ -69,6 +102,7 @@ class AdminViewModel extends ChangeNotifier {
       _setupListeners();
       await fetchCodeStats();
       await fetchCodes(isRefresh: true);
+      await fetchServices(isRefresh: true);
       await fetchAnalytics();
     } catch (e) {
       debugPrint('Error during admin init: $e');
@@ -238,7 +272,10 @@ class AdminViewModel extends ChangeNotifier {
     final Map<String, dynamic> updates = {};
     if (isSuspended != null) updates['isSuspended'] = isSuspended;
     if (isBanned != null) updates['isBanned'] = isBanned;
-    if (role != null) updates['role'] = role;
+    if (role != null) {
+      updates['role'] = role;
+      updates['isAdmin'] = role == 'admin';
+    }
     
     await _db.collection('users').doc(uid).update(updates);
   }
@@ -443,6 +480,38 @@ class AdminViewModel extends ChangeNotifier {
     await fetchCodeStats();
   }
 
+  Future<UserModel?> findUser(String query) async {
+    final search = query.trim();
+    if (search.isEmpty) return null;
+
+    final isEmail = search.contains('@');
+
+    try {
+      if (isEmail) {
+        final snap = await _db
+            .collection('users')
+            .where('email', isEqualTo: search.toLowerCase())
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty) {
+          return UserModel.fromMap(snap.docs.first.data(), snap.docs.first.id);
+        }
+      } else {
+        // Try as UID
+        final doc = await _db.collection('users').doc(search).get();
+        if (doc.exists) {
+          return UserModel.fromMap(doc.data()!, doc.id);
+        }
+
+        // If not found by UID, maybe it's an email without @ (unlikely but possible search)
+        // or just search by name? The requirement said UID or Email.
+      }
+    } catch (e) {
+      debugPrint('Error searching for user: $e');
+    }
+    return null;
+  }
+
   Future<void> toggleCodeStatus(String codeId, bool isEnabled) async {
     final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
     await _subService.updateCodeStatus(codeId, isEnabled, adminId);
@@ -466,5 +535,170 @@ class AdminViewModel extends ChangeNotifier {
     }
     
     await Clipboard.setData(ClipboardData(text: csv));
+  }
+
+  // --- SERVICE MANAGEMENT (ENHANCED) ---
+  Future<void> fetchServices({bool isRefresh = false}) async {
+    if (isRefresh) {
+      _lastServiceDoc = null;
+      _hasMoreServices = true;
+      paginatedServices = [];
+    }
+
+    if (!_hasMoreServices) return;
+    if (_isLoadingMoreServices && !isRefresh) return;
+
+    if (!isRefresh) {
+      _isLoadingMoreServices = true;
+      notifyListeners();
+    }
+
+    try {
+      Query query = _db.collection('services');
+
+      if (_serviceStatusFilter != null && _serviceStatusFilter != 'all') {
+        query = query.where('isActive', isEqualTo: _serviceStatusFilter == 'active');
+      }
+
+      if (_serviceCategoryFilter != null) {
+        query = query.where('category', isEqualTo: _serviceCategoryFilter);
+      }
+
+      if (_serviceSubcategoryFilter != null) {
+        query = query.where('subcategory', isEqualTo: _serviceSubcategoryFilter);
+      }
+
+      // Sorting
+      query = query.orderBy(_serviceSortField, descending: _serviceSortDescending);
+
+      if (_lastServiceDoc != null) {
+        query = query.startAfterDocument(_lastServiceDoc!);
+      }
+
+      final snapshot = await query.limit(20).get();
+      
+      final List<Service> newServices = snapshot.docs.map((d) => Service.fromFirestore(d)).toList();
+
+      // Client-side search if needed (Firestore doesn't support partial match well without extra setup)
+      // For now, let's assume search is handled by query or simple contains if small dataset
+      // If search query is present, we might need a different approach or filter locally
+      List<Service> filtered = newServices;
+      if (_serviceSearchQuery.isNotEmpty) {
+        final q = _serviceSearchQuery.toLowerCase();
+        filtered = newServices.where((s) => s.title.toLowerCase().contains(q) || s.category.toLowerCase().contains(q) || s.subcategory.toLowerCase().contains(q)).toList();
+      }
+
+      if (isRefresh) {
+        paginatedServices = filtered;
+      } else {
+        paginatedServices.addAll(filtered);
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        _lastServiceDoc = snapshot.docs.last;
+      }
+
+      _hasMoreServices = snapshot.docs.length == 20;
+    } catch (e) {
+      debugPrint('Error fetching services: $e');
+    } finally {
+      _isLoadingMoreServices = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreServices() async {
+    await fetchServices(isRefresh: false);
+  }
+
+  void setServiceFilters({String? status, String? category, String? subcategory, String? sortField, bool? descending, String? search}) {
+    if (status != null) _serviceStatusFilter = status;
+    if (category != null) {
+      _serviceCategoryFilter = category == 'all' ? null : category;
+      _serviceSubcategoryFilter = null; // Reset sub when category changes
+    }
+    if (subcategory != null) _serviceSubcategoryFilter = subcategory == 'all' ? null : subcategory;
+    if (sortField != null) _serviceSortField = sortField;
+    if (descending != null) _serviceSortDescending = descending;
+    if (search != null) _serviceSearchQuery = search;
+    
+    fetchServices(isRefresh: true);
+  }
+
+  void toggleServiceSelection(String serviceId) {
+    if (selectedServiceIds.contains(serviceId)) {
+      selectedServiceIds.remove(serviceId);
+    } else {
+      selectedServiceIds.add(serviceId);
+    }
+    notifyListeners();
+  }
+
+  void clearServiceSelection() {
+    selectedServiceIds.clear();
+    notifyListeners();
+  }
+
+  Future<void> batchUpdateServicesStatus(bool isActive) async {
+    if (selectedServiceIds.isEmpty) return;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final batch = _db.batch();
+      for (var id in selectedServiceIds) {
+        batch.update(_db.collection('services').doc(id), {'isActive': isActive, 'updatedAt': FieldValue.serverTimestamp()});
+      }
+      await batch.commit();
+      await fetchServices(isRefresh: true);
+      clearServiceSelection();
+    } catch (e) {
+      debugPrint('Error batch updating services: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> batchDeleteServices() async {
+    if (selectedServiceIds.isEmpty) return;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final batch = _db.batch();
+      for (var id in selectedServiceIds) {
+        batch.delete(_db.collection('services').doc(id));
+      }
+      await batch.commit();
+      await fetchServices(isRefresh: true);
+      clearServiceSelection();
+    } catch (e) {
+      debugPrint('Error batch deleting services: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> duplicateService(Service service) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = service.toMap();
+      data.remove('id');
+      data['title'] = '${service.title} (Copy)';
+      data['createdAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['isActive'] = false; // Duplicated service starts as inactive
+
+      await _db.collection('services').add(data);
+      await fetchServices(isRefresh: true);
+    } catch (e) {
+      debugPrint('Error duplicating service: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

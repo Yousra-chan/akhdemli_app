@@ -17,5 +17,19 @@
   "all_categories": "Toutes les catégories",
   "all_services": "Tous les services",
   "search_results": "Résultats de recherche",
-  "see_all": "Voir tout"
+  "see_all": "Voir tout",
+  "popular_searches": "Catégories Populaires",
+  "my_location": "Ma Position",
+  "clear_cloud": "Ciel Dégagé",
+  "search_hint": "Où pouvons-nous vous emmener ?",
+  "browse_activity": "Parcourir par activité",
+  "popular_destination": "Experts Populaires",
+  "all": "Tout",
+  "popular": "Populaire",
+  "recommended": "Recommandé",
+  "most_viewed": "Plus vus",
+  "good_morning": "Bonjour",
+  "good_afternoon": "Bon après-midi",
+  "good_evening": "Bonsoir",
+  "ready_to_work": "Prêt à travailler aujourd'hui ?"
 }

@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
@@ -54,6 +56,8 @@ class _MapSearchPageState extends State<MapSearchPage> {
   List<Marker> _markers = [];
 
   late SearchViewModel _searchViewModel;
+  final TextEditingController _textController = TextEditingController();
+  Timer? _debounce;
 
   final LocationService _locationService = LocationService();
 
@@ -73,6 +77,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
     _searchViewModel = SearchViewModel();
     _initializeMap();
     if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _textController.text = widget.initialQuery!;
       _searchTextQuery = widget.initialQuery;
       _executeInitialTextSearch(widget.initialQuery!);
     } else {
@@ -80,9 +85,24 @@ class _MapSearchPageState extends State<MapSearchPage> {
     }
   }
 
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), () async {
+      setState(() {
+        _searchTextQuery = query;
+      });
+      if (query.isNotEmpty) {
+        await _executeInitialTextSearch(query);
+      } else {
+        await _loadInitialData();
+      }
+    });
+  }
+
   Future<void> _executeInitialTextSearch(String query) async {
     try {
-      setState(() => _isLoadingLocation = true); // Use this to show a loading state
+      // Don't use _isLoadingLocation for subsequent searches to avoid hiding the map
+      // SearchViewModel.isLoading will show a smaller overlay instead
       await _searchViewModel.executeSearch(query);
       if (mounted) {
         if (_searchViewModel.providerResults.isNotEmpty) {
@@ -91,17 +111,19 @@ class _MapSearchPageState extends State<MapSearchPage> {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) _centerMapOnMarkers();
           });
+        } else {
+          setState(() => _markers = []);
         }
       }
     } catch (e) {
       debugPrint('Error executing initial text search: $e');
-    } finally {
-      if (mounted) setState(() => _isLoadingLocation = false);
     }
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _textController.dispose();
     _clearResources();
     super.dispose();
   }
@@ -191,7 +213,10 @@ class _MapSearchPageState extends State<MapSearchPage> {
           height: 104,
           alignment: Alignment.bottomCenter,
           child: GestureDetector(
-            onTap: () => _handleMarkerTap(provider),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              _handleMarkerTap(provider);
+            },
             child: _buildCustomMarkerWidget(provider),
           ),
         ),
@@ -360,6 +385,7 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   void _clearFilters() {
     setState(() {
+      _textController.clear();
       _currentFilters = {};
       _searchTextQuery = null;
       _markers.clear();
@@ -388,18 +414,22 @@ class _MapSearchPageState extends State<MapSearchPage> {
     final useDistance = _currentFilters['useDistanceFilter'] as bool? ?? false;
     
     double zoom = 13.0;
-    if (useDistance && maxDistance != null) {
+    if (useDistance && maxDistance != null && maxDistance.isFinite && maxDistance > 0) {
       zoom = _getZoomLevelForRadius(maxDistance);
     }
 
-    if (wilayaCoordinates != null) {
+    if (wilayaCoordinates != null && 
+        wilayaCoordinates.latitude.isFinite && 
+        wilayaCoordinates.longitude.isFinite) {
       _mapController.move(wilayaCoordinates, zoom);
       if (_searchViewModel.providerResults.isEmpty) {
         _showNoProvidersMessage(wilayaName ?? '');
       }
     } else if (wilayaName != null) {
       _getAndCenterWilaya(wilayaName, zoom: zoom);
-    } else if (_userLocation != null) {
+    } else if (_userLocation != null && 
+               _userLocation!.latitude.isFinite && 
+               _userLocation!.longitude.isFinite) {
       _mapController.move(_userLocation!, zoom);
     }
   }
@@ -428,8 +458,39 @@ class _MapSearchPageState extends State<MapSearchPage> {
 
   void _centerMapOnMarkers() {
     if (_markers.isNotEmpty) {
-      final bounds = LatLngBounds.fromPoints(_markers.map((m) => m.point).toList());
-      _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(100)));
+      try {
+        final validPoints = _markers
+            .map((m) => m.point)
+            .where((p) =>
+                p.latitude.isFinite &&
+                p.longitude.isFinite &&
+                !p.latitude.isNaN &&
+                !p.longitude.isNaN)
+            .toList();
+
+        if (validPoints.isEmpty) return;
+
+        if (validPoints.length == 1) {
+          _mapController.move(validPoints.first, 14.0);
+          return;
+        }
+
+        final bounds = LatLngBounds.fromPoints(validPoints);
+        
+        // Ensure bounds are not zero-size (which can cause NaN in fitCamera)
+        if (bounds.north == bounds.south && bounds.east == bounds.west) {
+          _mapController.move(validPoints.first, 14.0);
+        } else {
+          _mapController.fitCamera(
+            CameraFit.bounds(
+              bounds: bounds, 
+              padding: const EdgeInsets.all(100),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error centering map on markers: $e');
+      }
     }
   }
 
@@ -1355,49 +1416,42 @@ class _MapSearchPageState extends State<MapSearchPage> {
         child: Row(
           children: [
             Expanded(
-              child: GestureDetector(
-                onTap: _showFilterDialog,
-                child: Container(
-                  height: 50,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: theme.scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border:
-                    Border.all(color: theme.dividerColor, width: 1.5),
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: theme.scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: theme.dividerColor, width: 1.5),
+                ),
+                child: TextField(
+                  controller: _textController,
+                  onChanged: _onSearchChanged,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 14,
+                    fontFamily: 'Exo2',
                   ),
-                  child: Row(
-                    children: [
-                      Icon(CupertinoIcons.search,
-                          color: kMediumText, size: 19),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Consumer<SearchViewModel>(
-                          builder: (_, __, ___) => Text(
-                            _buildSearchHint(),
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color ??
-                                  kMediumText,
-                              fontSize: 14,
-                              fontFamily: 'Exo2',
+                  decoration: InputDecoration(
+                    hintText: lp.tr('filter_hint', category: 'search'),
+                    hintStyle: TextStyle(
+                      color: kMediumText.withOpacity(0.7),
+                      fontSize: 14,
+                      fontFamily: 'Exo2',
+                    ),
+                    prefixIcon: const Icon(CupertinoIcons.search, color: kMediumText, size: 19),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                    suffixIcon: (_textController.text.isNotEmpty || _currentFilters.isNotEmpty)
+                        ? Container(
+                            margin: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              gradient: kPrimaryGradient,
+                              shape: BoxShape.circle,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                      if (_currentFilters.isNotEmpty || (_searchTextQuery != null && _searchTextQuery!.isNotEmpty))
-                        Container(
-                          margin: const EdgeInsets.only(left: 6),
-                          padding: const EdgeInsets.all(5),
-                          decoration: const BoxDecoration(
-                            gradient: kPrimaryGradient,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.check,
-                              color: Colors.white, size: 12),
-                        ),
-                    ],
+                            child: const Icon(Icons.check, color: Colors.white, size: 10),
+                          )
+                        : null,
                   ),
                 ),
               ),
@@ -1406,7 +1460,10 @@ class _MapSearchPageState extends State<MapSearchPage> {
             _searchBarIconButton(
               color: theme.primaryColor,
               icon: Icons.filter_alt_rounded,
-              onTap: _showFilterDialog,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _showFilterDialog();
+              },
             ),
             if (_currentFilters.isNotEmpty || (_searchTextQuery != null && _searchTextQuery!.isNotEmpty)) ...[
               const SizedBox(width: 8),

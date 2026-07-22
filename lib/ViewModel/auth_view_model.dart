@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -38,6 +39,7 @@ class AuthViewModel with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _initialized = false;
+  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -102,10 +104,10 @@ class AuthViewModel with ChangeNotifier {
   }
 
   /// Signs in user with Google account
-  Future<UserModel?> signInWithGoogle() async {
+  Future<UserModel?> signInWithGoogle({String? password}) async {
     debugPrint('🌐 [AuthViewModel] Attempting Google Sign-In');
     return _executeAuthOperation(() async {
-      final userModel = await _authService.signInWithGoogle();
+      final userModel = await _authService.signInWithGoogle(password: password);
       _setUser(userModel);
       debugPrint('✅ [AuthViewModel] Google Sign-In successful');
       return userModel;
@@ -113,10 +115,10 @@ class AuthViewModel with ChangeNotifier {
   }
 
   /// Signs in user with Apple account
-  Future<UserModel?> signInWithApple() async {
+  Future<UserModel?> signInWithApple({String? password}) async {
     debugPrint('🍎 [AuthViewModel] Attempting Apple Sign-In');
     return _executeAuthOperation(() async {
-      final userModel = await _authService.signInWithApple();
+      final userModel = await _authService.signInWithApple(password: password);
       _setUser(userModel);
       debugPrint('✅ [AuthViewModel] Apple Sign-In successful');
       return userModel;
@@ -182,6 +184,8 @@ class AuthViewModel with ChangeNotifier {
   /// Throws: Exception if logout fails
   Future<void> logout() async {
     return _executeOperation(() async {
+      await _userDocSubscription?.cancel();
+      _userDocSubscription = null;
       await _authService.logout();
       _clearUser();
     }, 'Logout');
@@ -382,17 +386,9 @@ class AuthViewModel with ChangeNotifier {
     debugPrint('🔄 [AuthViewModel] Starting auth initialization');
 
     try {
+      // Listen to auth changes - this will handle the initial state as well
       _authService.authStateChanges.listen(_handleAuthStateChange);
       
-      final firebaseUser = _authService.getCurrentUser();
-      if (firebaseUser != null) {
-        debugPrint('🔍 [AuthViewModel] Found existing Firebase user: ${firebaseUser.uid}');
-        await _fetchCurrentUser(firebaseUser.uid);
-      } else {
-        debugPrint('ℹ️ [AuthViewModel] No existing session found');
-        _setUser(null);
-      }
-
       _initialized = true;
       notifyListeners();
     } catch (e) {
@@ -573,7 +569,44 @@ class AuthViewModel with ChangeNotifier {
   /// Sets current user and clears error
   void _setUser(UserModel? user) {
     debugPrint('🔄 [AuthViewModel] Setting user: ${user?.uid ?? "null"}');
-    _currentUser = user;
+    
+    if (user == null) {
+      _userDocSubscription?.cancel();
+      _userDocSubscription = null;
+      _currentUser = null;
+    } else {
+      // If UID changed, cancel old subscription
+      if (_currentUser?.uid != user.uid) {
+        _userDocSubscription?.cancel();
+        _userDocSubscription = null;
+      }
+      
+      _currentUser = user;
+      
+      // Setup real-time listener if not already listening
+      if (_userDocSubscription == null) {
+        _userDocSubscription = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .snapshots()
+            .listen((doc) {
+          if (doc.exists && doc.data() != null) {
+            final updatedUser = UserModel.fromMap(doc.data()!, doc.id);
+            // Only update if something changed to avoid infinite notifyListeners
+            if (updatedUser.role != _currentUser?.role || 
+                updatedUser.isAdmin != _currentUser?.isAdmin ||
+                updatedUser.subscriptionActive != _currentUser?.subscriptionActive ||
+                updatedUser.isSuspended != _currentUser?.isSuspended ||
+                updatedUser.isBanned != _currentUser?.isBanned) {
+              debugPrint('🔔 [AuthViewModel] Real-time user update: ${updatedUser.role}');
+              _currentUser = updatedUser;
+              notifyListeners();
+            }
+          }
+        });
+      }
+    }
+    
     _error = null;
     notifyListeners();
   }

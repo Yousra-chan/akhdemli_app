@@ -169,9 +169,11 @@ class AdminCard extends StatelessWidget {
                 ],
               ),
             ),
-          Padding(
-            padding: padding,
-            child: child,
+          Flexible(
+            child: Padding(
+              padding: padding,
+              child: child,
+            ),
           ),
         ],
       ),
@@ -342,14 +344,18 @@ class AdminTextField extends StatelessWidget {
   final String hintText;
   final IconData? prefixIcon;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final TextEditingController? controller;
+  final int maxLines;
 
   const AdminTextField({
     super.key,
     required this.hintText,
     this.prefixIcon,
     this.onChanged,
+    this.onSubmitted,
     this.controller,
+    this.maxLines = 1,
   });
 
   @override
@@ -359,6 +365,8 @@ class AdminTextField extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      maxLines: maxLines,
       style: TextStyle(color: theme.textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         hintText: hintText,

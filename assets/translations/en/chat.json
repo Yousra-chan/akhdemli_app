@@ -51,5 +51,8 @@
   "delete_chat_confirm": "Do you really want to delete the discussion with {{name}}?",
   "chat_deleted": "Discussion deleted",
   "delete_failed": "Failed to delete discussion",
+  "delete_message": "Delete Message",
+  "delete_message_confirm": "Do you really want to delete this message?",
+  "message_deleted": "Message deleted",
   "profile_not_available": "Public profile not available for this user"
 }

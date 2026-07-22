@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
@@ -40,6 +42,8 @@ class _RegisterPageState extends State<RegisterPage> {
   String _role = 'client';
   String _phone = '';
   bool _termsAccepted = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   
   String? _selectedWilaya;
   String? _selectedCommune;
@@ -108,74 +112,181 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  Future<void> _showSocialConfirmation(String provider, VoidCallback onConfirm) async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: theme.cardColor,
+        title: Row(
+          children: [
+            Icon(
+              provider == 'Google' ? FontAwesomeIcons.google : FontAwesomeIcons.apple,
+              color: provider == 'Google' ? Colors.red : (isDark ? Colors.white : Colors.black),
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              lang.tr('confirm_social_title', category: 'auth'),
+              style: const TextStyle(fontFamily: kAppFont, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              lang.trParams('confirm_social_desc', category: 'auth', params: {'provider': provider}),
+              style: TextStyle(fontFamily: kAppFont, color: theme.textTheme.bodyMedium?.color),
+            ),
+            const SizedBox(height: 16),
+            _buildDataPoint(Icons.person_outline, lang.tr('data_name', category: 'auth')),
+            _buildDataPoint(Icons.email_outlined, lang.tr('data_email', category: 'auth')),
+            _buildDataPoint(Icons.photo_outlined, lang.tr('data_photo', category: 'auth')),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              lang.tr('cancel', category: 'common'),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontFamily: kAppFont),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              lang.tr('continue', category: 'common'),
+              style: const TextStyle(color: Colors.white, fontFamily: kAppFont, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataPoint(IconData icon, String label) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: theme.primaryColor),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontSize: 13, fontFamily: kAppFont)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _signInWithGoogle() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
-    try {
-      final user = await authViewModel.signInWithGoogle();
-      if (!mounted) return;
-
-      if (user != null) {
-        AppSnackBar.showSuccess(
-            context, lang.tr('google_sign_in_success', category: 'auth'));
-        Navigator.pushAndRemoveUntil(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-          (route) => false,
-        );
-      } else {
-        AppSnackBar.showError(
-            context,
-            authViewModel.error ??
-                lang.tr('google_sign_in_failed', category: 'auth'));
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) {
       AppSnackBar.showError(
-          context, lang.tr('google_sign_in_failed', category: 'auth'));
+          context, lang.tr('validation_password_required', category: 'auth'));
+      return;
     }
+    if (password.length < 8) {
+      AppSnackBar.showError(
+          context, lang.tr('validation_password_min_length', category: 'auth'));
+      return;
+    }
+
+    await _showSocialConfirmation('Google', () async {
+      try {
+        final user = await authViewModel.signInWithGoogle(password: password);
+        if (!mounted) return;
+
+        if (user != null) {
+          AppSnackBar.showSuccess(
+              context, lang.tr('google_sign_in_success', category: 'auth'));
+          Navigator.pushAndRemoveUntil(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 600),
+            ),
+            (route) => false,
+          );
+        } else {
+          AppSnackBar.showError(
+              context,
+              authViewModel.error ??
+                  lang.tr('google_sign_in_failed', category: 'auth'));
+        }
+      } catch (e) {
+        if (!mounted) return;
+        AppSnackBar.showError(
+            context, lang.tr('google_sign_in_failed', category: 'auth'));
+      }
+    });
   }
 
   Future<void> _signInWithApple() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
-    try {
-      final user = await authViewModel.signInWithApple();
-      if (!mounted) return;
-
-      if (user != null) {
-        AppSnackBar.showSuccess(
-            context, lang.tr('apple_sign_in_success', category: 'auth'));
-        Navigator.pushAndRemoveUntil(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-          (route) => false,
-        );
-      } else {
-        AppSnackBar.showError(
-            context,
-            authViewModel.error ??
-                lang.tr('apple_sign_in_failed', category: 'auth'));
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) {
       AppSnackBar.showError(
-          context, lang.tr('apple_sign_in_failed', category: 'auth'));
+          context, lang.tr('validation_password_required', category: 'auth'));
+      return;
     }
+    if (password.length < 8) {
+      AppSnackBar.showError(
+          context, lang.tr('validation_password_min_length', category: 'auth'));
+      return;
+    }
+
+    await _showSocialConfirmation('Apple', () async {
+      try {
+        final user = await authViewModel.signInWithApple(password: password);
+        if (!mounted) return;
+
+        if (user != null) {
+          AppSnackBar.showSuccess(
+              context, lang.tr('apple_sign_in_success', category: 'auth'));
+          Navigator.pushAndRemoveUntil(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 600),
+            ),
+            (route) => false,
+          );
+        } else {
+          AppSnackBar.showError(
+              context,
+              authViewModel.error ??
+                  lang.tr('apple_sign_in_failed', category: 'auth'));
+        }
+      } catch (e) {
+        if (!mounted) return;
+        AppSnackBar.showError(
+            context, lang.tr('apple_sign_in_failed', category: 'auth'));
+      }
+    });
   }
 
   /// Determine the current position of the device.
@@ -357,14 +468,16 @@ class _RegisterPageState extends State<RegisterPage> {
               TextSpan(
                 text: lang.tr('accept_terms', category: 'terms'),
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontFamily: kAppFont,
-                  color: theme.textTheme.bodyMedium?.color ?? kDarkTextColor,
+                  color: theme.primaryColor,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.underline,
                 ),
                 children: const [
                   TextSpan(
                     text: ' *',
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(color: Colors.red, decoration: TextDecoration.none),
                   ),
                 ],
               ),
@@ -497,7 +610,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   InputDecoration _buildAestheticInputDecoration(
-      String hint, LanguageProvider lang) {
+      String hint, LanguageProvider lang, {Widget? suffixIcon}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
@@ -511,6 +624,7 @@ class _RegisterPageState extends State<RegisterPage> {
       fillColor: isDark ? Colors.white.withOpacity(0.05) : kInputFillColor.withOpacity(0.5),
       contentPadding:
           const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+      suffixIcon: suffixIcon,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -550,15 +664,15 @@ class _RegisterPageState extends State<RegisterPage> {
                     _buildTopBar(context, lang),
 
                     // 2. Logo Placement (Centered and separate)
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 20),
                     Center(
                       child: Image.asset(
                         'assets/images/logo.png',
-                        width: 150,
-                        height: 150,
+                        width: 120,
+                        height: 120,
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 20),
 
                     // 3. Main Content Card
                     Container(
@@ -655,6 +769,85 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 const SizedBox(height: 16),
 
+                                // Password Field
+                                TextFormField(
+                                  controller: _passwordController,
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('password_hint', category: 'auth'),
+                                    lang,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                                        color: theme.textTheme.bodySmall?.color ?? kMutedTextColor,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                    ),
+                                  ),
+                                  obscureText: _obscurePassword,
+                                  style: TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return lang.tr(
+                                          'validation_password_required',
+                                          category: 'auth');
+                                    }
+                                    if (value.length < 8) {
+                                      return lang.tr(
+                                          'validation_password_min_length',
+                                          category: 'auth');
+                                    }
+                                    // Strong password: at least one letter and one number
+                                    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$').hasMatch(value)) {
+                                      return lang.tr(
+                                          'validation_password_weak',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) => _password = value!,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Confirm Password Field
+                                TextFormField(
+                                  decoration: _buildAestheticInputDecoration(
+                                    lang.tr('confirm_password_hint',
+                                        category: 'auth'),
+                                    lang,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureConfirmPassword ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                                        color: theme.textTheme.bodySmall?.color ?? kMutedTextColor,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                    ),
+                                  ),
+                                  obscureText: _obscureConfirmPassword,
+                                  style: TextStyle(
+                                    fontFamily: kAppFont,
+                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
+                                  ),
+                                  validator: (value) {
+                                    if (value!.isEmpty) {
+                                      return lang.tr(
+                                          'validation_password_confirm_required',
+                                          category: 'auth');
+                                    }
+                                    if (value != _passwordController.text) {
+                                      return lang.tr(
+                                          'validation_password_mismatch',
+                                          category: 'auth');
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
                                 // Phone Field
                                 TextFormField(
                                   decoration: _buildAestheticInputDecoration(
@@ -733,69 +926,6 @@ class _RegisterPageState extends State<RegisterPage> {
                                 _buildRoleSelection(lang),
                                 const SizedBox(height: 16),
 
-                                // Password Field
-                                TextFormField(
-                                  controller: _passwordController,
-                                  decoration: _buildAestheticInputDecoration(
-                                    lang.tr('password_hint', category: 'auth'),
-                                    lang,
-                                  ),
-                                  obscureText: true,
-                                  style: TextStyle(
-                                    fontFamily: kAppFont,
-                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return lang.tr(
-                                          'validation_password_required',
-                                          category: 'auth');
-                                    }
-                                    if (value.length < 8) {
-                                      return lang.tr(
-                                          'validation_password_min_length',
-                                          category: 'auth');
-                                    }
-                                    // Strong password: at least one letter and one number
-                                    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$').hasMatch(value)) {
-                                      return lang.tr(
-                                          'validation_password_weak',
-                                          category: 'auth');
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (value) => _password = value!,
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Confirm Password Field
-                                TextFormField(
-                                  decoration: _buildAestheticInputDecoration(
-                                    lang.tr('confirm_password_hint',
-                                        category: 'auth'),
-                                    lang,
-                                  ),
-                                  obscureText: true,
-                                  style: TextStyle(
-                                    fontFamily: kAppFont,
-                                    color: theme.textTheme.bodyLarge?.color ?? kDarkTextColor,
-                                  ),
-                                  validator: (value) {
-                                    if (value!.isEmpty) {
-                                      return lang.tr(
-                                          'validation_password_confirm_required',
-                                          category: 'auth');
-                                    }
-                                    if (value != _passwordController.text) {
-                                      return lang.tr(
-                                          'validation_password_mismatch',
-                                          category: 'auth');
-                                    }
-                                    return null;
-                                  },
-                                ),
-
-                                const SizedBox(height: 16),
                                 _buildTermsCheckbox(lang),
 
                                 const SizedBox(height: 24),
@@ -803,7 +933,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                 // Register Button
                                 RegisterButton(
                                   isLoading: authViewModel.isLoading,
-                                  onPressed: _termsAccepted ? () => _submitRegistration() : null,
+                                  onPressed: _termsAccepted ? () {
+                                    HapticFeedback.mediumImpact();
+                                    _submitRegistration();
+                                  } : null,
                                 ),
                               ],
                             ),

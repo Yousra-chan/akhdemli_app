@@ -557,20 +557,26 @@ class SearchService {
   /// Returns: List of all active providers
   Future<List<ProviderModel>> getAllActiveProviders() async {
     try {
+      // Relaxed check: Get all active users, then filter out admins
       final snapshot = await _firestore
           .collection(_usersCollection)
-          .where(_roleField, isEqualTo: _roleProvider)
           .where(_isActiveField, isEqualTo: true)
           .get();
 
       final providers = <ProviderModel>[];
 
       for (var doc in snapshot.docs) {
-        final data = doc.data();
-        try {
-          providers.add(ProviderModel.fromFirestore(data, doc.id));
-        } catch (e) {
-          debugPrint('Warning: Could not parse provider ${doc.id}: $e');
+        final data = doc.data() as Map<String, dynamic>;
+        final role = data[_roleField] as String?;
+        final profession = data[_professionField] as String?;
+
+        // Include if they are a provider OR have a profession and aren't admin
+        if (role == _roleProvider || (role != 'admin' && profession != null)) {
+          try {
+            providers.add(ProviderModel.fromFirestore(data, doc.id));
+          } catch (e) {
+            debugPrint('Warning: Could not parse provider ${doc.id}: $e');
+          }
         }
       }
 
@@ -656,10 +662,13 @@ class SearchService {
 
           if (!providerDoc.exists) continue;
 
-          final data = providerDoc.data();
+          final data = providerDoc.data() as Map<String, dynamic>?;
           if (data == null) continue;
 
-          if (data[_roleField] == _roleProvider) {
+          final role = data[_roleField] as String?;
+          final profession = data[_professionField] as String?;
+
+          if (role == _roleProvider || (role != 'admin' && profession != null)) {
             providers.add(ProviderModel.fromFirestore(data, providerId));
           }
         } catch (e) {

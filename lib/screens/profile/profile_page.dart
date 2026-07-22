@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:service_app/screens/Booking/my_booking_page.dart'
-    hide kLightBackgroundColor, kMutedTextColor;
+    hide kLightBackgroundColor, kMutedTextColor, kPrimaryBlue;
 import 'package:service_app/screens/service/provider_services_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/screens/service/create_service.dart';
@@ -10,18 +10,17 @@ import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/Services/auth_service.dart';
 import 'package:service_app/Services/firestore_service.dart';
-import 'package:service_app/screens/auth/login/login_screen.dart'
-    hide AuthService;
+import 'package:service_app/screens/auth/login/login_screen.dart';
 import 'package:service_app/screens/profile/settings/settings_page.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
-import 'package:service_app/Services/wilaya_service.dart';
 import 'package:service_app/utils/image_utils.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/screens/profile/subscription_page.dart';
-import 'package:service_app/screens/admin/admin_codes_page.dart';
-import 'package:service_app/screens/profile/my_posts_screen.dart';
+import 'package:service_app/screens/admin/admin_codes_page.dart' hide kPrimaryBlue;
+import 'package:service_app/screens/profile/my_posts_screen.dart' hide kPrimaryBlue;
 import 'package:service_app/utils/ui_widgets.dart';
 
+import 'package:service_app/screens/profile/profile_constants.dart';
 import 'package:service_app/screens/profile/about_us_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -103,15 +102,37 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Widget _buildSectionHeader(String title, ThemeMode? themeMode) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white54 : Colors.grey.shade500,
+              letterSpacing: 1.2,
+              fontFamily: 'Exo2',
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Divider(color: isDark ? Colors.white10 : Colors.grey.shade200, thickness: 1)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Watch LanguageProvider and ThemeProvider for real-time changes
     final languageProvider = context.watch<LanguageProvider>();
     final theme = Theme.of(context);
 
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, child) {
-        // Use the latest user from AuthViewModel or fallback to initial user
         final UserModel currentUser = authViewModel.currentUser ?? widget.user;
         final bool isProvider = currentUser.isProvider;
 
@@ -120,63 +141,98 @@ class _ProfilePageState extends State<ProfilePage> {
           body: Stack(
             children: [
               SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
-                    // App Bar with Settings
                     _buildAppBar(context, languageProvider),
-
-                    // Profile Header
                     _buildProfileHeader(currentUser),
-
-                    // User Info Section with translations
+                    _buildStatisticsRow(currentUser, languageProvider),
+                    
+                    // SECTION: ACCOUNT
+                    _buildSectionHeader(languageProvider.tr('account', category: 'profile') ?? 'ACCOUNT', null),
                     _buildUserInfoSection(currentUser, languageProvider),
 
-                    // Statistics Row with translations
-                    _buildStatisticsRow(currentUser, languageProvider),
+                    // SECTION: ACTIVITY
+                    _buildSectionHeader(languageProvider.tr('activity', category: 'profile') ?? 'ACTIVITY', null),
+                    _buildActivitySection(context, isProvider, languageProvider),
 
-                    // Settings Section
+                    // SECTION: SETTINGS & TOOLS
+                    _buildSectionHeader(languageProvider.tr('preferences', category: 'profile') ?? 'PREFERENCES', null),
                     _buildSettingsSection(context, languageProvider),
 
-                    // Role Switch Button
-                    _buildRoleSwitchSection(
-                        context, currentUser, authViewModel, languageProvider),
-
-                    // My Services Tile (only for providers)
-                    if (isProvider)
-                      _buildMyServicesTile(context, languageProvider),
-
-                    // My Posts Tile - Shows for all users
-                    _buildMyPostsTile(context, languageProvider),
-
-                    // My Bookings Tile - Shows for all users
-                    _buildMyBookingsTile(context, isProvider, languageProvider),
-
-                    const SizedBox(height: 15),
-
-
-
-                    // Logout Button with translations
+                    // SECTION: ACTIONS
+                    _buildSectionHeader(languageProvider.tr('actions', category: 'profile') ?? 'ACTIONS', null),
+                    _buildRoleSwitchSection(context, currentUser, authViewModel, languageProvider),
+                    const SizedBox(height: 20),
                     _buildLogoutButton(context, languageProvider),
-
-                    const SizedBox(height: 40),
+                    
+                    const SizedBox(height: 50),
                   ],
                 ),
               ),
-
-              // Loading overlay
               if (_isSwitchingRole)
                 Container(
                   color: Colors.black54,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Color.fromARGB(255, 12, 94, 153),
-                    ),
-                  ),
+                  child: Center(child: CircularProgressIndicator(color: theme.primaryColor)),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildActivitySection(BuildContext context, bool isProvider, LanguageProvider languageProvider) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          if (isProvider)
+            _buildCustomListTile(
+              icon: CupertinoIcons.wrench_fill,
+              iconColor: theme.primaryColor,
+              title: languageProvider.tr('myServices', category: 'common'),
+              subtitle: languageProvider.tr('manageServices', category: 'common'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyServicesPage())),
+              useGradient: true,
+            ),
+          if (isProvider) const Divider(height: 1, indent: 60),
+          _buildCustomListTile(
+            icon: CupertinoIcons.doc_text_fill,
+            iconColor: Colors.orange,
+            title: languageProvider.tr('myPosts', category: 'common'),
+            subtitle: languageProvider.tr('viewManagePosts', category: 'common'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPostsScreen())),
+            useGradient: true,
+            gradientColors: [Colors.orange, const Color(0xFFFFB300)],
+          ),
+          const Divider(height: 1, indent: 60),
+          _buildCustomListTile(
+            icon: CupertinoIcons.calendar_today,
+            iconColor: theme.primaryColor,
+            title: languageProvider.tr('myBookings', category: 'common'),
+            subtitle: isProvider
+                ? languageProvider.tr('viewManageRequests', category: 'common')
+                : languageProvider.tr('viewManageBookings', category: 'common'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyBookingsScreen())),
+            useGradient: true,
+          ),
+        ],
+      ),
     );
   }
 
@@ -415,180 +471,105 @@ class _ProfilePageState extends State<ProfilePage> {
       BuildContext context, LanguageProvider languageProvider) {
     final auth = context.read<AuthViewModel>();
     final user = auth.currentUser ?? widget.user;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           if (user.isProvider)
-            ListTile(
-              leading: const Icon(Icons.subscriptions_outlined, color: Colors.blue),
-              title: Text(
-                  languageProvider.tr('mySubscription', category: 'common')),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SubscriptionPage())),
+            _buildCustomListTile(
+              icon: Icons.subscriptions_outlined,
+              iconColor: Colors.blue,
+              title: languageProvider.tr('mySubscription', category: 'common'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionPage())),
             ),
+          if (user.isProvider) const Divider(height: 1, indent: 60),
           if (user.isAdmin)
-            ListTile(
-              leading: const Icon(Icons.vpn_key_outlined, color: Colors.purple),
-              title: Text(
-                  languageProvider.tr('manageSubCodes', category: 'common')),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const AdminCodesPage())),
+            _buildCustomListTile(
+              icon: Icons.vpn_key_outlined,
+              iconColor: Colors.purple,
+              title: languageProvider.tr('manageSubCodes', category: 'common'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCodesPage())),
             ),
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: Colors.teal),
-            title: Text(languageProvider.tr('aboutUs', category: 'common')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const AboutUsPage())),
+          if (user.isAdmin) const Divider(height: 1, indent: 60),
+          _buildCustomListTile(
+            icon: Icons.info_outline,
+            iconColor: Colors.teal,
+            title: languageProvider.tr('aboutUs', category: 'common'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsPage())),
           ),
         ],
       ),
     );
   }
 
-  // My Bookings Tile - Updated for real-time language
-  Widget _buildMyBookingsTile(BuildContext context, bool isProvider,
-      LanguageProvider languageProvider) {
-    final String title = languageProvider.tr('myBookings', category: 'common');
-    final String subtitle = isProvider
-        ? languageProvider.tr('viewManageRequests', category: 'common')
-        : languageProvider.tr('viewManageBookings', category: 'common');
-
+  Widget _buildCustomListTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    bool useGradient = false,
+    List<Color>? gradientColors,
+  }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Container(
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          gradient: useGradient
+              ? LinearGradient(
+                  colors: gradientColors ?? [theme.primaryColor, theme.primaryColor.withValues(alpha: 0.7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: useGradient ? null : iconColor.withOpacity(0.1),
+          shape: BoxShape.circle,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(15),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MyBookingsScreen(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      CupertinoIcons.calendar_today,
-                      color: theme.primaryColor,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: theme.textTheme.bodyLarge?.color ?? Colors.grey.shade800,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    CupertinoIcons.chevron_right,
-                    color: isDark ? Colors.white24 : Colors.grey.shade500,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
+        child: Icon(icon, color: useGradient ? Colors.white : iconColor, size: 22),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: theme.textTheme.bodyLarge?.color,
+          fontFamily: 'Exo2',
         ),
       ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                fontFamily: 'Exo2',
+              ),
+            )
+          : null,
+      trailing: Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+      onTap: onTap,
     );
   }
 
-  Widget _buildCreateServiceButton(
-      BuildContext context, LanguageProvider languageProvider) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MultiProvider(
-                providers: [
-                  ChangeNotifierProvider(create: (_) => AuthViewModel()),
-                  ChangeNotifierProvider(create: (_) => ServiceViewModel()),
-                ],
-                child: const CreateServiceScreen(),
-              ),
-            ),
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: theme.primaryColor,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          elevation: 2,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add_circle_outline, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              languageProvider.tr('create_service', category: 'service'),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   // Logout Button - Updated for real-time language
   Widget _buildLogoutButton(
@@ -610,7 +591,7 @@ class _ProfilePageState extends State<ProfilePage> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red.withOpacity(0.1),
+          backgroundColor: Colors.red.withValues(alpha: 0.1),
           foregroundColor: Colors.red,
           minimumSize: const Size(double.infinity, 56),
           shape: RoundedRectangleBorder(
@@ -697,93 +678,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // My Services Tile - Updated for real-time language
-  Widget _buildMyServicesTile(
-      BuildContext context, LanguageProvider languageProvider) {
-    final String title = languageProvider.tr('myServices', category: 'common');
-    final String subtitle =
-        languageProvider.tr('manageServices', category: 'common');
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(15),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MyServicesPage()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      CupertinoIcons.wrench_fill,
-                      color: theme.primaryColor,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: theme.textTheme.bodyLarge?.color ?? Colors.grey.shade800,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    CupertinoIcons.chevron_right,
-                    color: isDark ? Colors.white24 : Colors.grey.shade500,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   // Role Switch Section - Updated for real-time language
   Widget _buildRoleSwitchSection(BuildContext context, UserModel user,
@@ -813,14 +707,14 @@ class _ProfilePageState extends State<ProfilePage> {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            const Color.fromARGB(255, 12, 94, 153).withOpacity(0.9),
-            const Color(0xFF4A6FDC).withOpacity(0.9),
+            const Color.fromARGB(255, 12, 94, 153).withValues(alpha: 0.9),
+            const Color(0xFF4A6FDC).withValues(alpha: 0.9),
           ],
         ),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 12, 94, 153).withOpacity(0.3),
+            color: const Color.fromARGB(255, 12, 94, 153).withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -842,7 +736,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -879,7 +773,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const Spacer(),
                 if (_isSwitchingRole)
-                  SizedBox(
+                  const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -890,7 +784,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 else
                   Icon(
                     CupertinoIcons.arrow_right_circle_fill,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     size: 24,
                   ),
               ],
@@ -936,7 +830,7 @@ class _ProfilePageState extends State<ProfilePage> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -990,10 +884,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.05),
+                    color: theme.primaryColor.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: theme.primaryColor.withOpacity(0.2),
+                      color: theme.primaryColor.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -1138,96 +1032,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // My Posts Tile
-  Widget _buildMyPostsTile(
-      BuildContext context, LanguageProvider languageProvider) {
-    final String title = languageProvider.tr('myPosts', category: 'common');
-    final String subtitle =
-        languageProvider.tr('viewManagePosts', category: 'common');
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(15),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MyPostsScreen(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.doc_text_fill,
-                      color: Colors.orange,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: theme.textTheme.bodyLarge?.color ??
-                                Colors.grey.shade800,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Exo2',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    CupertinoIcons.chevron_right,
-                    color: isDark ? Colors.white24 : Colors.grey.shade500,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   // Statistics Row - Updated for real-time language
   Widget _buildStatisticsRow(
@@ -1254,7 +1058,7 @@ class _ProfilePageState extends State<ProfilePage> {
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1262,8 +1066,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           child: Column(
             children: [
-              Icon(icon,
-                  color: theme.primaryColor, size: 24),
+              Icon(icon, color: theme.primaryColor, size: 24),
               const SizedBox(height: 8),
               Text(
                 label == ratingLabel
@@ -1274,14 +1077,20 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: theme.primaryColor,
+                  color: theme.textTheme.titleLarge?.color,
+                  fontFamily: 'Exo2',
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white54 : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Exo2',
+                ),
               ),
             ],
           ),
@@ -1304,63 +1113,4 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Info Card - Static (only title and content change)
-  Widget _buildInfoCard({
-    required String title,
-    required String content,
-    required IconData icon,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon,
-                    color: theme.primaryColor, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: theme.primaryColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            Divider(
-              color: theme.dividerColor,
-              height: 20,
-            ),
-            Text(
-              content,
-              style: TextStyle(
-                color: theme.textTheme.bodyMedium?.color,
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

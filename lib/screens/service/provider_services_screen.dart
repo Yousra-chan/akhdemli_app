@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:service_app/screens/service/create_service.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/UserModel.dart';
+import 'package:service_app/models/ServicesModel.dart';
 import 'package:service_app/Services/firestore_service.dart';
 import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/screens/service/edit_service.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:service_app/providers/theme_provider.dart';
 import 'package:service_app/utils/ui_widgets.dart';
+import 'package:service_app/utils/image_utils.dart';
+import 'package:shimmer/shimmer.dart';
 
 class MyServicesPage extends StatefulWidget {
   const MyServicesPage({super.key});
@@ -19,19 +25,9 @@ class MyServicesPage extends StatefulWidget {
 
 class _MyServicesPageState extends State<MyServicesPage> {
   late FirestoreService _firestoreService;
-  List<Map<String, dynamic>> _services = [];
+  List<Service> _services = [];
   bool _isLoading = true;
   String? _error;
-
-  // Colors logic
-  Color _getPrimaryColor(BuildContext context) => Theme.of(context).primaryColor;
-  Color _getSuccessColor() => const Color(0xFF059669);
-  Color _getErrorColor() => const Color(0xFFDC2626);
-  Color _getTextColor(BuildContext context) => Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF1E293B);
-  Color _getMutedColor(BuildContext context) => Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? const Color(0xFF64748B);
-  Color _getBackgroundColor(BuildContext context) => Theme.of(context).scaffoldBackgroundColor;
-  Color _getCardColor(BuildContext context) => Theme.of(context).cardColor;
-  Color _getBorderColor(BuildContext context) => Theme.of(context).dividerColor;
 
   @override
   void initState() {
@@ -42,43 +38,25 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
   Future<void> _loadServices() async {
     try {
-      if (mounted) {
-        setState(() {
-          _isLoading = true;
-          _error = null;
-        });
-      }
+      if (mounted) setState(() { _isLoading = true; _error = null; });
 
-      final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-      final UserModel? currentUser = authViewModel.currentUser;
+      final authVM = context.read<AuthViewModel>();
+      final user = authVM.currentUser;
 
-      if (currentUser != null) {
-        final services =
-        await _firestoreService.getProviderServices(currentUser.uid);
+      if (user != null) {
+        final maps = await _firestoreService.getProviderServices(user.uid);
         if (mounted) {
           setState(() {
-            _services = services;
+            _services = maps.map((m) => Service.fromMap(m)).toList();
           });
         }
       } else {
-        if (mounted) {
-          setState(() {
-            _error = 'please_sign_in';
-          });
-        }
+        if (mounted) setState(() { _error = 'please_sign_in'; });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'unable_to_load';
-        });
-      }
+      if (mounted) setState(() { _error = 'unable_to_load'; });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() { _isLoading = false; });
     }
   }
 
@@ -88,80 +66,34 @@ class _MyServicesPageState extends State<MyServicesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final isDark = themeProvider.isDarkMode;
-    final lang = Provider.of<LanguageProvider>(context);
+    final lang = context.watch<LanguageProvider>();
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          lang.tr('my_services', category: 'my_services'),
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.primaryColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: theme.primaryColor),
-            onPressed: _refreshServices,
-          ),
-        ],
-      ),
-      body: _buildMainContent(context),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MultiProvider(
-                providers: [
-                  ChangeNotifierProvider(create: (_) => AuthViewModel()),
-                  ChangeNotifierProvider(create: (_) => ServiceViewModel()),
-                ],
-                child: const CreateServiceScreen(),
-              ),
-            ),
-          ).then((value) {
-            if (value == true) {
-              _refreshServices();
-            }
-          });
-        },
-        backgroundColor: theme.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildMainContent(BuildContext context) {
-    final lang = Provider.of<LanguageProvider>(context);
-    final theme = Theme.of(context);
-    
-    return RefreshIndicator(
-      onRefresh: _refreshServices,
-      child: CustomScrollView(
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
-          // Stats Overview Card
+          _buildAppBar(lang, theme, isDark),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: _buildStatsOverview(context),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+              child: _buildStatsOverview(context, lang, theme, isDark),
             ),
           ),
-
-          // Services List or States
           if (_isLoading)
-            const SliverFillRemaining(
-              child: LoadingWidget(),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: _ServiceSkeleton(),
+                  ),
+                  childCount: 3,
+                ),
+              ),
             )
           else if (_error != null)
             SliverFillRemaining(
@@ -171,607 +103,364 @@ class _MyServicesPageState extends State<MyServicesPage> {
               ),
             )
           else if (_services.isEmpty)
-              SliverFillRemaining(
-                child: EmptyStateWidget(
-                  message: lang.tr('no_services_yet', category: 'my_services'),
-                  subtitle: lang.tr('create_first_service_hint', category: 'my_services'),
-                  action: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MultiProvider(
-                            providers: [
-                              ChangeNotifierProvider(create: (_) => AuthViewModel()),
-                              ChangeNotifierProvider(create: (_) => ServiceViewModel()),
-                            ],
-                            child: const CreateServiceScreen(),
-                          ),
-                        ),
-                      ).then((value) {
-                        if (value == true) {
-                          _refreshServices();
-                        }
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.primaryColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                    ),
-                    child: Text(
-                        lang.tr('create_first_service', category: 'my_services')),
-                  ),
-                ),
-              )
-            else
-              SliverList(
+            SliverFillRemaining(
+              child: _buildEmptyState(lang, theme),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        left: 20,
-                        right: 20,
-                        bottom: 20,
-                        top: index == 0 ? 0 : 0,
-                      ),
-                      child: _buildServiceCard(context, _services[index]),
-                    );
-                  },
+                  (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _ServiceCard(
+                      service: _services[index],
+                      onTap: () => _showServiceDetails(_services[index]),
+                      onEdit: () => _editService(_services[index]),
+                      onDelete: () => _confirmDelete(_services[index]),
+                      onToggle: () => _toggleServiceStatus(_services[index]),
+                    ),
+                  ),
                   childCount: _services.length,
                 ),
               ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _navigateToCreate,
+        backgroundColor: theme.primaryColor,
+        elevation: 4,
+        highlightElevation: 8,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text(
+          lang.tr('add_new', category: 'my_services'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Exo2',
+            letterSpacing: 0.5,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildStatsOverview(BuildContext context) {
-    final lang = Provider.of<LanguageProvider>(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  Widget _buildAppBar(LanguageProvider lang, ThemeData theme, bool isDark) {
+    return SliverAppBar(
+      expandedHeight: 120,
+      floating: false,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: theme.primaryColor),
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsetsDirectional.only(start: 60, bottom: 16),
+        centerTitle: false,
+        title: Text(
+          lang.tr('my_services', category: 'my_services'),
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+            fontFamily: 'Exo2',
+          ),
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Icon(Icons.refresh_rounded, size: 20, color: theme.primaryColor),
+            ),
+            onPressed: _refreshServices,
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildStatsOverview(BuildContext context, LanguageProvider lang, ThemeData theme, bool isDark) {
     int totalServices = _services.length;
     double avgRating = _calculateAverageRating();
-    double totalEarnings = _calculateTotalEarnings();
+    int activeCount = _services.where((s) => s.isActive).length;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(
             context,
-            icon: Icons.work,
+            icon: Icons.auto_graph_rounded,
             value: '$totalServices',
-            label: lang.tr('services', category: 'my_services'),
+            label: lang.tr('total', category: 'common'),
             color: theme.primaryColor,
           ),
-          _buildDivider(context),
           _buildStatItem(
             context,
-            icon: Icons.star,
+            icon: Icons.star_rounded,
             value: avgRating.toStringAsFixed(1),
-            label: lang.tr('avg_rating', category: 'my_services'),
+            label: lang.tr('rating', category: 'common'),
             color: const Color(0xFFF59E0B),
           ),
-          _buildDivider(context),
           _buildStatItem(
             context,
-            icon: Icons.attach_money,
-            value: '${totalEarnings.toStringAsFixed(0)} DZD',
-            label: lang.tr('earnings', category: 'my_services'),
-            color: _getSuccessColor(),
+            icon: Icons.check_circle_rounded,
+            value: '$activeCount',
+            label: lang.tr('active', category: 'admin'),
+            color: const Color(0xFF059669),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(
-    BuildContext context, {
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color color,
-  }) {
+  Widget _buildStatItem(BuildContext context, {required IconData icon, required String value, required String label, required Color color}) {
     final theme = Theme.of(context);
-    return Expanded(
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          value,
+          style: TextStyle(
+            color: theme.textTheme.bodyLarge?.color,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Exo2',
+          ),
+        ),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(LanguageProvider lang, ThemeData theme) {
+    return Center(
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: theme.primaryColor.withOpacity(0.05),
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(Icons.miscellaneous_services_rounded, size: 64, color: theme.primaryColor.withOpacity(0.3)),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            lang.tr('no_services_yet', category: 'my_services'),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Exo2'),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: theme.textTheme.bodyLarge?.color ?? Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              lang.tr('create_first_service_hint', category: 'my_services'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 14),
             ),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey,
-              fontSize: 12,
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: _navigateToCreate,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
             ),
+            child: Text(lang.tr('create_first_service', category: 'my_services'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDivider(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 40,
-      color: Theme.of(context).dividerColor,
-    );
-  }
-
-  Widget _buildServiceCard(BuildContext context, Map<String, dynamic> service) {
-    final lang = Provider.of<LanguageProvider>(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: () => _viewServiceDetails(service),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.dividerColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+  void _navigateToCreate() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => AuthViewModel()),
+            ChangeNotifierProvider(create: (_) => ServiceViewModel()),
           ],
-        ),
-        child: Column(
-          children: [
-            // Header with title and status
-            Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          service['title'] ??
-                              lang.tr('untitled_service',
-                                  category: 'my_services'),
-                          style: TextStyle(
-                            color: theme.textTheme.bodyLarge?.color,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(service['status'] ?? 'active')
-                              .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _getStatusText(service['status'] ?? 'active', lang),
-                          style: TextStyle(
-                            color:
-                            _getStatusColor(service['status'] ?? 'active'),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    service['description'] ??
-                        lang.tr('no_description', category: 'my_services'),
-                    style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                      fontSize: 14,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-
-            // Divider
-            Divider(height: 1, color: theme.dividerColor),
-
-            // Service details in sections (matching create service steps)
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  // Category & Subcategory
-                  _buildDetailRow(
-                    context,
-                    icon: Icons.category,
-                    label: lang.tr('category', category: 'my_services'),
-                    value: service['category'] ??
-                        lang.tr('not_specified', category: 'my_services'),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDetailRow(
-                    context,
-                    icon: Icons.list,
-                    label: lang.tr('subcategory', category: 'my_services'),
-                    value: service['subcategory'] ??
-                        lang.tr('not_specified', category: 'my_services'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Pricing
-                  _buildDetailRow(
-                    context,
-                    icon: Icons.attach_money,
-                    label: lang.tr('price', category: 'my_services'),
-                    value: service['price'] != null
-                        ? lang.trParams('price_with_unit',
-                        category: 'my_services',
-                        params: {
-                          'price': service['price'].toString(),
-                          'unit': service['priceUnit'] ??
-                              lang.tr('per_service',
-                                  category: 'my_services')
-                        })
-                        : lang.tr('price_not_set', category: 'my_services'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Location
-                  _buildDetailRow(
-                    context,
-                    icon: Icons.location_on,
-                    label: lang.tr('location', category: 'my_services'),
-                    value: service['location'] ??
-                        lang.tr('not_specified', category: 'my_services'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Rating
-                  _buildDetailRow(
-                    context,
-                    icon: Icons.star,
-                    label: lang.tr('rating', category: 'my_services'),
-                    value: service['rating'] != null
-                        ? lang.trParams('rating_value',
-                        category: 'my_services',
-                        params: {'rating': service['rating'].toString()})
-                        : lang.tr('no_ratings', category: 'my_services'),
-                  ),
-                ],
-              ),
-            ),
-
-            // Footer with actions
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _editService(service),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: theme.primaryColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: Icon(Icons.edit, size: 18, color: theme.primaryColor),
-                      label: Text(
-                        lang.tr('edit', category: 'my_services'),
-                        style: TextStyle(color: theme.primaryColor),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _viewServiceDetails(service),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.primaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: const Icon(Icons.visibility, size: 18),
-                      label: Text(
-                          lang.tr('view_details', category: 'my_services')),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          child: const CreateServiceScreen(),
         ),
       ),
-    );
+    ).then((value) {
+      if (value == true) _refreshServices();
+    });
   }
 
-  Widget _buildDetailRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _getStatusText(String status, LanguageProvider lang) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return lang.tr('status_active', category: 'my_services');
-      case 'pending':
-        return lang.tr('status_pending', category: 'my_services');
-      case 'inactive':
-        return lang.tr('status_inactive', category: 'my_services');
-      case 'rejected':
-        return lang.tr('status_rejected', category: 'my_services');
-      default:
-        return status;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return _getSuccessColor();
-      case 'pending':
-        return const Color(0xFFF59E0B);
-      case 'inactive':
-        return _getMutedColor(context);
-      case 'rejected':
-        return _getErrorColor();
-      default:
-        return _getPrimaryColor(context);
-    }
-  }
-
-  void _viewServiceDetails(Map<String, dynamic> service) {
-    final lang = Provider.of<LanguageProvider>(context, listen: false);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Consumer<LanguageProvider>(
-          builder: (context, lang, child) {
-            return Container(
-              decoration: BoxDecoration(
-                color: _getCardColor(context),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 20),
-                          decoration: BoxDecoration(
-                            color: _getBorderColor(context),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        service['title'] ??
-                            lang.tr('service_details', category: 'my_services'),
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: _getTextColor(context),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDetailSection(
-                        lang.tr('description', category: 'my_services'),
-                        service['description'] ??
-                            lang.tr('no_description', category: 'my_services'),
-                        Icons.description,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDetailSection(
-                        lang.tr('category_subcategory',
-                            category: 'my_services'),
-                        '${service['category'] ?? 'N/A'} • ${service['subcategory'] ?? 'N/A'}',
-                        Icons.category,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDetailSection(
-                        lang.tr('pricing', category: 'my_services'),
-                        service['price'] != null
-                            ? lang.trParams('price_with_unit_details',
-                            category: 'my_services',
-                            params: {
-                              'price': service['price'].toString(),
-                              'unit': service['priceUnit'] ??
-                                  lang.tr('per_service',
-                                      category: 'my_services')
-                            })
-                            : lang.tr('not_specified', category: 'my_services'),
-                        Icons.attach_money,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDetailSection(
-                        lang.tr('location', category: 'my_services'),
-                        service['location'] ??
-                            lang.tr('not_specified', category: 'my_services'),
-                        Icons.location_on,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDetailSection(
-                        lang.tr('status', category: 'my_services'),
-                        _getStatusText(service['status'] ?? 'active', lang),
-                        Icons.info,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDetailSection(
-                        lang.tr('created', category: 'my_services'),
-                        _formatDate(service['createdAt']),
-                        Icons.calendar_today,
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailSection(String title, String content, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 20, color: _getPrimaryColor(context)),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(context),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          content,
-          style: TextStyle(
-            fontSize: 14,
-            color: _getMutedColor(context),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return 'N/A';
-    if (date is DateTime) {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-    return date.toString();
-  }
-
-  void _editService(Map<String, dynamic> service) {
+  void _editService(Service service) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EditServiceScreen(
-          serviceData: {
-            'id': service['id'],
-            'title': service['title'],
-            'description': service['description'],
-            'category': service['category'],
-            'subcategory': service['subcategory'],
-            'price': service['price'],
-            'priceUnit': service['priceUnit'],
-            'location': service['location'],
-            'latitude': service['latitude'],
-            'longitude': service['longitude'],
-            'tags': service['tags'] ?? [],
-            'images': service['images'] ?? [],
-            'isActive': service['isActive'] ?? true,
-            'rating': service['rating'] ?? 0.0,
-            'totalReviews': service['totalReviews'] ?? 0,
-          },
+          serviceData: service.toMap(),
         ),
+      ),
+    ).then((value) {
+      if (value == true) _refreshServices();
+    });
+  }
+
+  Future<void> _toggleServiceStatus(Service service) async {
+    try {
+      final newStatus = !service.isActive;
+      await _firestoreService.updateService(service.id, {'isActive': newStatus});
+      if (mounted) AppSnackBar.showSuccess(context, context.read<LanguageProvider>().tr('save_success', category: 'admin'));
+      _loadServices();
+    } catch (e) {
+      AppSnackBar.showError(context, 'Error updating status');
+    }
+  }
+
+  void _confirmDelete(Service service) {
+    final lang = context.read<LanguageProvider>();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(lang.tr('delete_service_confirm', category: 'admin')),
+        content: Text('${lang.tr('delete_service_warning', category: 'admin')} "${service.title}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(lang.tr('cancel', category: 'common'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () async {
+              await _firestoreService.deleteService(service.id);
+              Navigator.pop(ctx);
+              _loadServices();
+            },
+            child: Text(lang.tr('delete', category: 'common')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showServiceDetails(Service service) {
+    final theme = Theme.of(context);
+    final lang = context.read<LanguageProvider>();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(service.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, fontFamily: 'Exo2')),
+                    const SizedBox(height: 16),
+                    if (service.images.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: CachedNetworkImage(imageUrl: service.images[0], height: 200, width: double.infinity, fit: BoxFit.cover),
+                      ),
+                    const SizedBox(height: 24),
+                    _buildDetailItem(Icons.description_outlined, lang.tr('description', category: 'admin'), service.description, theme),
+                    _buildDetailItem(Icons.category_outlined, lang.tr('category', category: 'admin'), service.category, theme),
+                    _buildDetailItem(Icons.account_tree_outlined, lang.tr('subcategory', category: 'admin'), service.subcategory, theme),
+                    _buildDetailItem(Icons.attach_money_rounded, lang.tr('price', category: 'admin'), '${service.price} ${service.priceUnit}', theme),
+                    _buildDetailItem(Icons.location_on_outlined, lang.tr('location', category: 'admin'), service.location, theme),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(IconData icon, String label, String value, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: theme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: theme.primaryColor, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color?.withOpacity(0.5), fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -779,24 +468,233 @@ class _MyServicesPageState extends State<MyServicesPage> {
   double _calculateAverageRating() {
     if (_services.isEmpty) return 0.0;
     double total = 0;
-    int count = 0;
-    for (var service in _services) {
-      if (service['rating'] != null) {
-        total += service['rating'];
-        count++;
-      }
-    }
-    return count > 0 ? total / count : 0.0;
+    for (var s in _services) total += s.rating;
+    return total / _services.length;
+  }
+}
+
+class _ServiceCard extends StatelessWidget {
+  final Service service;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onToggle;
+
+  const _ServiceCard({
+    required this.service,
+    required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final lang = context.watch<LanguageProvider>();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                // Image or placeholder
+                Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                  ),
+                  child: service.images.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: service.images[0],
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Shimmer.fromColors(
+                            baseColor: Colors.grey[300]!,
+                            highlightColor: Colors.grey[100]!,
+                            child: Container(color: Colors.white),
+                          ),
+                          errorWidget: (context, url, error) => const Icon(Icons.broken_image_outlined, size: 40),
+                        )
+                      : const Icon(Icons.image_outlined, size: 40),
+                ),
+                // Status Badge
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: (service.isActive ? const Color(0xFF059669) : const Color(0xFFDC2626)).withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
+                    ),
+                    child: Text(
+                      (service.isActive ? lang.tr('status_active', category: 'admin') : lang.tr('inactive', category: 'admin')).toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                    ),
+                  ),
+                ),
+                // Rating Badge
+                Positioned(
+                  bottom: 12,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          service.rating.toStringAsFixed(1),
+                          style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          service.title,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            fontFamily: 'Exo2',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${service.price} ${service.priceUnit}',
+                        style: TextStyle(
+                          color: theme.primaryColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Exo2',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    service.description,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _buildChip(service.category, theme, isDark),
+                      const SizedBox(width: 8),
+                      _buildChip(service.subcategory, theme, isDark, isSub: true),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: theme.dividerColor),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: onEdit,
+                    icon: Icon(Icons.edit_note_rounded, color: theme.primaryColor),
+                    tooltip: 'Edit',
+                  ),
+                  IconButton(
+                    onPressed: onToggle,
+                    icon: Icon(service.isActive ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.blueGrey),
+                    tooltip: service.isActive ? 'Hide' : 'Show',
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626)),
+                    tooltip: 'Delete',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  double _calculateTotalEarnings() {
-    if (_services.isEmpty) return 0.0;
-    double total = 0;
-    for (var service in _services) {
-      if (service['price'] != null && service['completedJobs'] != null) {
-        total += service['price'] * service['completedJobs'];
-      }
-    }
-    return total;
+  Widget _buildChip(String label, ThemeData theme, bool isDark, {bool isSub = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSub ? theme.primaryColor.withOpacity(0.05) : theme.dividerColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isSub ? theme.primaryColor.withOpacity(0.1) : Colors.transparent),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isSub ? theme.primaryColor : theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _ServiceSkeleton extends StatelessWidget {
+  const _ServiceSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+      child: Container(
+        height: 320,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
+    );
   }
 }

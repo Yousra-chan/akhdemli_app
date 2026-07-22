@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "817258417031-iki28a365fiftc8v7q1kbtq4la61jpa2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.akhdemli.app",
+            "certificate_hash": "fb5d498fc3b1339731f2ce91e90fcdba5f9562f5"
+          }
+        },
+        {
+          "client_id": "817258417031-s5krtjifh1v0ssj146ol1p6onil6a396.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.akhdemli.app",
+            "certificate_hash": "3de49e92d6bca3d283e4c3dd9e297ab4505fbab9"
+          }
+        },
+        {
           "client_id": "817258417031-ckkqtm123d137cjtga7a7bas7sckqjl8.apps.googleusercontent.com",
           "client_type": 3
         }

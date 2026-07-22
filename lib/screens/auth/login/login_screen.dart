@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/providers/language_provider.dart';
@@ -13,7 +14,7 @@ import 'package:service_app/utils/ui_widgets.dart';
 
 // --- Aesthetic Input Decoration Function ---
 InputDecoration buildAestheticInputDecoration(
-    String hint, LanguageProvider lang, BuildContext context) {
+    String hint, LanguageProvider lang, BuildContext context, {Widget? suffixIcon}) {
   final theme = Theme.of(context);
   final isDark = theme.brightness == Brightness.dark;
   return InputDecoration(
@@ -25,6 +26,7 @@ InputDecoration buildAestheticInputDecoration(
       vertical: 16.0,
       horizontal: 20.0,
     ),
+    suffixIcon: suffixIcon,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide.none,
@@ -54,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -125,76 +128,167 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _showSocialConfirmation(String provider, VoidCallback onConfirm) async {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: theme.cardColor,
+        title: Row(
+          children: [
+            Icon(
+              provider == 'Google' ? FontAwesomeIcons.google : FontAwesomeIcons.apple,
+              color: provider == 'Google' ? Colors.red : (isDark ? Colors.white : Colors.black),
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              lang.tr('confirm_social_title', category: 'auth'),
+              style: const TextStyle(fontFamily: kAppFont, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              lang.trParams('confirm_social_desc', category: 'auth', params: {'provider': provider}),
+              style: TextStyle(fontFamily: kAppFont, color: theme.textTheme.bodyMedium?.color),
+            ),
+            const SizedBox(height: 16),
+            _buildDataPoint(Icons.person_outline, lang.tr('data_name', category: 'auth')),
+            _buildDataPoint(Icons.email_outlined, lang.tr('data_email', category: 'auth')),
+            _buildDataPoint(Icons.photo_outlined, lang.tr('data_photo', category: 'auth')),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              lang.tr('cancel', category: 'common'),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontFamily: kAppFont),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              lang.tr('continue', category: 'common'),
+              style: const TextStyle(color: Colors.white, fontFamily: kAppFont, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataPoint(IconData icon, String label) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: theme.primaryColor),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontSize: 13, fontFamily: kAppFont)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _signInWithGoogle() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
-    try {
-      final user = await authViewModel.signInWithGoogle();
-
-      if (!mounted) return;
-
-      if (user != null) {
-        AppSnackBar.showSuccess(
-            context, lang.tr('google_sign_in_success', category: 'auth'));
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-          (route) => false,
+    await _showSocialConfirmation('Google', () async {
+      try {
+        // Optional password from field if provided
+        final password = _passwordController.text.trim();
+        final user = await authViewModel.signInWithGoogle(
+          password: password.isNotEmpty ? password : null,
         );
-      } else {
-        final errorMessage = authViewModel.error ??
-            lang.tr('google_sign_in_failed', category: 'auth');
-        AppSnackBar.showError(context, errorMessage);
+
+        if (!mounted) return;
+
+        if (user != null) {
+          AppSnackBar.showSuccess(
+              context, lang.tr('google_sign_in_success', category: 'auth'));
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 600),
+            ),
+            (route) => false,
+          );
+        } else {
+          final errorMessage = authViewModel.error ??
+              lang.tr('google_sign_in_failed', category: 'auth');
+          AppSnackBar.showError(context, errorMessage);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        AppSnackBar.showError(
+            context, lang.tr('google_sign_in_failed', category: 'auth'));
       }
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackBar.showError(
-          context, lang.tr('google_sign_in_failed', category: 'auth'));
-    }
+    });
   }
 
   Future<void> _signInWithApple() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     final lang = Provider.of<LanguageProvider>(context, listen: false);
 
-    try {
-      final user = await authViewModel.signInWithApple();
-
-      if (!mounted) return;
-
-      if (user != null) {
-        AppSnackBar.showSuccess(
-            context, lang.tr('apple_sign_in_success', category: 'auth'));
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-          (route) => false,
+    await _showSocialConfirmation('Apple', () async {
+      try {
+        // Optional password from field if provided
+        final password = _passwordController.text.trim();
+        final user = await authViewModel.signInWithApple(
+          password: password.isNotEmpty ? password : null,
         );
-      } else {
-        final errorMessage = authViewModel.error ??
-            lang.tr('apple_sign_in_failed', category: 'auth');
-        AppSnackBar.showError(context, errorMessage);
+
+        if (!mounted) return;
+
+        if (user != null) {
+          AppSnackBar.showSuccess(
+              context, lang.tr('apple_sign_in_success', category: 'auth'));
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 600),
+            ),
+            (route) => false,
+          );
+        } else {
+          final errorMessage = authViewModel.error ??
+              lang.tr('apple_sign_in_failed', category: 'auth');
+          AppSnackBar.showError(context, errorMessage);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        AppSnackBar.showError(
+            context, lang.tr('apple_sign_in_failed', category: 'auth'));
       }
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackBar.showError(
-          context, lang.tr('apple_sign_in_failed', category: 'auth'));
-    }
+    });
   }
 
   Widget _buildTopBar(LanguageProvider lang) {
@@ -218,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Center(
       child: Column(
         children: [
-          Image.asset('assets/images/logo.png', width: 150, height: 150),
+          Image.asset('assets/images/logo.png', width: 120, height: 120),
           const SizedBox(height: 10),
           Text(
             lang.tr('app_name', category: 'auth'),
@@ -336,14 +430,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildPasswordField(LanguageProvider lang) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return TextFormField(
       controller: _passwordController,
       decoration: buildAestheticInputDecoration(
         lang.tr('password_hint', category: 'auth'),
         lang,
         context,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+            color: isDark ? Colors.white38 : kMutedTextColor,
+            size: 20,
+          ),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ),
       ),
-      obscureText: true,
+      obscureText: _obscurePassword,
       style: TextStyle(fontFamily: kAppFont, color: theme.textTheme.bodyLarge?.color),
       validator: (value) {
         if (value == null || value.isEmpty) {
@@ -400,9 +503,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildTopBar(lang),
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 20),
                     _buildLogo(lang),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
                     _buildLoginForm(lang),
                     const SizedBox(height: 40),
                     _SignUpLink(
@@ -460,7 +563,10 @@ class _LoginButton extends StatelessWidget {
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
+        onPressed: isLoading ? null : () {
+          HapticFeedback.lightImpact();
+          onPressed?.call();
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: theme.primaryColor,
           foregroundColor: Colors.white,
@@ -553,7 +659,10 @@ class _SocialSignInRow extends StatelessWidget {
       child: Opacity(
         opacity: onPressed == null ? 0.5 : 1.0,
         child: InkWell(
-          onTap: isLoading ? null : onPressed,
+          onTap: isLoading ? null : () {
+            HapticFeedback.mediumImpact();
+            onPressed?.call();
+          },
           borderRadius: BorderRadius.circular(12),
           child: Container(
             height: 50,

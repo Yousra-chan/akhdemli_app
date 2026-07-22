@@ -1,321 +1,261 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../models/ServicesModel.dart';
 import '../../../ViewModel/admin_view_model.dart';
 import '../../../providers/language_provider.dart';
+import '../../../utils/ui_widgets.dart';
 import '../admin_service_details.dart';
 import '../admin_components.dart';
 
-// ── Design tokens ────────────────────────────────────────────────────────────
-class _T {
-  static const primary     = Color(0xFF4F46E5);
-  static const primaryL    = Color(0xFFEEF2FF);
-  static const success     = Color(0xFF10B981);
-  static const successL    = Color(0xFFD1FAE5);
-  static const danger      = Color(0xFFEF4444);
-  static const dangerL     = Color(0xFFFEE2E2);
-
-  // Dark-mode counterparts
-  static const primaryLD   = Color(0xFF312E81);
-  static const successLD   = Color(0xFF064E3B);
-  static const dangerLD    = Color(0xFF7F1D1D);
-
-  static List<BoxShadow> card(bool dark) => [
-    BoxShadow(
-      color: Colors.black.withOpacity(dark ? 0.3 : 0.04),
-      blurRadius: 6, offset: const Offset(0, 2),
-    ),
-  ];
-  static List<BoxShadow> elevated(bool dark) => [
-    BoxShadow(
-      color: Colors.black.withOpacity(dark ? 0.5 : 0.08),
-      blurRadius: 16, offset: const Offset(0, 4),
-    ),
-  ];
-
-  static const rSm = BorderRadius.all(Radius.circular(8));
-  static const rMd = BorderRadius.all(Radius.circular(12));
-  static const rLg = BorderRadius.all(Radius.circular(16));
-  static const rXl = BorderRadius.all(Radius.circular(20));
-}
-
-// Helper to grab theme colors concisely
-extension _Ctx on BuildContext {
-  bool get isDark => Theme.of(this).brightness == Brightness.dark;
-  Color get bg      => isDark ? const Color(0xFF0F0F13) : const Color(0xFFF5F6FA);
-  Color get surface => isDark ? const Color(0xFF1C1C25) : Colors.white;
-  Color get border  => isDark ? const Color(0xFF2E2E3E) : const Color(0xFFE5E7EB);
-  Color get txtP    => isDark ? const Color(0xFFF1F1F5) : const Color(0xFF111827);
-  Color get txtS    => isDark ? const Color(0xFFB0B4C1) : const Color(0xFF4B5563); // Improved contrast for secondary text
-  Color get txtM    => isDark ? const Color(0xFF8E92A2) : const Color(0xFF6B7280); // Improved contrast for muted text
-}
-
-// ── Main tab ─────────────────────────────────────────────────────────────────
 class ServicesTab extends StatefulWidget {
   const ServicesTab({super.key});
+
   @override
   State<ServicesTab> createState() => _ServicesTabState();
 }
 
-class _ServicesTabState extends State<ServicesTab>
-    with SingleTickerProviderStateMixin {
-  String  _q    = '';
-  String? _cat;
-  String? _sub;
-  late final AnimationController _fade;
+class _ServicesTabState extends State<ServicesTab> {
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _fade = AnimationController(vsync: this, duration: const Duration(milliseconds: 300))
-      ..forward();
+    _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AdminViewModel>().fetchServices(isRefresh: true);
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      context.read<AdminViewModel>().loadMoreServices();
+    }
   }
 
   @override
-  void dispose() { _fade.dispose(); super.dispose(); }
-
-  void _reset() => setState(() { _q = ''; _cat = null; _sub = null; });
+  void dispose() {
+    _scrollController.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final vm   = context.watch<AdminViewModel>();
+    final vm = context.watch<AdminViewModel>();
     final lang = context.watch<LanguageProvider>();
-    final dark = context.isDark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return FadeTransition(
-      opacity: CurvedAnimation(parent: _fade, curve: Curves.easeOut),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context, vm, lang, isDark),
+          const SizedBox(height: 24),
+          _buildFilters(vm, lang, isDark),
+          const SizedBox(height: 20),
+          if (vm.selectedServiceIds.isNotEmpty) ...[
+            _buildBulkActions(vm, lang),
+            const SizedBox(height: 20),
+          ],
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => vm.fetchServices(isRefresh: true),
+              child: vm.paginatedServices.isEmpty && !vm.isLoading
+                  ? _buildEmptyState(lang)
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount: vm.paginatedServices.length + (vm.isLoadingMoreServices ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == vm.paginatedServices.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        return _ServiceListItem(
+                          service: vm.paginatedServices[index],
+                          isSelected: vm.selectedServiceIds.contains(vm.paginatedServices[index].id),
+                          onToggle: () => vm.toggleServiceSelection(vm.paginatedServices[index].id),
+                          onAction: (action) => _handleAction(action, vm.paginatedServices[index], vm, lang),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AdminViewModel vm, LanguageProvider lang, bool isDark) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AdminColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.miscellaneous_services_rounded, color: AdminColors.primary, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                lang.tr('services', category: 'admin'),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  color: isDark ? Colors.white : AdminColors.textMain,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                lang.tr('manage_services_desc', category: 'admin'),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white70 : AdminColors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilters(AdminViewModel vm, LanguageProvider lang, bool isDark) {
+    return Column(
+      children: [
+        AdminTextField(
+          controller: _searchCtrl,
+          hintText: lang.tr('search_hint', category: 'admin'),
+          prefixIcon: Icons.search_rounded,
+          onSubmitted: (val) => vm.setServiceFilters(search: val),
+          onChanged: (val) {
+            if (val.isEmpty) vm.setServiceFilters(search: '');
+          },
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildFilterChip(
+                label: lang.tr('status_filter', category: 'admin'),
+                icon: Icons.filter_list_rounded,
+                onTap: () => _showFilterMenu(context, vm, lang, isDark, 'status'),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                label: lang.tr('categories', category: 'admin'),
+                icon: Icons.category_outlined,
+                onTap: () => _showFilterMenu(context, vm, lang, isDark, 'category'),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                label: lang.tr('sort_by', category: 'admin'),
+                icon: Icons.sort_rounded,
+                onTap: () => _showFilterMenu(context, vm, lang, isDark, 'sort'),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              if (_searchCtrl.text.isNotEmpty || vm.serviceFiltersAreActive)
+                _buildFilterChip(
+                  label: lang.tr('reset', category: 'admin'),
+                  icon: Icons.refresh_rounded,
+                  onTap: () {
+                    _searchCtrl.clear();
+                    vm.clearAllServiceFilters();
+                  },
+                  isDark: isDark,
+                  isReset: true,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip({required String label, required IconData icon, required VoidCallback onTap, required bool isDark, bool isReset = false}) {
+    final color = isReset ? AdminColors.danger : AdminColors.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        color: context.bg,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.05) : color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isDark ? Colors.white10 : color.withOpacity(0.1)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isDark ? Colors.white70 : color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFilterMenu(BuildContext context, AdminViewModel vm, LanguageProvider lang, bool isDark, String type) {
+    List<String> items = [];
+    Function(String?) onSelected;
+
+    switch (type) {
+      case 'status':
+        items = ['all', 'active', 'inactive'];
+        onSelected = (val) => vm.setServiceFilters(status: val);
+        break;
+      case 'category':
+        items = ['all', ...vm.categories.map((c) => c.name)];
+        onSelected = (val) => vm.setServiceFilters(category: val);
+        break;
+      case 'sort':
+        items = ['createdAt', 'title', 'category', 'isActive'];
+        onSelected = (val) => vm.setServiceFilters(sortField: val);
+        break;
+      default: return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1C1F26) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 46, height: 46,
-                  decoration: BoxDecoration(
-                    color: dark ? _T.primaryLD : _T.primaryL,
-                    borderRadius: _T.rMd,
-                  ),
-                  child: const Icon(Icons.miscellaneous_services_rounded,
-                      color: _T.primary, size: 22),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(lang.tr('services', category: 'admin'),
-                        style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: context.txtP,
-                            letterSpacing: -0.6),
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(lang.tr('manage_services_desc', category: 'admin'),
-                        style: TextStyle(fontSize: 13, color: context.txtS),
-                        overflow: TextOverflow.ellipsis),
-                  ]),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // ── Toolbar ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: context.surface,
-                borderRadius: _T.rLg,
-                boxShadow: _T.card(dark),
-                border: Border.all(color: context.border),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 600) {
-                    return Column(
-                      children: [
-                        _SearchField(
-                          value: _q,
-                          onChanged: (v) => setState(() => _q = v),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(child: _Dropdown<String?>(
-                              value: _cat,
-                              hint: lang.tr('all_categories', category: 'admin'),
-                              items: [
-                                DropdownMenuItem(value: null, child: Text(lang.tr('all_categories', category: 'admin'))),
-                                ...vm.categories.map((c) =>
-                                    DropdownMenuItem(value: c.name, child: Text(c.getTranslatedName(lang)))),
-                              ],
-                              onChanged: (v) => setState(() { _cat = v; _sub = null; }),
-                            )),
-                            const SizedBox(width: 10),
-                            Expanded(child: Builder(builder: (ctx) {
-                              final category = vm.categories.where((c) => c.name == _cat).firstOrNull;
-                              final subs = category?.subcategories ?? [];
-                              return _Dropdown<String?>(
-                                value: _sub,
-                                hint: lang.tr('all_subcategories', category: 'admin'),
-                                items: [
-                                  DropdownMenuItem(value: null, child: Text(lang.tr('all_subcategories', category: 'admin'))),
-                                  ...subs.map((s) =>
-                                      DropdownMenuItem(value: s.name, child: Text(s.getTranslatedName(lang)))),
-                                ],
-                                onChanged: subs.isEmpty ? null :
-                                    (v) => setState(() => _sub = v),
-                              );
-                            })),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 44,
-                          child: TextButton.icon(
-                            onPressed: _reset,
-                            icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
-                            label: Text(lang.tr('reset', category: 'admin')),
-                            style: TextButton.styleFrom(
-                              foregroundColor: context.txtS,
-                              backgroundColor: context.bg,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: _T.rMd,
-                                  side: BorderSide(color: context.border)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(children: [
-                    Expanded(flex: 3, child: _SearchField(
-                      value: _q,
-                      onChanged: (v) => setState(() => _q = v),
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 2, child: _Dropdown<String?>(
-                      value: _cat,
-                      hint: lang.tr('all_categories', category: 'admin'),
-                      items: [
-                        DropdownMenuItem(value: null, child: Text(lang.tr('all_categories', category: 'admin'))),
-                        ...vm.categories.map((c) =>
-                            DropdownMenuItem(value: c.name, child: Text(c.getTranslatedName(lang)))),
-                      ],
-                      onChanged: (v) => setState(() { _cat = v; _sub = null; }),
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 2, child: Builder(builder: (ctx) {
-                      final category = vm.categories.where((c) => c.name == _cat).firstOrNull;
-                      final subs = category?.subcategories ?? [];
-                      return _Dropdown<String?>(
-                        value: _sub,
-                        hint: lang.tr('all_subcategories', category: 'admin'),
-                        items: [
-                          DropdownMenuItem(value: null, child: Text(lang.tr('all_subcategories', category: 'admin'))),
-                          ...subs.map((s) =>
-                              DropdownMenuItem(value: s.name, child: Text(s.getTranslatedName(lang)))),
-                        ],
-                        onChanged: subs.isEmpty ? null :
-                            (v) => setState(() => _sub = v),
-                      );
-                    })),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      height: 44,
-                      child: TextButton.icon(
-                        onPressed: _reset,
-                        icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
-                        label: Text(lang.tr('reset', category: 'admin')),
-                        style: TextButton.styleFrom(
-                          foregroundColor: context.txtS,
-                          backgroundColor: context.bg,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: _T.rMd,
-                              side: BorderSide(color: context.border)),
-                          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ),
-                  ]);
-                },
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── List ──
-            Expanded(child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('services').snapshots(),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) return _Skeleton();
-                if (snap.hasError) {
-                  return _StateView(
-                  icon: Icons.cloud_off_rounded,
-                  color: _T.danger,
-                  bg: dark ? _T.dangerLD : _T.dangerL,
-                  title: lang.tr('failed_load_services', category: 'admin'),
-                  subtitle: lang.tr('check_connection_retry', category: 'admin'),
-                );
-                }
-
-                final all = snap.data!.docs.map((d) => Service.fromFirestore(d));
-                final services = all.where((s) {
-                  final q = _q.toLowerCase();
-                  return (s.title.toLowerCase().contains(q) ||
-                      s.description.toLowerCase().contains(q)) &&
-                      (_cat == null || s.category == _cat) &&
-                      (_sub == null || s.subcategory == _sub);
-                }).toList();
-
-                if (services.isEmpty) {
-                  return _StateView(
-                  icon: Icons.search_off_rounded,
-                  color: _T.primary,
-                  bg: dark ? _T.primaryLD : _T.primaryL,
-                  title: _q.isNotEmpty || _cat != null ? lang.tr('no_matching_services', category: 'admin') : lang.tr('no_services_yet', category: 'admin'),
-                  subtitle: _q.isNotEmpty || _cat != null
-                      ? lang.tr('adjust_filters', category: 'admin')
-                      : lang.tr('services_will_appear', category: 'admin'),
-                );
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Result count bar ──
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12, left: 2),
-                      child: Text(
-                        services.length == 1 
-                          ? lang.tr('service_count_single', category: 'admin').replaceAll('{{count}}', '1')
-                          : lang.trParams('service_count_plural', category: 'admin', params: {'count': services.length.toString()}),
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                            color: context.txtS),
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: services.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (ctx, i) => _ServiceRow(
-                          key: ValueKey(services[i].id),
-                          service: services[i],
-                          onDelete: () => _confirmDelete(ctx, vm, services[i], lang),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
+            Text(lang.tr('${type}_filter', category: 'admin'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ...items.map((item) => ListTile(
+              title: Text(lang.tr(item, category: 'admin')),
+              onTap: () {
+                onSelected(item);
+                Navigator.pop(context);
               },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             )),
           ],
         ),
@@ -323,520 +263,372 @@ class _ServicesTabState extends State<ServicesTab>
     );
   }
 
+  Widget _buildBulkActions(AdminViewModel vm, LanguageProvider lang) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AdminColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.primary.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${vm.selectedServiceIds.length} ${lang.tr('selected_count', category: 'admin')}',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: AdminColors.primary, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            onPressed: () async {
+              await vm.batchUpdateServicesStatus(true);
+              if (mounted) AppSnackBar.showSuccess(context, lang.tr('save_success', category: 'admin'));
+            },
+            icon: const Icon(Icons.check_circle_outline_rounded, color: AdminColors.success, size: 20),
+            tooltip: lang.tr('activate', category: 'admin'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            onPressed: () async {
+              await vm.batchUpdateServicesStatus(false);
+              if (mounted) AppSnackBar.showSuccess(context, lang.tr('save_success', category: 'admin'));
+            },
+            icon: const Icon(Icons.block_rounded, color: AdminColors.warning, size: 20),
+            tooltip: lang.tr('deactivate', category: 'admin'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            onPressed: () => _confirmBulkDelete(context, vm, lang),
+            icon: const Icon(Icons.delete_outline_rounded, color: AdminColors.danger, size: 20),
+            tooltip: lang.tr('delete', category: 'admin'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: vm.clearServiceSelection, 
+            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+            child: Text(lang.tr('clear', category: 'common'), style: const TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(LanguageProvider lang) {
+    return AdminEmptyState(
+      title: lang.tr('no_matching_services', category: 'admin'),
+      subtitle: lang.tr('adjust_filters', category: 'admin'),
+      icon: Icons.miscellaneous_services_rounded,
+    );
+  }
+
+  Future<void> _handleAction(String action, Service service, AdminViewModel vm, LanguageProvider lang) async {
+    switch (action) {
+      case 'view':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChangeNotifierProvider.value(
+              value: vm,
+              child: AdminServiceDetailsScreen(service: service),
+            ),
+          ),
+        );
+        break;
+      case 'toggle':
+        await vm.updateServiceStatus(service.id, isActive: !service.isActive);
+        break;
+      case 'duplicate':
+        await vm.duplicateService(service);
+        if (mounted) AppSnackBar.showSuccess(context, lang.tr('save_success', category: 'admin'));
+        break;
+      case 'feature':
+        await vm.toggleFeaturedService(service.id, !service.isFeatured);
+        break;
+      case 'delete':
+        _confirmDelete(context, vm, service, lang);
+        break;
+    }
+  }
+
   void _confirmDelete(BuildContext context, AdminViewModel vm, Service s, LanguageProvider lang) {
     showDialog(
       context: context,
-      builder: (ctx) => _DeleteDialog(
-        serviceName: s.title,
-        onConfirm: () { vm.deleteService(s.id); Navigator.pop(ctx); },
-        onCancel:  () => Navigator.pop(ctx),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text(lang.tr('delete_service_confirm', category: 'admin')),
+        content: Text('${lang.tr('delete_service_warning', category: 'admin')} "${s.title}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(lang.tr('cancel', category: 'common'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminColors.danger,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              vm.deleteService(s.id);
+              Navigator.pop(ctx);
+            },
+            child: Text(lang.tr('delete', category: 'common'), style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBulkDelete(BuildContext context, AdminViewModel vm, LanguageProvider lang) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text(lang.tr('confirm_bulk_delete', category: 'admin')),
+        content: Text(lang.trParams('confirm_bulk_delete_msg', category: 'admin', params: {'count': vm.selectedServiceIds.length.toString()})),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(lang.tr('cancel', category: 'common'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminColors.danger,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              vm.batchDeleteServices();
+              Navigator.pop(ctx);
+            },
+            child: Text(lang.tr('delete', category: 'common'), style: const TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── Search field ─────────────────────────────────────────────────────────────
-class _SearchField extends StatefulWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-  const _SearchField({required this.value, required this.onChanged});
-  @override State<_SearchField> createState() => _SearchFieldState();
-}
-
-class _SearchFieldState extends State<_SearchField> {
-  final _ctrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl.text = widget.value;
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = context.watch<LanguageProvider>();
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: context.bg,
-        borderRadius: _T.rMd,
-        border: Border.all(
-          // Slightly more visible border on the search field for prominence
-          color: context.isDark
-              ? const Color(0xFF3A3A50)
-              : const Color(0xFFD1D5DB),
-          width: 1.5,
-        ),
-      ),
-      child: TextField(
-        controller: _ctrl,
-        onChanged: widget.onChanged,
-        style: TextStyle(fontSize: 13, color: context.txtP),
-        decoration: InputDecoration(
-          hintText: lang.tr('search_services_hint', category: 'admin'),
-          hintStyle: TextStyle(fontSize: 13, color: context.txtM),
-          prefixIcon: Icon(Icons.search_rounded, size: 18, color: _T.primary.withOpacity(0.7)),
-          suffixIcon: _ctrl.text.isNotEmpty
-              ? GestureDetector(
-            onTap: () { _ctrl.clear(); widget.onChanged(''); },
-            child: Icon(Icons.close_rounded, size: 16, color: context.txtM),
-          )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Generic dropdown ──────────────────────────────────────────────────────────
-class _Dropdown<T> extends StatelessWidget {
-  final T value;
-  final String hint;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?>? onChanged;
-  const _Dropdown({required this.value, required this.hint,
-    required this.items, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final disabled = onChanged == null;
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: disabled
-            ? (context.isDark ? const Color(0xFF16161E) : const Color(0xFFF9FAFB))
-            : context.bg,
-        borderRadius: _T.rMd,
-        border: Border.all(color: context.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          hint: Text(hint, style: TextStyle(fontSize: 13,
-              color: disabled ? context.txtM : context.txtS)),
-          isExpanded: true,
-          icon: Icon(Icons.unfold_more_rounded, size: 16,
-              color: disabled ? context.txtM : context.txtS),
-          style: TextStyle(fontSize: 13, color: context.txtP),
-          items: items,
-          onChanged: onChanged,
-          dropdownColor: context.surface,
-          borderRadius: _T.rMd,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Service row ───────────────────────────────────────────────────────────────
-class _ServiceRow extends StatefulWidget {
+class _ServiceListItem extends StatelessWidget {
   final Service service;
-  final VoidCallback onDelete;
-  const _ServiceRow({super.key, required this.service, required this.onDelete});
-  @override State<_ServiceRow> createState() => _ServiceRowState();
-}
+  final bool isSelected;
+  final VoidCallback onToggle;
+  final Function(String) onAction;
 
-class _ServiceRowState extends State<_ServiceRow> {
-  bool _hovered = false;
-  String _providerName = '';
-
-  @override
-  void initState() {
-    super.initState();
-    // Don't call _fetchProviderName here, do it in build or use a FutureBuilder
-    // Actually, it's better to keep it but use localized placeholders
-  }
-
-  Future<void> _fetchProviderName(LanguageProvider lang) async {
-    if (_providerName.isNotEmpty && _providerName != lang.tr('loading', category: 'admin')) return;
-    
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.service.providerId).get();
-      if (doc.exists && mounted) {
-        setState(() => _providerName = doc.data()?['name'] ?? lang.tr('unknown', category: 'admin'));
-      }
-    } catch (e) {
-      if (mounted) setState(() => _providerName = lang.tr('error', category: 'admin'));
-    }
-  }
+  const _ServiceListItem({
+    required this.service,
+    required this.isSelected,
+    required this.onToggle,
+    required this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final s    = widget.service;
-    final dark = context.isDark;
-    final lang = context.watch<LanguageProvider>();
-    
-    if (_providerName.isEmpty) {
-      _providerName = lang.tr('loading', category: 'admin');
-      _fetchProviderName(lang);
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final lang = context.read<LanguageProvider>();
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        decoration: BoxDecoration(
-          color: context.surface,
-          borderRadius: _T.rMd,
-          border: Border.all(
-              color: _hovered ? _T.primary.withOpacity(0.4) : context.border,
-              width: _hovered ? 1.5 : 1.0),
-          boxShadow: _hovered ? _T.elevated(dark) : _T.card(dark),
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: AdminCard(
+        padding: EdgeInsets.zero,
         child: InkWell(
-          onTap: () {
-            final vm = context.read<AdminViewModel>();
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChangeNotifierProvider.value(
-                  value: vm,
-                  child: AdminServiceDetailsScreen(service: s),
-                ),
-              ),
-            );
-          },
-          borderRadius: _T.rMd,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            child: Row(children: [
-              // Thumbnail
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: dark ? _T.primaryLD : _T.primaryL,
-                  borderRadius: _T.rMd,
-                  image: s.images.isNotEmpty
-                      ? DecorationImage(image: NetworkImage(s.images[0]), fit: BoxFit.cover)
-                      : null,
-                ),
-                child: s.images.isEmpty
-                    ? const Icon(Icons.image_outlined, color: _T.primary, size: 22)
-                    : null,
-              ),
-              const SizedBox(width: 16),
-
-              // Info
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(s.title,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: context.txtP,
-                          letterSpacing: -0.2),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.person_outline_rounded, size: 12, color: context.txtM),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          _providerName, 
-                          style: TextStyle(fontSize: 12, color: context.txtS, fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(Icons.calendar_today_rounded, size: 12, color: context.txtM),
-                      const SizedBox(width: 4),
-                      Text(DateFormat.yMMMd().format(s.createdAt), style: TextStyle(fontSize: 12, color: context.txtM)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    Flexible(child: _chip(s.category, false, dark)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(Icons.chevron_right_rounded, size: 13, color: context.txtM),
-                    ),
-                    Flexible(child: _chip(s.subcategory, true, dark)),
-                  ]),
-                ],
-              )),
-
-              const SizedBox(width: 16),
-
-              // Status
-              Flexible(child: _statusBadge(s.isActive, dark)),
-              if (s.isFeatured) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-              ],
-              const SizedBox(width: 8),
-
-              // Delete
-              _DeleteBtn(onPressed: widget.onDelete),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _chip(String label, bool isPrimary, bool dark) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: isPrimary
-          ? (dark ? _T.primaryLD : _T.primaryL)
-          : (dark ? const Color(0xFF2A2A36) : const Color(0xFFF3F4F6)),
-      borderRadius: const BorderRadius.all(Radius.circular(6)),
-    ),
-    child: Text(label,
-        style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: isPrimary ? _T.primary : context.txtS,
-            letterSpacing: 0.1),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis),
-  );
-
-  Widget _statusBadge(bool active, bool dark) {
-    final lang = context.watch<LanguageProvider>();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: active
-            ? (dark ? _T.successLD : _T.successL)
-            : (dark ? _T.dangerLD  : _T.dangerL),
-        borderRadius: const BorderRadius.all(Radius.circular(20)),
-        border: Border.all(
-          color: active
-              ? _T.success.withOpacity(0.3)
-              : _T.danger.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 6, height: 6,
-            decoration: BoxDecoration(
-                color: active ? _T.success : _T.danger, shape: BoxShape.circle)),
-        const SizedBox(width: 5),
-        Text(active ? lang.tr('status_active', category: 'admin') : lang.tr('inactive', category: 'admin'),
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: active ? _T.success : _T.danger,
-                letterSpacing: 0.2)),
-      ]),
-    );
-  }
-}
-
-// ── Delete icon button ────────────────────────────────────────────────────────
-class _DeleteBtn extends StatefulWidget {
-  final VoidCallback onPressed;
-  const _DeleteBtn({required this.onPressed});
-  @override State<_DeleteBtn> createState() => _DeleteBtnState();
-}
-
-class _DeleteBtnState extends State<_DeleteBtn> {
-  bool _hov = false;
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final lang = context.watch<LanguageProvider>();
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hov = true),
-      onExit:  (_) => setState(() => _hov = false),
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          color: _hov ? (dark ? _T.dangerLD : _T.dangerL) : Colors.transparent,
-          borderRadius: _T.rSm,
-        ),
-        child: IconButton(
-          icon: Icon(Icons.delete_outline_rounded, size: 18,
-              color: _hov ? _T.danger : context.txtM),
-          onPressed: widget.onPressed,
-          splashRadius: 20,
-          tooltip: lang.tr('delete_service_confirm', category: 'admin'),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Skeleton loader ───────────────────────────────────────────────────────────
-class _Skeleton extends StatefulWidget {
-  @override State<_Skeleton> createState() => _SkeletonState();
-}
-
-class _SkeletonState extends State<_Skeleton> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
-  }
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        final shimmer = Color.lerp(
-          dark ? const Color(0xFF1E1E2A) : const Color(0xFFE5E7EB),
-          dark ? const Color(0xFF2A2A38) : const Color(0xFFF3F4F6),
-          _ctrl.value,
-        )!;
-        return ListView.separated(
-          itemCount: 6,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, __) => Container(
-            height: 76,
-            decoration: BoxDecoration(color: context.surface,
-                borderRadius: _T.rMd, border: Border.all(color: context.border)),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            child: Row(children: [
-              _Sk(52, 52, 12, shimmer),
-              const SizedBox(width: 16),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Sk(double.infinity, 13, 6, shimmer),
-                  const SizedBox(height: 8),
-                  _Sk(160, 11, 6, shimmer),
-                ],
-              )),
-              const SizedBox(width: 16),
-              _Sk(72, 26, 20, shimmer),
-              const SizedBox(width: 14),
-              _Sk(32, 32, 8, shimmer),
-            ]),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _Sk extends StatelessWidget {
-  final double w, h, r;
-  final Color c;
-  const _Sk(this.w, this.h, this.r, this.c);
-  @override
-  Widget build(BuildContext context) => Container(
-    width: w, height: h,
-    decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(r)),
-  );
-}
-
-// ── Generic state view (empty / error) ───────────────────────────────────────
-class _StateView extends StatelessWidget {
-  final IconData icon;
-  final Color color, bg;
-  final String title, subtitle;
-  const _StateView({required this.icon, required this.color, required this.bg,
-    required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(
-        width: 72, height: 72,
-        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-        child: Icon(icon, size: 32, color: color),
-      ),
-      const SizedBox(height: 20),
-      Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
-          color: context.txtP)),
-      const SizedBox(height: 6),
-      Text(subtitle, style: TextStyle(fontSize: 13, color: context.txtS),
-          textAlign: TextAlign.center),
-    ]),
-  );
-}
-
-// ── Delete dialog ─────────────────────────────────────────────────────────────
-class _DeleteDialog extends StatelessWidget {
-  final String serviceName;
-  final VoidCallback onConfirm, onCancel;
-  const _DeleteDialog({required this.serviceName,
-    required this.onConfirm, required this.onCancel});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final lang = context.watch<LanguageProvider>();
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: _T.rXl),
-      elevation: 0,
-      backgroundColor: context.surface,
-      child: Container(
-        width: 400,
-        padding: const EdgeInsets.all(28),
-        child: Column(mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          onTap: () => onAction('view'),
+          borderRadius: BorderRadius.circular(22),
+          child: Column(
             children: [
-              Container(
-                width: 48, height: 48,
-                decoration: BoxDecoration(
-                    color: dark ? _T.dangerLD : _T.dangerL, shape: BoxShape.circle),
-                child: const Icon(Icons.delete_outline_rounded, color: _T.danger, size: 22),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Service Image
+                    Hero(
+                      tag: 'service_img_${service.id}',
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isDark ? Colors.white.withOpacity(0.05) : AdminColors.background,
+                          image: service.images.isNotEmpty
+                              ? DecorationImage(image: NetworkImage(service.images[0]), fit: BoxFit.cover)
+                              : null,
+                        ),
+                        child: service.images.isEmpty 
+                            ? Icon(Icons.image_outlined, color: AdminColors.primary.withOpacity(0.2), size: 24) 
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Title & Categories
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  service.title,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                    color: isDark ? Colors.white : AdminColors.textMain,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (service.isFeatured)
+                                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              _buildMiniBadge(service.category, isDark),
+                              if (service.subcategory.isNotEmpty)
+                                _buildMiniBadge(service.subcategory, isDark),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Bulk Selection Checkbox
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: isSelected, 
+                        onChanged: (_) => onToggle(), 
+                        activeColor: AdminColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
-              Text(lang.tr('delete_service_confirm', category: 'admin'),
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
-                      color: context.txtP, letterSpacing: -0.3)),
-              const SizedBox(height: 8),
-              RichText(text: TextSpan(
-                style: TextStyle(fontSize: 13, color: context.txtS, height: 1.6),
-                children: [
-                  TextSpan(text: lang.tr('delete_service_warning', category: 'admin')),
-                  TextSpan(text: '"$serviceName"',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: context.txtP)),
-                  TextSpan(text: lang.tr('delete_service_undone', category: 'admin')),
-                ],
-              )),
-              const SizedBox(height: 24),
-              Divider(color: context.border, height: 1),
-              const SizedBox(height: 20),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                TextButton(
-                  onPressed: onCancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: context.txtS,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: _T.rMd, side: BorderSide(color: context.border)),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                  child: Text(lang.tr('cancel', category: 'common')),
+              Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.01) : AdminColors.background.withOpacity(0.3),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: onConfirm,
-                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
-                  label: Text(lang.tr('delete', category: 'common')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _T.danger,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: _T.rMd),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
+                child: Row(
+                  children: [
+                    // Price
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            lang.tr('price', category: 'admin').toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: isDark ? Colors.white38 : AdminColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${service.price} ${service.priceUnit}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: AdminColors.primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Status Badge
+                    Flexible(
+                      flex: 2,
+                      child: AdminStatusBadge(
+                        label: service.isActive 
+                          ? lang.tr('status_active', category: 'admin').toUpperCase() 
+                          : lang.tr('inactive', category: 'admin').toUpperCase(),
+                        color: service.isActive ? AdminColors.success : AdminColors.danger,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Actions
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildCompactAction(
+                          icon: service.isFeatured ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: service.isFeatured ? Colors.amber : (isDark ? Colors.white24 : Colors.grey),
+                          onTap: () => onAction('feature'),
+                        ),
+                        const SizedBox(width: 4),
+                        _buildCompactAction(
+                          icon: Icons.copy_rounded,
+                          color: AdminColors.primary,
+                          onTap: () => onAction('duplicate'),
+                        ),
+                        const SizedBox(width: 4),
+                        _buildCompactAction(
+                          icon: service.isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                          color: service.isActive ? AdminColors.warning : AdminColors.success,
+                          onTap: () => onAction('toggle'),
+                        ),
+                        const SizedBox(width: 4),
+                        _buildCompactAction(
+                          icon: Icons.delete_outline_rounded,
+                          color: AdminColors.danger,
+                          onTap: () => onAction('delete'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ]),
-            ]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniBadge(String text, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: isDark ? Colors.white70 : AdminColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactAction({required IconData icon, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 16, color: color),
       ),
     );
   }

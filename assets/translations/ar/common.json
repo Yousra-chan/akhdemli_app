@@ -59,7 +59,9 @@
   "error_user_not_found": "لم يتم العثور على حساب المستخدم.",
   "error_loading_profile": "فشل تحميل ملف المستخدم.",
   "add": "إضافة",
+  "view": "عرض",
   "close": "إغلاق",
+  "continue": "استمرار",
   "no_images": "لم يتم إضافة صور بعد",
   "dzd": "دج",
   "done": "تم",
@@ -69,5 +71,7 @@
   "client": "عميل",
   "provider": "مقدم خدمة",
   "switch": "تبديل",
-  "november": "نوفمبر"
+  "november": "نوفمبر",
+  "all": "الكل",
+  "reset": "إعادة تعيين"
 }

@@ -105,6 +105,17 @@ class ChatService {
       final existingChat = await docRef.get();
       if (existingChat.exists) {
         developer.log('ℹ️ Chat already exists: $chatId', name: 'ChatService');
+        
+        // Ensure both participants are in the participants array 
+        // (in case one had deleted/left the chat)
+        final data = existingChat.data();
+        final participants = List<String>.from(data?[_participantsField] ?? []);
+        if (!participants.contains(clientId) || !participants.contains(providerId)) {
+          await docRef.update({
+            _participantsField: FieldValue.arrayUnion([clientId, providerId])
+          });
+        }
+        
         return chatId;
       }
 
@@ -193,7 +204,7 @@ class ChatService {
       }).handleError((error) {
         developer.log('❌ Error in getUserChatsStream: $error',
             name: 'ChatService');
-      });
+      }).asBroadcastStream();
     } catch (e) {
       developer.log('❌ Error setting up chats stream: $e', name: 'ChatService');
       return Stream.error(e);
@@ -284,17 +295,15 @@ class ChatService {
         throw ChatException('Chat data is invalid', code: 'invalid-chat-data');
       }
 
-      // Get other participant
-      final participants =
-          List<String>.from(chatData[_participantsField] ?? []);
-      final otherUserId = _getOtherUserId(participants, message.senderId);
-
-      if (otherUserId == null) {
-        throw ChatException(
-          'Could not determine other participant',
-          code: 'invalid-participants',
-        );
+      // Get other participant using fixed fields instead of dynamic participants array
+      final clientId = chatData[_clientIdField] as String? ?? '';
+      final providerId = chatData[_providerIdField] as String? ?? '';
+      
+      if (clientId.isEmpty || providerId.isEmpty) {
+         throw ChatException('Invalid chat participants', code: 'invalid-chat-data');
       }
+
+      final otherUserId = message.senderId == clientId ? providerId : clientId;
 
       // Get sender name
       final participantNames = chatData[_participantNamesField] ?? {};
@@ -319,6 +328,7 @@ class ChatService {
           _lastMessageSenderField: message.senderId,
           _lastMessageTypeField: message.type,
           '$_unreadCountField.$otherUserId': FieldValue.increment(1),
+          _participantsField: FieldValue.arrayUnion([clientId, providerId]), // Re-add both participants
         });
       });
 
@@ -514,7 +524,7 @@ class ChatService {
   // CHAT CLEANUP
   // ============================================================================
 
-  /// Deletes a chat for a specific user
+  /// Deletes a chat for a specific user (removes from their view)
   ///
   /// Parameters:
   /// - chatId: ID of the chat
@@ -529,22 +539,101 @@ class ChatService {
       developer.log('🗑️ Deleting chat $chatId for user $userId',
           name: 'ChatService');
 
-      await _firestore.runTransaction((transaction) async {
-        transaction.update(_chatsRef.doc(chatId), {
-          _participantsField: FieldValue.arrayRemove([userId]),
-        });
+      final chatRef = _chatsRef.doc(chatId);
+      final userRef = _usersRef.doc(userId);
 
-        transaction.update(_usersRef.doc(userId), {
-          _chatIdsField: FieldValue.arrayRemove([chatId]),
-        });
+      await _firestore.runTransaction((transaction) async {
+        final chatDoc = await transaction.get(chatRef);
+        final userDoc = await transaction.get(userRef);
+        
+        if (chatDoc.exists) {
+          final data = chatDoc.data();
+          final participants = List<String>.from(data?[_participantsField] ?? []);
+          
+          if (participants.contains(userId)) {
+            participants.remove(userId);
+            
+            transaction.update(chatRef, {
+              _participantsField: participants,
+            });
+          }
+        }
+
+        // Only update user doc if it exists (some systems don't use chatIds on user docs)
+        if (userDoc.exists) {
+          transaction.update(userRef, {
+            _chatIdsField: FieldValue.arrayRemove([chatId]),
+          });
+        }
       });
 
       developer.log('✅ Chat deleted successfully', name: 'ChatService');
-    } on ChatException {
-      rethrow;
     } catch (e, stackTrace) {
       developer.log('❌ Error deleting chat: $e',
           name: 'ChatService', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Deletes a specific message from a chat and updates last message preview if needed
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    try {
+      _validateChatId(chatId);
+      if (messageId.isEmpty) throw ChatException('Message ID cannot be empty');
+
+      final chatRef = _chatsRef.doc(chatId);
+      final messagesRef = chatRef.collection(_messagesSubcollection);
+      final messageDocRef = messagesRef.doc(messageId);
+
+      // 1. Get the message to check its timestamp
+      final messageDoc = await messageDocRef.get();
+      if (!messageDoc.exists) return;
+      
+      final messageData = messageDoc.data()!;
+      final messageTime = messageData[_timestampField];
+
+      // 2. Delete the message
+      await messageDocRef.delete();
+
+      // 3. Update chat preview if this was the last message
+      final chatDoc = await chatRef.get();
+      if (chatDoc.exists) {
+        final chatData = chatDoc.data()!;
+        final lastMsgTime = chatData[_lastMessageTimeField];
+
+        // Compare timestamps
+        if (lastMsgTime != null && messageTime != null && 
+            (lastMsgTime as Timestamp).millisecondsSinceEpoch == (messageTime as Timestamp).millisecondsSinceEpoch) {
+          
+          // Fetch the now latest message
+          final latestQuery = await messagesRef
+              .orderBy(_timestampField, descending: true)
+              .limit(1)
+              .get();
+
+          if (latestQuery.docs.isNotEmpty) {
+            final newLast = latestQuery.docs.first.data();
+            await chatRef.update({
+              _lastMessageField: newLast['text'] ?? '',
+              _lastMessageTimeField: newLast[_timestampField] ?? FieldValue.serverTimestamp(),
+              _lastMessageSenderField: newLast[_senderIdField] ?? '',
+              _lastMessageTypeField: newLast['type'] ?? 'text',
+            });
+          } else {
+            // Chat is now empty
+            await chatRef.update({
+              _lastMessageField: '',
+              _lastMessageTimeField: chatData[_createdAtField] ?? FieldValue.serverTimestamp(),
+              _lastMessageSenderField: '',
+              _lastMessageTypeField: 'text',
+            });
+          }
+        }
+      }
+
+      developer.log('✅ Message $messageId deleted', name: 'ChatService');
+    } catch (e) {
+      developer.log('❌ Error deleting message: $e', name: 'ChatService');
       rethrow;
     }
   }

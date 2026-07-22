@@ -8,6 +8,8 @@ import 'package:service_app/ViewModel/auth_view_model.dart';
 import 'package:service_app/ViewModel/service_view_model.dart';
 import 'package:service_app/models/CategoryModel.dart';
 import 'package:service_app/models/UserModel.dart';
+import 'package:service_app/models/ProviderModel.dart';
+import 'package:service_app/Services/provider_service.dart';
 import 'package:service_app/screens/home/home_screen/create_service_button.dart';
 import 'package:service_app/Services/firebase_service.dart';
 import 'package:service_app/screens/home/providers_list/provider_list_page.dart';
@@ -15,8 +17,10 @@ import 'package:service_app/screens/search/search_screen.dart';
 import 'package:service_app/screens/home/notifications_page.dart';
 import 'package:service_app/screens/service/create_service.dart';
 import 'package:service_app/providers/language_provider.dart';
+import 'package:service_app/screens/profile/provider_profile/provider_profile_page.dart';
 import 'package:service_app/utils/ui_widgets.dart';
 import 'package:service_app/utils/image_utils.dart';
+import 'package:service_app/Services/search_service.dart';
 import 'home_constants.dart';
 import 'home_header_widget.dart';
 import 'categories_section.dart';
@@ -31,6 +35,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -38,11 +43,19 @@ class _HomePageState extends State<HomePage>
   UserModel? _currentUser;
   int _notificationCount = 0;
   List<CategoryModel> _categories = [];
+  List<ProviderModel> _featuredProviders = [];
   CategoryModel? _selectedCategory;
   List<SubcategoryModel> _subcategories = [];
+  String _selectedFilter = 'all';
+  List<ProviderModel> _searchProviders = [];
+  bool _isSearching = false;
+  Timer? _searchDebounce;
+  final SearchService _searchService = SearchService();
 
   bool _isLoadingCategories = true;
+  bool _isLoadingFeatured = true;
   bool _isLoadingSubcategories = false;
+  bool _isSearchFocused = false;
 
   StreamSubscription? _notificationCountSubscription;
   StreamSubscription? _userDataSubscription;
@@ -54,6 +67,11 @@ class _HomePageState extends State<HomePage>
     super.initState();
     _initializeAnimations();
     _loadInitialData();
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _isSearchFocused = _searchFocusNode.hasFocus;
+      });
+    });
   }
 
   void _initializeAnimations() {
@@ -72,7 +90,83 @@ class _HomePageState extends State<HomePage>
   void _loadInitialData() {
     _loadUserData();
     _loadCategories();
+    _loadFeaturedProviders();
     _loadNotificationCount();
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+
+    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _searchProviders = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () async {
+      if (query.isEmpty) return;
+      
+      setState(() => _isSearching = true);
+      try {
+        final providers = await _searchService.searchProvidersComprehensive(query);
+        if (mounted && _searchQuery == query) {
+          setState(() {
+            _searchProviders = providers;
+            _isSearching = false;
+          });
+        }
+      } catch (e) {
+        debugPrint('Search error: $e');
+        if (mounted) setState(() => _isSearching = false);
+      }
+    });
+  }
+
+  void _loadFeaturedProviders() async {
+    if (mounted) setState(() => _isLoadingFeatured = true);
+    try {
+      final service = ProviderService();
+      List<ProviderModel> providers = [];
+
+      switch (_selectedFilter) {
+        case 'popular':
+          providers = await service.getPopularProviders(limit: 6);
+          break;
+        case 'recommended':
+          providers = await service.getRecommendedProviders(limit: 6);
+          break;
+        case 'most_viewed':
+          providers = await service.getMostViewedProviders(limit: 6);
+          break;
+        default:
+          providers = await service.getFeaturedProviders(limit: 6);
+      }
+
+      if (mounted) {
+        setState(() {
+          _featuredProviders = providers;
+          _isLoadingFeatured = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading featured providers: $e');
+      if (mounted) setState(() => _isLoadingFeatured = false);
+    }
+  }
+
+  void _onFilterChanged(String filterId) {
+    if (_selectedFilter == filterId) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _selectedFilter = filterId;
+    });
+    _loadFeaturedProviders();
   }
 
   void _loadUserData() {
@@ -144,6 +238,11 @@ class _HomePageState extends State<HomePage>
   void _onCategorySelected(CategoryModel category,
       {bool isAutoSelect = false}) async {
     if (_isLoadingSubcategories) return;
+
+    if (!isAutoSelect) {
+      HapticFeedback.lightImpact();
+    }
+
     if (mounted) setState(() => _selectedCategory = category);
 
     if (isAutoSelect) {
@@ -323,10 +422,98 @@ class _HomePageState extends State<HomePage>
 
   void _showNotifications() => showNotificationsWindow(context);
 
+  Widget _buildSearchResults(LanguageProvider lang) {
+    final filteredCategories = _categories.where((cat) {
+      final name = cat.getTranslatedName(lang).toLowerCase();
+      final engName = cat.name.toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || engName.contains(query);
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (filteredCategories.isNotEmpty) ...[
+            Text(
+              lang.tr('categories', category: 'home_page'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Exo2'),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 150,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: filteredCategories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final cat = filteredCategories[index];
+                  return _ActivityCard(
+                    category: cat,
+                    index: index,
+                    lang: lang,
+                    onTap: () => _onCategorySelected(cat),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 25),
+          ],
+          Text(
+            lang.tr('providers', category: 'providers_list_page'),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Exo2'),
+          ),
+          const SizedBox(height: 12),
+          if (_isSearching)
+            const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+          else if (_searchProviders.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  children: [
+                    Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.withOpacity(0.3)),
+                    const SizedBox(height: 12),
+                    Text(lang.tr('no_results_found', category: 'search'), style: const TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _searchProviders.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final provider = _searchProviders[index];
+                return _SearchProviderResultTile(
+                  provider: provider,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProviderProfileScreen(
+                    provider: provider,
+                    serviceCategory: provider.profession,
+                  ),
+                ),
+              );
+            },
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _notificationCountSubscription?.cancel();
     _userDataSubscription?.cancel();
     _categoriesSubscription?.cancel();
@@ -337,6 +524,8 @@ class _HomePageState extends State<HomePage>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Directionality(
@@ -344,27 +533,10 @@ class _HomePageState extends State<HomePage>
               ? ui.TextDirection.rtl
               : ui.TextDirection.ltr,
           child: Scaffold(
-            backgroundColor: theme.scaffoldBackgroundColor,
+            backgroundColor: isDark ? theme.scaffoldBackgroundColor : kLightBackgroundColor,
             body: SafeArea(
               child: Column(
                 children: [
-                  HomeHeader(
-                    currentUser: _currentUser,
-                    searchController: _searchController,
-                    onSearchChanged: (v) => setState(() => _searchQuery = v),
-                    onSearchSubmitted: (query) {
-                      if (query.trim().isNotEmpty) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MapSearchPage(initialQuery: query),
-                          ),
-                        );
-                      }
-                    },
-                    notificationCount: _notificationCount,
-                    onNotificationPressed: _showNotifications,
-                  ),
                   Expanded(
                     child: FadeTransition(
                       opacity: _fadeAnimation,
@@ -373,8 +545,58 @@ class _HomePageState extends State<HomePage>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildCategoriesSectionHeader(languageProvider),
-                            _buildCategoriesGrid(languageProvider),
+                            HomeHeader(
+                              currentUser: _currentUser,
+                              searchController: _searchController,
+                              focusNode: _searchFocusNode,
+                              onSearchChanged: _onSearchChanged,
+                              onSearchSubmitted: (query) {
+                                if (query.trim().isNotEmpty) {
+                                  _searchFocusNode.unfocus();
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProvidersListPage(
+                                        categoryName: '',
+                                        subCategoryName: '',
+                                        searchQuery: query,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              notificationCount: _notificationCount,
+                              onNotificationPressed: _showNotifications,
+                            ),
+                            if (_searchQuery.isEmpty) ...[
+                              _buildFilterChips(languageProvider),
+                              const SizedBox(height: 25),
+                              _buildSectionHeader(
+                                languageProvider,
+                                title: languageProvider.tr('browse_activity', category: 'home_page'),
+                                showSeeAll: false,
+                              ),
+                              const SizedBox(height: 15),
+                              _buildQuickCategoriesRow(languageProvider),
+                              const SizedBox(height: 30),
+                              _buildSectionHeader(
+                                languageProvider,
+                                title: languageProvider.tr('popular_destination', category: 'home_page'),
+                                showSeeAll: true,
+                                onSeeAll: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const ProvidersListPage(categoryName: '', subCategoryName: ''),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 15),
+                              _buildPopularProviders(languageProvider),
+                            ] else ...[
+                              _buildSearchResults(languageProvider),
+                            ],
                             const SizedBox(height: 100),
                           ],
                         ),
@@ -394,164 +616,142 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // ── Categories section header ──────────────────────────────
-  Widget _buildCategoriesSectionHeader(LanguageProvider lang) {
+  Widget _buildFilterChips(LanguageProvider lang) {
+    if (_searchQuery.isNotEmpty) return const SizedBox.shrink();
+
+    final filters = [
+      {'id': 'all', 'label': lang.tr('all', category: 'home_page')},
+      {'id': 'popular', 'label': lang.tr('popular', category: 'home_page')},
+      {'id': 'recommended', 'label': lang.tr('recommended', category: 'home_page')},
+      {'id': 'most_viewed', 'label': lang.tr('most_viewed', category: 'home_page')},
+    ];
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(top: 15),
+      child: ListView.separated(
+        shrinkWrap: true,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final isSelected = _selectedFilter == filter['id'];
+          return GestureDetector(
+            onTap: () => _onFilterChanged(filter['id']!),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? kPrimaryBlue : Colors.white.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected ? [BoxShadow(color: kPrimaryBlue.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))] : null,
+              ),
+              child: Center(
+                child: Text(
+                  filter['label']!,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : kMutedTextColor,
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    fontFamily: 'Exo2',
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(LanguageProvider lang, {required String title, required bool showSeeAll, VoidCallback? onSeeAll}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            _searchQuery.isEmpty
-                ? lang.tr('categories', category: 'home_page')
-                : lang.tr('search_results', category: 'home_page'),
-            style: TextStyle(
-              color: Theme.of(context).textTheme.titleLarge?.color ??
-                  kDarkTextColor,
+            title,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               fontFamily: 'Exo2',
-              letterSpacing: -0.3,
+              color: kDarkTextColor,
             ),
           ),
-          if (_categories.isNotEmpty && _searchQuery.isEmpty)
+          if (showSeeAll)
             GestureDetector(
-              onTap: () => _navigateToAllCategories(lang),
-              child: Row(
-                children: [
-                  Text(
-                    lang.tr('see_all', category: 'home_page'),
-                    style: const TextStyle(
-                      color: kPrimaryBlue,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Exo2',
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 11, color: kPrimaryBlue),
-                ],
-              ),
+              onTap: onSeeAll,
+              child: const Icon(Icons.more_horiz, color: kMutedTextColor),
             ),
         ],
       ),
     );
   }
 
-  void _navigateToAllCategories(LanguageProvider lang) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CategoriesPage(
-          categories: _categories,
-          currentUser: _currentUser,
-        ),
+  Widget _buildQuickCategoriesRow(LanguageProvider lang) {
+    if (_isLoadingCategories) {
+      return const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()));
+    }
+
+    final quickCats = _categories.take(8).toList();
+
+    return SizedBox(
+      height: 150,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: quickCats.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 15),
+        itemBuilder: (context, index) {
+          final cat = quickCats[index];
+          return _ActivityCard(
+            category: cat,
+            index: index,
+            lang: lang,
+            onTap: () => _onCategorySelected(cat),
+          );
+        },
       ),
     );
   }
 
-  // ── Categories Grid ────────────────────────────────────────
-  Widget _buildCategoriesGrid(LanguageProvider lang) {
-    if (_isLoadingCategories) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.65,
-          ),
-          itemCount: 6,
-          itemBuilder: (context, index) => const CategorySkeleton(),
-        ),
+  Widget _buildPopularProviders(LanguageProvider lang) {
+    if (_isLoadingFeatured) {
+      return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_featuredProviders.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20),
+        child: Text("No featured providers available", style: TextStyle(color: kMutedTextColor)),
       );
     }
 
-    if (_categories.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Text(
-          lang.tr('no_categories', category: 'home_page'),
-          style: const TextStyle(
-              color: kMutedTextColor, fontFamily: 'Exo2', fontSize: 14),
-        ),
-      );
-    }
-
-    final filteredCategories = _categories.where((cat) {
-      final name = cat.getTranslatedName(lang).toLowerCase();
-      final engName = cat.name.toLowerCase();
-      final query = _searchQuery.toLowerCase();
-      return name.contains(query) || engName.contains(query);
-    }).toList();
-
-    if (filteredCategories.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.search_off_rounded,
-                  size: 64, color: Colors.grey.withOpacity(0.3)),
-              const SizedBox(height: 16),
-              Text(
-                lang.tr('no_results_found', category: 'search'),
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                lang.tr('adjust_filters', category: 'admin'),
-                style: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontSize: 14,
-                  fontFamily: 'Exo2',
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Show at most 9 categories on home (3 rows of 3) when NOT searching
-    final displayCategories = _searchQuery.isEmpty
-        ? (filteredCategories.length > 9
-            ? filteredCategories.sublist(0, 9)
-            : filteredCategories)
-        : filteredCategories;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 0.65,
-        ),
-        itemCount: displayCategories.length,
+    return SizedBox(
+      height: 220,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _featuredProviders.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 15),
         itemBuilder: (context, index) {
-          final category = displayCategories[index];
-          return _CategoryGridCard(
-            title: category.getTranslatedName(lang),
-            icon: category.icon,
-            imageUrl: category.iconUrl,
-            color: getColorForCategory(category.name, index),
-            onTap: () => _onCategorySelected(category),
-            isLoading: _isLoadingSubcategories &&
-                _selectedCategory?.id == category.id,
+          final provider = _featuredProviders[index];
+          return _PopularProviderCard(
+            provider: provider,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProviderProfileScreen(
+                    provider: provider,
+                    serviceCategory: provider.profession,
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -560,8 +760,214 @@ class _HomePageState extends State<HomePage>
 }
 
 // ──────────────────────────────────────────────────────────────
-//  Category Grid Card  — matches reference image style
+//  Activity Card (Category)
 // ──────────────────────────────────────────────────────────────
+class _ActivityCard extends StatelessWidget {
+  final CategoryModel category;
+  final int index;
+  final LanguageProvider lang;
+  final VoidCallback onTap;
+
+  const _ActivityCard({
+    required this.category,
+    required this.index,
+    required this.lang,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 100,
+        child: Column(
+          children: [
+            Container(
+              height: 110,
+              width: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildVisual(),
+                    // Gradient overlay at bottom
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              category.getTranslatedName(lang),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Exo2',
+                color: kDarkTextColor,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisual() {
+    final imageUrl = category.iconUrl;
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      if (ImageUtils.isBase64Image(imageUrl)) {
+        final bytes = ImageUtils.decodeBase64Image(imageUrl);
+        if (bytes != null) return Image.memory(bytes, fit: BoxFit.cover);
+      } else {
+        return CachedNetworkImage(
+          imageUrl: imageUrl,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: Colors.blue.shade50),
+          errorWidget: (_, __, ___) => _fallback(),
+        );
+      }
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    return Container(
+      color: kPrimaryBlue.withOpacity(0.05),
+      child: Icon(category.icon, color: kPrimaryBlue, size: 30),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Popular Provider Card
+// ──────────────────────────────────────────────────────────────
+class _PopularProviderCard extends StatelessWidget {
+  final ProviderModel provider;
+  final VoidCallback onTap;
+
+  const _PopularProviderCard({
+    required this.provider,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Image Area
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                      child: provider.photoUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: provider.photoUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(color: kPrimaryBlue.withOpacity(0.05)),
+                              errorWidget: (_, __, ___) => _fallbackImage(),
+                            )
+                          : _fallbackImage(),
+                    ),
+                  ),
+                  // Heart Icon
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.favorite_rounded, color: Colors.red, size: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Info Area
+            Padding(
+              padding: const EdgeInsets.all(15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${provider.rating.toStringAsFixed(1)} (2k)",
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Exo2'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    provider.name,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, fontFamily: 'Exo2', color: kDarkTextColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fallbackImage() {
+    return Container(
+      color: kPrimaryBlue.withOpacity(0.05),
+      child: const Icon(Icons.person, color: kPrimaryBlue, size: 40),
+    );
+  }
+}
+
+// Re-defining for subcategory support within home
 class _CategoryGridCard extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -581,93 +987,134 @@ class _CategoryGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return GestureDetector(
       onTap: onTap,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Image / icon area
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: _buildVisual(isDark),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: _buildVisual(),
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          // Label
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: isLoading
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: kPrimaryBlue),
-                  )
-                : Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isDark ? Colors.white70 : const Color(0xFF2D2D2D),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'Exo2',
-                      height: 1.2,
-                    ),
-                  ),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, fontFamily: 'Exo2', color: kDarkTextColor),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildVisual(bool isDark) {
+  Widget _buildVisual() {
     if (imageUrl != null && imageUrl!.isNotEmpty) {
       if (ImageUtils.isBase64Image(imageUrl)) {
         final bytes = ImageUtils.decodeBase64Image(imageUrl);
-        if (bytes != null) {
-          return Image.memory(bytes,
-              fit: BoxFit.contain,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (_, __, ___) => _fallbackIcon(isDark));
-        }
+        if (bytes != null) return Image.memory(bytes, fit: BoxFit.cover);
       } else {
         return CachedNetworkImage(
           imageUrl: imageUrl!,
-          fit: BoxFit.contain,
-          width: double.infinity,
-          height: double.infinity,
-          placeholder: (_, __) => _shimmer(),
-          errorWidget: (_, __, ___) => _fallbackIcon(isDark),
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: kPrimaryBlue.withOpacity(0.05)),
+          errorWidget: (_, __, ___) => _fallback(),
         );
       }
     }
-    return _fallbackIcon(isDark);
+    return _fallback();
   }
 
-  Widget _fallbackIcon(bool isDark) {
+  Widget _fallback() {
     return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.15 : 0.10),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(icon, color: color, size: 36),
+      color: kPrimaryBlue.withOpacity(0.05),
+      child: Icon(icon, color: kPrimaryBlue, size: 28),
     );
   }
+}
 
-  Widget _shimmer() {
-    return const SkeletonLoader(
-      width: double.infinity,
-      height: double.infinity,
-      borderRadius: 14,
+// ──────────────────────────────────────────────────────────────
+//  Search Provider Result Tile
+// ──────────────────────────────────────────────────────────────
+class _SearchProviderResultTile extends StatelessWidget {
+  final ProviderModel provider;
+  final VoidCallback onTap;
+
+  const _SearchProviderResultTile({
+    required this.provider,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kPrimaryBlue.withOpacity(0.05),
+              ),
+              child: ClipOval(
+                child: provider.photoUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: provider.photoUrl,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => const Icon(Icons.person, color: kPrimaryBlue),
+                      )
+                    : const Icon(Icons.person, color: kPrimaryBlue),
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    provider.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Exo2'),
+                  ),
+                  Text(
+                    provider.profession,
+                    style: const TextStyle(color: kMutedTextColor, fontSize: 12, fontFamily: 'Exo2'),
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                const SizedBox(width: 2),
+                Text(
+                  provider.rating.toStringAsFixed(1),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:service_app/models/UserModel.dart';
 import 'package:service_app/models/ProviderModel.dart';
@@ -125,6 +126,39 @@ class ProviderService {
     } catch (e) {
       throw Exception('Failed to update provider rating: $e');
     }
+  }
+
+  // Get popular providers (most reviews or high rating)
+  Future<List<ProviderModel>> getPopularProviders({int limit = 10}) async {
+    try {
+      final now = Timestamp.fromDate(DateTime.now());
+      final querySnapshot = await _firestore
+          .collection(_collectionName)
+          .where('role', isEqualTo: 'provider')
+          .where('subscriptionActive', isEqualTo: true)
+          .where('subscriptionExpiry', isGreaterThan: now)
+          .orderBy('rating', descending: true)
+          .limit(limit)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final user = UserModel.fromMap(doc.data(), doc.id);
+        return ProviderModel.fromUser(user);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting popular providers: $e');
+      return [];
+    }
+  }
+
+  // Get recommended providers (active with high ratings)
+  Future<List<ProviderModel>> getRecommendedProviders({int limit = 10}) async {
+    return getFeaturedProviders(limit: limit);
+  }
+
+  // Get most viewed providers (using rating as a proxy if views not tracked)
+  Future<List<ProviderModel>> getMostViewedProviders({int limit = 10}) async {
+    return getPopularProviders(limit: limit);
   }
 
   // Check if provider exists and is active

@@ -125,6 +125,18 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    _setLoading(true);
+    try {
+      await _chatService.deleteMessage(chatId, messageId);
+    } catch (e) {
+      _setError('failed_to_delete_message');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Add to ChatViewModel
   Future<String?> getUserProfileImageUrl(String userId) async {
     try {

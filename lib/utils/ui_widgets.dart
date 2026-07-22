@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:service_app/providers/language_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
@@ -430,18 +431,22 @@ class EmptyStateWidget extends StatelessWidget {
 /// A modern styled snackbar for messages
 class AppSnackBar {
   static void showSuccess(BuildContext context, String message) {
+    HapticFeedback.lightImpact();
     _show(context, message, Colors.green, Icons.check_circle_outline);
   }
 
   static void showError(BuildContext context, String message) {
+    HapticFeedback.heavyImpact();
     _show(context, message, Colors.redAccent, Icons.error_outline);
   }
 
   static void showWarning(BuildContext context, String message) {
+    HapticFeedback.mediumImpact();
     _show(context, message, Colors.orange, Icons.warning_amber_outlined);
   }
 
   static void showInfo(BuildContext context, String message) {
+    HapticFeedback.selectionClick();
     _show(context, message, const Color.fromARGB(255, 12, 94, 153), Icons.info_outline);
   }
 

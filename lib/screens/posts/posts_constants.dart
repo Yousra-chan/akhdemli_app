@@ -72,6 +72,7 @@ class Post {
   final String body;
   final String user;
   final String userId;
+  final String userPhotoUrl;
   final PostType type;
 
   /// Top-level category name, e.g. "Electrical". Matches CategoryModel.name.
@@ -95,6 +96,7 @@ class Post {
     required this.body,
     required this.user,
     required this.userId,
+    this.userPhotoUrl = '',
     required this.type,
     required this.serviceCategory,
     this.serviceCategoryKey = '',
@@ -127,6 +129,7 @@ class Post {
       'body': body,
       'user': user,
       'userId': userId,
+      'userPhotoUrl': userPhotoUrl,
       'type': type == PostType.seeking ? 'seeking' : 'offering',
       'serviceCategory': serviceCategory,
       'serviceCategoryKey': serviceCategoryKey,
@@ -149,6 +152,7 @@ class Post {
       body: map['body'] ?? '',
       user: map['user'] ?? 'Anonymous',
       userId: map['userId'] ?? 'unknown_user_id',
+      userPhotoUrl: map['userPhotoUrl'] ?? '',
       type: map['type'] == 'seeking' ? PostType.seeking : PostType.offering,
       serviceCategory: map['serviceCategory'] ?? 'Other',
       serviceCategoryKey: map['serviceCategoryKey'] ?? '',
@@ -165,6 +169,7 @@ class Post {
     String? body,
     String? user,
     String? userId,
+    String? userPhotoUrl,
     PostType? type,
     String? serviceCategory,
     String? serviceCategoryKey,
@@ -179,6 +184,7 @@ class Post {
       body: body ?? this.body,
       user: user ?? this.user,
       userId: userId ?? this.userId,
+      userPhotoUrl: userPhotoUrl ?? this.userPhotoUrl,
       type: type ?? this.type,
       serviceCategory: serviceCategory ?? this.serviceCategory,
       serviceCategoryKey: serviceCategoryKey ?? this.serviceCategoryKey,

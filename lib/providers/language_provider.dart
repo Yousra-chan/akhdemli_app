@@ -59,7 +59,8 @@ class LanguageProvider with ChangeNotifier {
       'about_us',
       'admin',
       'onboarding',
-      'terms'
+      'terms',
+      'professions'
     ];
 
     // Load each JSON file

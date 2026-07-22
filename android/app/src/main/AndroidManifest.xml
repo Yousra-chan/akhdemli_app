@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ========================================== -->
     <!-- PERMISSIONS -->
@@ -8,82 +9,89 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    
-    <!-- Critical for notifications (Android 13+) -->
+
+    <!-- Notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
-    <!-- For FCM background services -->
+
+    <!-- Foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-    <!-- For phone calls -->
+    <!-- Phone -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
+    <!-- Advertising ID - explicitement retiré car non utilisé par l'application -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove" />
+
     <!-- ========================================== -->
-    <!-- QUERIES FOR ANDROID 11+ -->
+    <!-- QUERIES -->
     <!-- ========================================== -->
     <queries>
-        <!-- If your app opens https URLs -->
+
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
 
-        <!-- If your app makes calls -->
         <intent>
             <action android:name="android.intent.action.DIAL" />
             <data android:scheme="tel" />
         </intent>
+
         <intent>
             <action android:name="android.intent.action.CALL" />
             <data android:scheme="tel" />
         </intent>
 
-        <!-- Emails / share -->
         <intent>
             <action android:name="android.intent.action.SEND" />
             <data android:mimeType="*/*" />
         </intent>
+
         <intent>
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="smsto" />
         </intent>
 
-        <!-- WhatsApp -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="https" android:host="wa.me" />
+            <data
+                android:scheme="https"
+                android:host="wa.me" />
         </intent>
+
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="http" android:host="wa.me" />
+            <data
+                android:scheme="http"
+                android:host="wa.me" />
         </intent>
+
         <package android:name="com.whatsapp" />
 
-        <!-- Generic text for ProcessTextPlugin -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+
     </queries>
 
     <application
-        android:label="Akhdem Li"
         android:name="${applicationName}"
+        android:label="Akhdem Li"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="false"
-        android:enableOnBackInvokedCallback="true"
         android:allowBackup="false"
         android:fullBackupContent="false"
-        android:dataExtractionRules="@xml/data_extraction_rules">
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="false">
 
-        <!-- ========================================== -->
-        <!-- MAIN ACTIVITY -->
-        <!-- ========================================== -->
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -100,91 +108,88 @@
                 android:resource="@style/NormalTheme" />
 
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Intent filter for notification clicks -->
             <intent-filter>
                 <action android:name="FLUTTER_NOTIFICATION_CLICK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- Deep linking for notifications -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="akhdemli" />
             </intent-filter>
+
         </activity>
 
-        <!-- ========================================== -->
-        <!-- FCM SERVICES -->
-        <!-- ========================================== -->
-        <!-- FCM Service -->
+        <!-- Firebase Messaging -->
         <service
             android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
-            android:exported="false">
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
+
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
+
         </service>
 
-        <!-- For background messages -->
+        <!-- Scheduled notifications -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:exported="true"
-            android:enabled="true">
+            android:enabled="true"
+            android:exported="true">
+
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
+
         </receiver>
 
-        <!-- For scheduled notifications -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false" />
 
-        <!-- ========================================== -->
-        <!-- FCM CONFIGURATION -->
-        <!-- ========================================== -->
+        <!-- Firebase Messaging -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />
-        
+
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_notification" />
-        
+
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
-        
-        <!-- Notification badge support -->
+
         <meta-data
             android:name="com.google.firebase.messaging.notification_badge"
             android:value="true" />
-        
-        <!-- Notification sound support -->
+
         <meta-data
             android:name="com.google.firebase.messaging.notification_sound"
             android:value="default" />
 
-        <!-- Firebase Analytics -->
-        <meta-data
-            android:name="firebase_analytics_collection_enabled"
-            android:value="true" />
-        <meta-data
-            android:name="firebase_crashlytics_collection_enabled"
-            android:value="true" />
-
-        <!-- Flutter embedding -->
+        <!-- Flutter -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Disable Firebase Analytics AD_ID collection to satisfy Play Store if not using ads -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
+
     </application>
 
 </manifest>

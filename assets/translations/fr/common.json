@@ -59,7 +59,9 @@
   "error_user_not_found": "Compte utilisateur introuvable.",
   "error_loading_profile": "Échec du chargement du profil utilisateur.",
   "add": "Ajouter",
+  "view": "Voir",
   "close": "Fermer",
+  "continue": "Continuer",
   "no_images": "Aucune image ajoutée",
   "dzd": "DA",
   "done": "Terminé",
@@ -69,5 +71,7 @@
   "client": "Client",
   "provider": "Prestataire",
   "switch": "Changer",
-  "november": "Novembre"
+  "november": "Novembre",
+  "all": "Tout",
+  "reset": "Réinitialiser"
 }

@@ -340,21 +340,42 @@ class _UsersTabState extends State<UsersTab> {
     ]);
   }
 
-  void _handleUserAction(String action, UserModel user, AdminViewModel vm) {
-    switch (action) {
-      case 'suspend':
-        vm.updateUserStatus(user.uid, isSuspended: !user.isSuspended);
-        break;
-      case 'ban':
-        vm.updateUserStatus(user.uid, isBanned: !user.isBanned);
-        break;
-      case 'role':
-        final String nextRole = user.role == 'admin' ? 'client' : 'admin';
-        vm.updateUserStatus(user.uid, role: nextRole);
-        break;
-      case 'delete':
-        _showDeleteConfirm(user, vm);
-        break;
+  Future<void> _handleUserAction(String action, UserModel user, AdminViewModel vm) async {
+    try {
+      switch (action) {
+        case 'suspend':
+          await vm.updateUserStatus(user.uid, isSuspended: !user.isSuspended);
+          break;
+        case 'ban':
+          await vm.updateUserStatus(user.uid, isBanned: !user.isBanned);
+          break;
+        case 'role':
+          final String nextRole = user.role == 'admin' ? 'client' : 'admin';
+          await vm.updateUserStatus(user.uid, role: nextRole);
+          break;
+        case 'delete':
+          _showDeleteConfirm(user, vm);
+          return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.read<LanguageProvider>().tr('save_success', category: 'admin')),
+            backgroundColor: AdminColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.read<LanguageProvider>().tr('operation_failed', category: 'admin')),
+            backgroundColor: AdminColors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

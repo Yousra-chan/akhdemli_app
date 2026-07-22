@@ -59,7 +59,9 @@
   "error_user_not_found": "User account not found.",
   "error_loading_profile": "Failed to load user profile.",
   "add": "Add",
+  "view": "View",
   "close": "Close",
+  "continue": "Continue",
   "no_images": "No images added yet",
   "dzd": "DZD",
   "done": "Done",
@@ -69,5 +71,7 @@
   "client": "Client",
   "provider": "Provider",
   "switch": "Switch",
-  "november": "November"
+  "november": "November",
+  "all": "All",
+  "reset": "Reset"
 }

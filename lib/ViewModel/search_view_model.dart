@@ -79,9 +79,9 @@ class SearchViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Execute both searches
+      // Execute comprehensive search for providers
       final providerResults =
-          await _searchService.searchProvidersByProfessionOrName(query);
+          await _searchService.searchProvidersComprehensive(query);
       final serviceResults = await _searchService.searchServices(query);
 
       _providerResults = providerResults;

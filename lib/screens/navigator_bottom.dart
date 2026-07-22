@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:service_app/screens/chat/chat_screen.dart';
 import 'package:service_app/screens/home/home_screen/home_screen.dart';
@@ -51,6 +52,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.briefcase_fill,
           selectedColor,
           unselectedColor,
+          context: context,
         ),
         label: languageProvider.tr('services', category: 'nav_bottom'),
       ),
@@ -61,6 +63,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.map_fill,
           selectedColor,
           unselectedColor,
+          context: context,
         ),
         label: languageProvider.tr('search', category: 'nav_bottom'),
       ),
@@ -71,6 +74,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.home,
           selectedColor,
           unselectedColor,
+          context: context,
         ),
         label: languageProvider.tr('home', category: 'nav_bottom'),
       ),
@@ -82,6 +86,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           selectedColor,
           unselectedColor,
           badgeCount: unreadCount,
+          context: context,
         ),
         label: languageProvider.tr('chat', category: 'nav_bottom'),
       ),
@@ -92,6 +97,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
           CupertinoIcons.person_fill,
           selectedColor,
           unselectedColor,
+          context: context,
         ),
         label: languageProvider.tr('profile', category: 'nav_bottom'),
       ),
@@ -141,20 +147,22 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
     Color highlight,
     Color unselectedColor, {
     int badgeCount = 0,
+    required BuildContext context,
   }) {
     final bool selected = selectorIndex == index;
+    final theme = Theme.of(context);
 
     Widget iconWidget = Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         gradient: selected
-            ? const LinearGradient(
+            ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color.fromARGB(255, 12, 94, 153),
-                  Color(0xFF4A6FDC),
-                  Color(0xFF667EEA),
+                  theme.primaryColor,
+                  theme.primaryColor.withValues(alpha: 0.8),
+                  theme.colorScheme.secondary.withValues(alpha: 0.8),
                 ],
               )
             : null,
@@ -163,7 +171,7 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: highlight.withValues(alpha: 0.3),
+                  color: theme.primaryColor.withValues(alpha: 0.3),
                   blurRadius: 8,
                   spreadRadius: 1,
                   offset: const Offset(0, 2),
@@ -204,12 +212,13 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
     final authViewModel = Provider.of<AuthViewModel>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
     final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
     // Dynamic colors based on theme
     final Color selectedColor = theme.primaryColor;
-    final Color unselectedColor = theme.brightness == Brightness.dark
-        ? Colors.white38
-        : const Color.fromARGB(255, 150, 180, 220);
+    final Color unselectedColor = isDark 
+        ? Colors.white30 
+        : theme.primaryColor.withValues(alpha: 0.4);
     final Color backgroundColor = theme.scaffoldBackgroundColor;
     final Color navBackgroundColor = theme.cardColor;
 
@@ -368,6 +377,9 @@ class _NavigatorBottomState extends State<NavigatorBottom> {
             unreadCount: unreadCount,
           ),
           onTap: (val) {
+            if (selectorIndex != val) {
+              HapticFeedback.selectionClick();
+            }
             setState(() {
               selectorIndex = val;
             });

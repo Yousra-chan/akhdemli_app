@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Politique de Confidentialité — Akhdem Li</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root{
+          --ink:#1c2230;
+          --ink-soft:#5b6270;
+          --paper:#faf9f6;
+          --line:#e6e4dd;
+          --accent:#2f5d50;
+          --accent-soft:#eef3f0;
+        }
+        *{box-sizing:border-box;}
+        html{scroll-behavior:smooth;}
+        body{
+          margin:0;
+          font-family:'Inter',-apple-system,sans-serif;
+          color:var(--ink);
+          background:var(--paper);
+          line-height:1.75;
+          font-size:16.5px;
+        }
+        .shell{max-width:680px;margin:0 auto;padding:80px 24px 100px;}
+
+        header{margin-bottom:64px;}
+        .kicker{
+          font-size:.78rem; letter-spacing:.12em; text-transform:uppercase;
+          color:var(--accent); font-weight:600; margin-bottom:14px;
+        }
+        h1{
+          font-family:'Fraunces', serif;
+          font-weight:600;
+          font-size:clamp(2.1rem, 5vw, 2.7rem);
+          line-height:1.15;
+          margin:0 0 14px;
+          letter-spacing:-0.01em;
+        }
+        header p.sub{
+          color:var(--ink-soft);
+          font-size:1.05rem;
+          margin:0 0 20px;
+          max-width:46ch;
+        }
+        header .date{
+          font-size:.85rem;
+          color:var(--ink-soft);
+          border-top:1px solid var(--line);
+          padding-top:16px;
+        }
+
+        section{margin-bottom:52px;}
+        section h2{
+          font-family:'Fraunces', serif;
+          font-weight:600;
+          font-size:1.4rem;
+          margin:0 0 18px;
+          color:var(--ink);
+        }
+        section p{color:var(--ink-soft); margin:0 0 14px;}
+        section p strong, section li strong{color:var(--ink); font-weight:600;}
+
+        ul{margin:0; padding:0; list-style:none;}
+        li{
+          position:relative;
+          padding:0 0 14px 20px;
+          color:var(--ink-soft);
+        }
+        li::before{
+          content:"–";
+          position:absolute; left:0; top:0;
+          color:var(--accent);
+        }
+
+        .permit-list{margin-top:4px;}
+        .permit{padding:18px 0; border-top:1px solid var(--line);}
+        .permit:last-child{border-bottom:1px solid var(--line);}
+        .permit h3{
+          font-size:.98rem; font-weight:600; margin:0 0 6px; color:var(--ink);
+        }
+        .permit p{margin:0; font-size:.95rem; color:var(--ink-soft);}
+
+        .note{
+          background:var(--accent-soft);
+          border-radius:10px;
+          padding:16px 18px;
+          font-size:.92rem;
+          color:var(--accent);
+          margin-top:8px;
+        }
+
+        .contact{
+          border-top:1px solid var(--line);
+          padding-top:24px;
+          display:flex; flex-direction:column; gap:6px;
+        }
+        .contact a{color:var(--accent); text-decoration:none; font-weight:600;}
+        .contact a:hover{text-decoration:underline;}
+        .contact .label{font-size:.8rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em;}
+
+        footer{
+          margin-top:70px;
+          padding-top:24px;
+          border-top:1px solid var(--line);
+          font-size:.82rem;
+          color:var(--ink-soft);
+          text-align:center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="shell">
+
+    <header>
+        <div class="kicker">Document légal</div>
+        <h1>Politique de Confidentialité</h1>
+        <p class="sub">Akhdem Li met en relation prestataires de services et clients. Voici comment vos données sont collectées, utilisées et protégées.</p>
+        <div class="date">Dernière mise à jour : 13 juillet 2026</div>
+    </header>
+
+    <section id="intro">
+        <h2>Introduction</h2>
+        <p>L'application <strong>Akhdem Li</strong> est une plateforme de mise en relation entre prestataires de services et clients. Nous accordons une importance capitale à la protection de vos données personnelles.</p>
+    </section>
+
+    <section id="collecte">
+        <h2>Collecte des données</h2>
+        <p>Nous collectons les données suivantes pour assurer le bon fonctionnement du service :</p>
+        <ul>
+            <li><strong>Identité</strong> — nom, adresse e-mail et photo de profil via Google Sign-In et Firebase.</li>
+            <li><strong>Contact</strong> — numéro de téléphone pour la communication entre utilisateurs.</li>
+            <li><strong>Médias</strong> — photos téléchargées pour illustrer les services ou envoyées dans le chat.</li>
+        </ul>
+    </section>
+
+    <section id="permissions">
+        <h2>Utilisation des permissions sensibles</h2>
+        <div class="permit-list">
+            <div class="permit">
+                <h3>Localisation (GPS)</h3>
+                <p>Utilisée pour permettre aux clients de trouver des prestataires de services à proximité et pour optimiser les trajets de service.</p>
+            </div>
+            <div class="permit">
+                <h3>Service de premier plan</h3>
+                <p>Garantit la synchronisation en temps réel des messages du chat et le téléchargement des images vers Firebase Storage, même lorsque l'application est en arrière-plan.</p>
+            </div>
+            <div class="permit">
+                <h3>Appels téléphoniques</h3>
+                <p>Permet de lancer des appels vers les prestataires ou les clients pour faciliter la coordination des services réservés.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="firebase">
+        <h2>Stockage et tiers</h2>
+        <p>Vos données sont hébergées de manière sécurisée sur les serveurs de <strong>Google Firebase</strong>.</p>
+        <div class="note">Nous ne vendons ni ne louons vos données personnelles à des sociétés tierces à des fins marketing.</div>
+    </section>
+
+    <section id="suppression">
+        <h2>Suppression des données</h2>
+        <p>Conformément aux règles de Google Play, vous disposez d'un droit total sur vos données :</p>
+        <ul>
+            <li>Vous pouvez demander la <strong>suppression de votre compte</strong> directement dans les paramètres de l'application.</li>
+            <li>Vous pouvez également nous <strong>contacter par e-mail</strong> pour demander la suppression manuelle de vos données stockées sur Firebase.</li>
+        </ul>
+    </section>
+
+    <section id="contact">
+        <h2>Contact</h2>
+        <p>Pour toute question relative à vos données personnelles, vous pouvez contacter notre responsable de la protection des données :</p>
+        <div class="contact">
+            <span class="label">Email</span>
+            <a href="mailto:dif.yousra@gmail.com">dif.yousra@gmail.com</a>
+            <span class="label" style="margin-top:10px;">Développeur</span>
+            <span>Akhdem Li Team</span>
+        </div>
+    </section>
+
+    <footer>© 2026 Akhdem Li — Tous droits réservés.</footer>
+</div>
+
+</body>
+</html>

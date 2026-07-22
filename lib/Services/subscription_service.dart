@@ -231,11 +231,12 @@ class SubscriptionService {
   }
 
   Future<bool> activateSubscription({
+    required String userId,
     required String email,
     required String code,
   }) async {
     final codeRef = _firestore.collection(_codes).doc(code);
-    final userQuery = _firestore.collection(_users).where('email', isEqualTo: email.toLowerCase().trim()).limit(1);
+    final userRef = _firestore.collection(_users).doc(userId);
 
     return _firestore.runTransaction((tx) async {
       final codeSnap = await tx.get(codeRef);
@@ -257,9 +258,8 @@ class SubscriptionService {
         throw Exception('This code was not generated for your account');
       }
 
-      final userSnap = await userQuery.get();
-      if (userSnap.docs.isEmpty) throw Exception('User not found');
-      final userRef = userSnap.docs.first.reference;
+      final userSnap = await tx.get(userRef);
+      if (!userSnap.exists) throw Exception('User not found');
 
       tx.update(userRef, {
         'subscriptionActive': true,

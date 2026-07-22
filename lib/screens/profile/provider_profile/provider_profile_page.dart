@@ -1,3 +1,4 @@
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -59,6 +60,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     _loadProviderServices();
     _loadBookedCount();
     _loadServiceGallery();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadServiceGallery() async {
@@ -1102,22 +1109,63 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 15),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: IconButton(
-                onPressed: () => _makePhoneCall(_provider.phone),
-                icon: const Icon(Icons.phone_outlined, color: Colors.green),
-                padding: const EdgeInsets.all(16),
-              ),
+            const SizedBox(width: 12),
+            _buildSmallActionButton(
+              icon: FontAwesomeIcons.whatsapp,
+              color: Colors.green,
+              onTap: () => _openWhatsApp(_provider.phone),
+            ),
+            const SizedBox(width: 12),
+            _buildSmallActionButton(
+              icon: Icons.phone_outlined,
+              color: Colors.blue,
+              onTap: () => _makePhoneCall(_provider.phone),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildSmallActionButton({required IconData icon, required Color color, required VoidCallback onTap}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, color: color, size: 20),
+        padding: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _openWhatsApp(String phoneNumber) async {
+    String cleanPhone = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
+      cleanPhone = '213${cleanPhone.substring(1)}';
+    } else if (cleanPhone.length == 9 && !cleanPhone.startsWith('213')) {
+      cleanPhone = '213$cleanPhone';
+    }
+
+    final url = Uri.parse("https://wa.me/$cleanPhone");
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        final fallbackUrl = Uri.parse("whatsapp://send?phone=$cleanPhone");
+        if (await canLaunchUrl(fallbackUrl)) {
+          await launchUrl(fallbackUrl);
+        } else {
+          if (mounted) {
+            AppSnackBar.showError(context, _tr(context, 'error_launch_whatsapp'));
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
   }
 
   Widget _buildSectionCard(

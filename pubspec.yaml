@@ -2,7 +2,7 @@ name: service_app
 description: "A service booking application."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.8+9
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -113,6 +113,8 @@ flutter:
     - assets/images/2.png
     - assets/images/3.png
     - assets/logo_image/logo.png
+    - assets/images/home_pic.png
+    - assets/images/posts_pic.png
     # Translation files - ADD THESE LINES
     - assets/translations/en/
     - assets/translations/fr/

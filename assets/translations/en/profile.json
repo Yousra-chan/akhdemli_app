@@ -72,6 +72,9 @@
   "inactive": "Inactive",
   "expires": "Expires: {{date}}",
   "no_active_subscription": "No active subscription",
+  "admin_unlimited_access": "Unlimited Admin Access",
+  "admin_subscription_desc": "As an administrator, you have full access to all platform features without needing a paid subscription.",
+  "admin_lifetime_access": "Lifetime Admin Access",
   "need_subscription": "Need a subscription?",
   "contact_admin_instructions": "Contact admin directly on WhatsApp to purchase or activate your plan.",
   "contact_admin": "Contact Admin",
@@ -87,6 +90,8 @@
   "invalid_or_expired_code": "Invalid or expired code",
   "code_not_available_for_you": "This code is not assigned to you",
   "subscription_activated": "Subscription activated!",
+  "subscription_active_title": "Active Subscription",
+  "subscription_active_desc": "You already have an active subscription with full access to all provider features. You can contact admin if you wish to renew or change your plan.",
   "delete_my_account_cmd": "delete my account",
   "type_exact_to_confirm": "Please type \"{{cmd}}\" to confirm",
   "user_not_authenticated": "User not authenticated",
@@ -110,7 +115,12 @@
   "month_10": "10 Months",
   "month_11": "11 Months",
   "month_12": "12 Months (1 Year)",
-  "price_on_contact": "Price: Contact Admin",
+  "price_1": "200 DA",
+  "price_2": "350 DA",
+  "price_3": "500 DA",
+  "price_4": "650 DA",
+  "price_5": "800 DA",
+  "price_6": "900 DA",
   "error_changing_photo": "Error changing photo: {{error}}",
   "error_adding_image": "Error adding image: {{error}}",
 
@@ -122,5 +132,9 @@
     "cleaning": "Cleaning",
     "other": "Other",
     "general": "General"
-  }
+  },
+  "account": "Account",
+  "activity": "Activity",
+  "preferences": "Preferences",
+  "actions": "Actions"
 }
