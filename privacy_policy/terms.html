@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conditions d'Utilisation — Akhdem Li</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root{
+          --ink:#1c2230;
+          --ink-soft:#5b6270;
+          --paper:#faf9f6;
+          --line:#e6e4dd;
+          --accent:#2f5d50;
+          --accent-soft:#eef3f0;
+        }
+        *{box-sizing:border-box;}
+        html{scroll-behavior:smooth;}
+        body{
+          margin:0;
+          font-family:'Inter',-apple-system,sans-serif;
+          color:var(--ink);
+          background:var(--paper);
+          line-height:1.75;
+          font-size:16.5px;
+        }
+        .shell{max-width:680px;margin:0 auto;padding:80px 24px 100px;}
+
+        header{margin-bottom:64px;}
+        .kicker{
+          font-size:.78rem; letter-spacing:.12em; text-transform:uppercase;
+          color:var(--accent); font-weight:600; margin-bottom:14px;
+        }
+        h1{
+          font-family:'Fraunces', serif;
+          font-weight:600;
+          font-size:clamp(2.1rem, 5vw, 2.7rem);
+          line-height:1.15;
+          margin:0 0 14px;
+          letter-spacing:-0.01em;
+        }
+        header p.sub{
+          color:var(--ink-soft);
+          font-size:1.05rem;
+          margin:0 0 20px;
+          max-width:46ch;
+        }
+        header .date{
+          font-size:.85rem;
+          color:var(--ink-soft);
+          border-top:1px solid var(--line);
+          padding-top:16px;
+        }
+
+        section{margin-bottom:52px;}
+        section h2{
+          font-family:'Fraunces', serif;
+          font-weight:600;
+          font-size:1.4rem;
+          margin:0 0 18px;
+          color:var(--ink);
+        }
+        section p{color:var(--ink-soft); margin:0 0 14px;}
+        section p strong, section li strong{color:var(--ink); font-weight:600;}
+
+        ul{margin:0; padding:0; list-style:none;}
+        li{
+          position:relative;
+          padding:0 0 14px 20px;
+          color:var(--ink-soft);
+        }
+        li::before{
+          content:"–";
+          position:absolute; left:0; top:0;
+          color:var(--accent);
+        }
+
+        .contact{
+          border-top:1px solid var(--line);
+          padding-top:24px;
+          display:flex; flex-direction:column; gap:6px;
+        }
+        .contact a{color:var(--accent); text-decoration:none; font-weight:600;}
+        .contact a:hover{text-decoration:underline;}
+        .contact .label{font-size:.8rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em;}
+
+        footer{
+          margin-top:70px;
+          padding-top:24px;
+          border-top:1px solid var(--line);
+          font-size:.82rem;
+          color:var(--ink-soft);
+          text-align:center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="shell">
+
+    <header>
+        <div class="kicker">Document légal</div>
+        <h1>Conditions d'Utilisation</h1>
+        <p class="sub">Bienvenue sur Akhdem Li. En utilisant notre application, vous acceptez les présentes conditions.</p>
+        <div class="date">Dernière mise à jour : 19 août 2026</div>
+    </header>
+
+    <section id="acceptation">
+        <h2>1. Acceptation des conditions</h2>
+        <p>En accédant à l'application <strong>Akhdem Li</strong>, vous acceptez d'être lié par ces conditions d'utilisation, toutes les lois et réglementations applicables.</p>
+    </section>
+
+    <section id="service">
+        <h2>2. Description du service</h2>
+        <p>Akhdem Li est une plateforme de mise en relation. Nous ne sommes pas employeurs des prestataires et ne garantissons pas la qualité finale des travaux, bien que nous mettions en place des systèmes d'évaluation pour assurer la confiance.</p>
+    </section>
+
+    <section id="conduite">
+        <h2>3. Conduite de l'utilisateur</h2>
+        <p>Les utilisateurs s'engagent à :</p>
+        <ul>
+            <li>Fournir des informations exactes lors de l'inscription.</li>
+            <li>Ne pas utiliser le service à des fins illégales ou frauduleuses.</li>
+            <li>Respecter les autres membres de la communauté dans les échanges.</li>
+        </ul>
+    </section>
+
+    <section id="resiliation">
+        <h2>4. Résiliation</h2>
+        <p>Nous nous réservons le droit de suspendre ou de fermer votre compte en cas de non-respect flagrant des présentes conditions.</p>
+    </section>
+
+    <section id="contact">
+        <h2>Contact</h2>
+        <p>Pour toute question relative aux conditions d'utilisation :</p>
+        <div class="contact">
+            <span class="label">Email</span>
+            <a href="mailto:dif.yousra@gmail.com">dif.yousra@gmail.com</a>
+            <span class="label" style="margin-top:10px;">Développeur</span>
+            <span>Akhdem Li Team</span>
+        </div>
+    </section>
+
+    <footer>© 2026 Akhdem Li — Tous droits réservés.</footer>
+</div>
+
+</body>
+</html>
