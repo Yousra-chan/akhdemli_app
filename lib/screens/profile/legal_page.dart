@@ -94,6 +94,15 @@ class LegalPage extends StatelessWidget {
                 sectionTitleColor,
                 bodyTextColor,
               ),
+              if (type == LegalType.privacy) ...[
+                Divider(height: 40, color: dividerColor),
+                _buildSection(
+                  lang.tr('privacy_section3_title', category: 'about_us'),
+                  lang.tr('privacy_section3_content', category: 'about_us'),
+                  sectionTitleColor,
+                  bodyTextColor,
+                ),
+              ],
               Divider(height: 40, color: dividerColor),
               _buildSection(
                 lang.tr('legal_contact_title', category: 'about_us'),
