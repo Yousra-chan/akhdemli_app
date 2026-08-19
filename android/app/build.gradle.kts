@@ -23,9 +23,9 @@ android {
     defaultConfig {
         applicationId = "com.akhdemli.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
-        versionCode = 17
-        versionName = "1.2.2"
+        targetSdk = 36
+        versionCode = 18
+        versionName = "1.2.3"
     }
 
     signingConfigs {
