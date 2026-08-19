@@ -68,7 +68,7 @@ class LegalPage extends StatelessWidget {
             children: [
               _buildSection(
                 lang.tr('legal_last_updated', category: 'about_us'),
-                '${lang.tr('november', category: 'common')} 2024',
+                '${lang.tr('february', category: 'common')} 2025',
                 sectionTitleColor,
                 bodyTextColor,
               ),
